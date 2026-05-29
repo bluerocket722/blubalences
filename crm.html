@@ -218,13 +218,6 @@ select.field-input:focus{border-color:#1a73e8;outline:none}
 #login-overlay .login-btn{width:100%;background:#22c55e;color:#fff;border:none;border-radius:10px;padding:13px;font-size:16px;font-weight:600;cursor:pointer;transition:background .2s;margin-top:18px}
 #login-overlay .login-btn:hover{background:#16a34a}
 #login-overlay .login-err{color:#f87171;font-size:13px;margin-top:12px;text-align:center;min-height:20px}
-  /* ── CALLBACK PICKER ── */
-#callbackPickerModal { position:fixed; inset:0; z-index:2147483647; background:rgba(0,0,0,.78); backdrop-filter:blur(6px); align-items:center; justify-content:center; }
-.cb-quick { background:#35363a; border:1px solid rgba(255,255,255,.15); color:#9aa0a6; padding:6px 12px; border-radius:20px; font-size:12px; font-weight:500; cursor:pointer; font-family:inherit; transition:all .12s; }
-.cb-quick:hover { color:#e8eaed; border-color:rgba(26,115,232,.5); background:#3c3d42; }
-.cb-field { background:#35363a; border:1px solid rgba(255,255,255,.15); border-radius:8px; padding:10px; color:#e8eaed; font-size:14px; width:100%; outline:none; }
-.cb-field:focus { border-color:rgba(26,115,232,.5); }
-#due-callbacks-badge { display:none; background:#16a34a; color:#fff; font-size:11px; font-weight:600; padding:2px 8px; border-radius:99px; margin-left:6px; }
 </style>
 </head>
 <body>
@@ -560,7 +553,7 @@ async function checkSession() {
 }
 const GHL_WEBHOOK      = "https://hook.us1.make.com/YOUR_GHL_WEBHOOK";
 const EMAIL_WEBHOOK    = "https://hook.us1.make.com/YOUR_EMAIL_WEBHOOK";
-const CALENDAR_WEBHOOK = "https://hook.us1.make.com/YOUR_CALENDAR_WEBHOOK";
+const CALENDAR_WEBHOOK = "https://hook.us1.make.com/e3av1w86ovv5w89fs3hwq50aln33oq3c";
 const QUO_API_KEY      = "3845462ba2868731cad1e93bd94a023b93e9d940df5bd3881ad649810fbc4146";
 
 const DISPOS = {
@@ -625,25 +618,14 @@ function mergeLeads(group) {
 async function loadLeads() {
   try {
     const today = new Date().toISOString().split('T')[0];
-    const [tagsRes, leadTagsRes, actRes] = await Promise.all([
+    const [leadsRes, tagsRes, leadTagsRes, actRes] = await Promise.all([
+      fetch(db("crm_leads?select=*&order=created_at.desc"), { headers: hdr() }),
       fetch(db("crm_tags?order=name.asc"), { headers: hdr() }),
-      fetch(db("crm_lead_tags?select=lead_id,tag_id&limit=50000"), { headers: hdr() }),
+      fetch(db("crm_lead_tags?select=lead_id,tag_id"), { headers: hdr() }),
       fetch(db(`crm_daily_activity?date=eq.${today}`), { headers: hdr() }),
     ]);
-
-    // Paginate leads — Supabase returns max 1000 per request
-    allLeads = [];
-    let offset = 0;
-    const PAGE = 1000;
-    while (true) {
-      const res = await fetch(db(`crm_leads?select=*&order=created_at.desc&limit=${PAGE}&offset=${offset}`), { headers: hdr() });
-      if (!res.ok) throw new Error(await res.text());
-      const batch = await res.json();
-      allLeads = allLeads.concat(batch);
-      if (batch.length < PAGE) break;
-      offset += PAGE;
-    }
-
+    if (!leadsRes.ok) throw new Error(await leadsRes.text());
+    allLeads = await leadsRes.json();
     allTags = tagsRes.ok ? await tagsRes.json() : [];
     const ltRows = leadTagsRes.ok ? await leadTagsRes.json() : [];
     leadTagsMap = {};
@@ -730,10 +712,16 @@ function renderInfoTab() {
   const l=currentLead;
   const mapsLink=l.google_maps_link?`<a href="${esc(l.google_maps_link)}" target="_blank" style="color:#8ab4f8;font-size:12px;text-decoration:none">📍 Maps</a>`:"";
   const webLink=l.website?`<a href="${esc(l.website)}" target="_blank" style="color:#8ab4f8;font-size:12px;text-decoration:none">🌐 Website</a>`:"";
+  const extPhones=_parseExtras(l.extra_phones);
+  const extEmails=_parseExtras(l.extra_emails);
+  const extraPhonesHtml=extPhones.map(p=>`<div style="display:flex;gap:6px;margin-bottom:6px;"><input class="field-input extra-phone-input" value="${esc(p)}" placeholder="Phone number" style="flex:1;"><button onclick="this.parentElement.remove()" style="background:#d93025;border:none;color:#fff;padding:4px 10px;border-radius:8px;cursor:pointer;font-size:12px;flex-shrink:0;">✕</button></div>`).join('');
+  const extraEmailsHtml=extEmails.map(e=>`<div style="display:flex;gap:6px;margin-bottom:6px;"><input class="field-input extra-email-input" type="email" value="${esc(e)}" placeholder="Email address" style="flex:1;"><button onclick="this.parentElement.remove()" style="background:#d93025;border:none;color:#fff;padding:4px 10px;border-radius:8px;cursor:pointer;font-size:12px;flex-shrink:0;">✕</button></div>`).join('');
   document.getElementById("panel-body").innerHTML=`
     <div class="field-group"><label class="field-label">Business Name</label><input class="field-input" id="e-business_name" value="${esc(l.business_name)}"></div>
-    <div class="grid-2"><div class="field-group"><label class="field-label">Contact Name</label><input class="field-input" id="e-contact_name" value="${esc(l.contact_name||'')}"></div><div class="field-group"><label class="field-label">Phone</label><input class="field-input" id="e-phone" value="${esc(l.phone||'')}"></div></div>
-    <div class="field-group"><label class="field-label">Email</label><input class="field-input" id="e-email" type="email" value="${esc(l.email||'')}"></div>
+    <div class="grid-2"><div class="field-group"><label class="field-label">Contact Name</label><input class="field-input" id="e-contact_name" value="${esc(l.contact_name||'')}"></div><div class="field-group"><label class="field-label">Primary Phone</label><input class="field-input" id="e-phone" value="${esc(l.phone||'')}"></div></div>
+    <div class="field-group"><label class="field-label" style="display:flex;justify-content:space-between;align-items:center;">Extra Phones <button onclick="addExtraPhone()" style="background:#1a73e8;border:none;color:#fff;padding:2px 10px;border-radius:99px;cursor:pointer;font-size:11px;font-weight:500;">+ Add</button></label><div id="extra-phones-list">${extraPhonesHtml}</div></div>
+    <div class="field-group"><label class="field-label">Primary Email</label><input class="field-input" id="e-email" type="email" value="${esc(l.email||'')}"></div>
+    <div class="field-group"><label class="field-label" style="display:flex;justify-content:space-between;align-items:center;">Extra Emails <button onclick="addExtraEmail()" style="background:#1a73e8;border:none;color:#fff;padding:2px 10px;border-radius:99px;cursor:pointer;font-size:11px;font-weight:500;">+ Add</button></label><div id="extra-emails-list">${extraEmailsHtml}</div></div>
     <div class="field-group"><label class="field-label">Address</label><input class="field-input" id="e-address" value="${esc(l.address||'')}"></div>
     <div class="grid-3"><div class="field-group"><label class="field-label">City</label><input class="field-input" id="e-city" value="${esc(l.city||'')}"></div><div class="field-group"><label class="field-label">State</label><input class="field-input" id="e-state" value="${esc(l.state||'')}"></div><div class="field-group"><label class="field-label">County</label><input class="field-input" id="e-county" value="${esc(l.county||'')}"></div></div>
     <div class="field-group"><label class="field-label">Website</label><input class="field-input" id="e-website" value="${esc(l.website||'')}"></div>
@@ -794,9 +782,35 @@ async function setDispo(newDispo) {
   } catch(e){showToast("Failed to update dispo","error");}
 }
 
+function addExtraPhone() {
+  const list=document.getElementById('extra-phones-list');
+  if(!list)return;
+  const div=document.createElement('div');
+  div.style.cssText='display:flex;gap:6px;margin-bottom:6px;';
+  div.innerHTML=`<input class="field-input extra-phone-input" placeholder="Phone number" style="flex:1;"><button onclick="this.parentElement.remove()" style="background:#d93025;border:none;color:#fff;padding:4px 10px;border-radius:8px;cursor:pointer;font-size:12px;flex-shrink:0;">✕</button>`;
+  list.appendChild(div);
+  list.querySelector('.extra-phone-input:last-of-type')?.focus?.();
+}
+
+function addExtraEmail() {
+  const list=document.getElementById('extra-emails-list');
+  if(!list)return;
+  const div=document.createElement('div');
+  div.style.cssText='display:flex;gap:6px;margin-bottom:6px;';
+  div.innerHTML=`<input class="field-input extra-email-input" type="email" placeholder="Email address" style="flex:1;"><button onclick="this.parentElement.remove()" style="background:#d93025;border:none;color:#fff;padding:4px 10px;border-radius:8px;cursor:pointer;font-size:12px;flex-shrink:0;">✕</button>`;
+  list.appendChild(div);
+}
+
+function _parseExtras(val) {
+  if(!val)return[];
+  try{return JSON.parse(val);}catch{return val.split(',').map(s=>s.trim()).filter(Boolean);}
+}
+
 async function saveCurrentLead() {
   if(!currentLead)return;
-  const payload={business_name:document.getElementById("e-business_name").value.trim(),contact_name:document.getElementById("e-contact_name").value.trim()||null,phone:document.getElementById("e-phone").value.trim()||null,email:document.getElementById("e-email").value.trim()||null,address:document.getElementById("e-address").value.trim()||null,city:document.getElementById("e-city").value.trim()||null,state:document.getElementById("e-state").value.trim()||null,county:document.getElementById("e-county").value.trim()||null,website:document.getElementById("e-website").value.trim()||null,rating:parseFloat(document.getElementById("e-rating").value)||null,reviews:parseInt(document.getElementById("e-reviews").value)||null,follow_up_date:document.getElementById("e-follow_up_date").value||null,appointment_date:document.getElementById("e-appointment_date").value||null,last_called_date:document.getElementById("e-last_called_date").value||null,google_maps_link:document.getElementById("e-google_maps_link").value.trim()||null};
+  const extraPhones=[...document.querySelectorAll('.extra-phone-input')].map(el=>el.value.trim()).filter(Boolean);
+  const extraEmails=[...document.querySelectorAll('.extra-email-input')].map(el=>el.value.trim()).filter(Boolean);
+  const payload={business_name:document.getElementById("e-business_name").value.trim(),contact_name:document.getElementById("e-contact_name").value.trim()||null,phone:document.getElementById("e-phone").value.trim()||null,email:document.getElementById("e-email").value.trim()||null,address:document.getElementById("e-address").value.trim()||null,city:document.getElementById("e-city").value.trim()||null,state:document.getElementById("e-state").value.trim()||null,county:document.getElementById("e-county").value.trim()||null,website:document.getElementById("e-website").value.trim()||null,rating:parseFloat(document.getElementById("e-rating").value)||null,reviews:parseInt(document.getElementById("e-reviews").value)||null,follow_up_date:document.getElementById("e-follow_up_date").value||null,appointment_date:document.getElementById("e-appointment_date").value||null,last_called_date:document.getElementById("e-last_called_date").value||null,google_maps_link:document.getElementById("e-google_maps_link").value.trim()||null,extra_phones:extraPhones.length?JSON.stringify(extraPhones):null,extra_emails:extraEmails.length?JSON.stringify(extraEmails):null};
   if(!payload.business_name){showToast("Business name required","error");return;}
   try {
     const res=await fetch(db(`crm_leads?id=eq.${currentLead.id}`),{method:"PATCH",headers:hdr(),body:JSON.stringify(payload)});
@@ -1054,10 +1068,10 @@ function updateDialerCount() {
   if(useFilter){count=filteredLeads.length;}
   else{
     const selDispos=new Set([...document.querySelectorAll('.dd-check:checked')].map(el=>el.value));
-        count=allLeads.filter(l=>{
+    count=allLeads.filter(l=>{
       const matchDispo=selDispos.has(l.dispo);
-      const matchTag=dialerTagIds.length===0||dialerTagIds.some(tid=>(leadTagsMap[l.id]||[]).includes(tid));
-      return matchDispo&&matchTag;
+      const matchTag=dialerTagIds.length>0&&dialerTagIds.some(tid=>(leadTagsMap[l.id]||[]).includes(tid));
+      return matchDispo||matchTag;
     }).length;
   }
   document.getElementById('dialer-queue-count').textContent=count;
@@ -1071,15 +1085,10 @@ function startDialerSession() {
     const selDispos=new Set([...document.querySelectorAll('.dd-check:checked')].map(el=>el.value));
     dialerQueue=allLeads.filter(l=>{
       const matchDispo=selDispos.has(l.dispo);
-      const matchTag=dialerTagIds.length===0||dialerTagIds.some(tid=>(leadTagsMap[l.id]||[]).includes(tid));
-      return matchDispo&&matchTag;
+      const matchTag=dialerTagIds.length>0&&dialerTagIds.some(tid=>(leadTagsMap[l.id]||[]).includes(tid));
+      return matchDispo||matchTag;
     });
   }
-  // Auto-inject overdue callbacks at the front
-  const now=new Date();
-  const queueIds=new Set(dialerQueue.map(l=>l.id));
-  const dueCallbacks=allLeads.filter(l=>l.dispo==='call_back'&&l.callback_at&&new Date(l.callback_at)<=now&&!queueIds.has(l.id)).sort((a,b)=>new Date(a.callback_at)-new Date(b.callback_at));
-  if(dueCallbacks.length){dialerQueue=[...dueCallbacks,...dialerQueue];showToast(`${dueCallbacks.length} overdue callback${dueCallbacks.length!==1?'s':''} added to front of queue`,'success');}
   if(!dialerQueue.length){showToast('No leads to dial','error');return;}
   dialerIndex=0; dialerStats={called:0,connected:0,voicemail:0,noAnswer:0,appointments:0};
   document.getElementById('dialer-setup-modal').classList.remove('open');
@@ -1122,7 +1131,7 @@ function renderDialerLead() {
     ${lead.email?`<div class="d-info-row"><span class="d-info-icon">✉</span>${esc(lead.email)}</div>`:''}
     ${lead.website?`<div class="d-info-row"><span class="d-info-icon">🌐</span><a href="${esc(lead.website)}" target="_blank" style="color:#8ab4f8;font-size:13px;word-break:break-all">${esc(lead.website)}</a></div>`:''}
     ${lead.google_maps_link?`<div class="d-info-row"><span class="d-info-icon">🗺</span><a href="${esc(lead.google_maps_link)}" target="_blank" style="color:#8ab4f8;font-size:13px">Open Maps</a></div>`:''}
-    ${lead.callback_at ? `<div class="d-info-row" style="color:#4ade80;font-weight:500"><span class="d-info-icon">⏰</span>Callback scheduled: ${new Date(lead.callback_at).toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}</div>` : lead.follow_up_date ? `<div class="d-info-row"><span class="d-info-icon">📅</span>Call back: ${lead.follow_up_date}</div>` : ''}
+    ${lead.follow_up_date?`<div class="d-info-row"><span class="d-info-icon">📅</span>Call back: ${lead.follow_up_date}</div>`:''}
     ${lead.notes?`<div style="margin-top:14px"><div class="d-section-label">Notes</div><div class="d-notes-box">${esc(lead.notes)}</div></div>`:''}
     <div style="margin-top:16px"><div class="d-section-label">Quick Note</div><textarea id="d-quick-note" class="d-quick-note" placeholder="Note about this call..."></textarea></div>`;
 
@@ -1130,12 +1139,14 @@ function renderDialerLead() {
     `<button class="d-dispo-btn" style="background:${dsp.color}" id="d-dispo-${key}" onclick="dialerSetDispo('${key}')">${dsp.label}</button>`
   ).join('');
 
+  const _allPhones=[lead.phone].concat(_parseExtras(lead.extra_phones)).filter(Boolean);
+  const _phoneControl=_allPhones.length>1
+    ?`<select id="d-phone-select" class="d-phone-edit">${_allPhones.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('')}</select>`
+    :`<input type="tel" id="d-phone-select" class="d-phone-edit" value="${esc(lead.phone||'')}" placeholder="No phone number" ${!lead.phone?'disabled':''}>`;
   document.getElementById('d-controls-panel').innerHTML=`
     <div>
       <div class="d-section-label">Number to Dial</div>
-      <input type="tel" id="d-phone-select" class="d-phone-edit"
-        value="${esc(lead.phone||'')}" placeholder="No phone number"
-        ${!lead.phone?'disabled':''}>
+      ${_phoneControl}
       <button class="d-call-btn ready" id="d-call-btn" onclick="dialerCall()" ${!lead.phone?'disabled':''}>
         📞 Call Now
       </button>
@@ -1268,63 +1279,109 @@ async function dialerCall() {
 }
 
 async function dialerSetDispo(newDispo) {
-  if (newDispo === 'call_back') { _openCallbackPicker(); return; }
+  if (newDispo === 'call_back')   { _openCallbackPicker(); return; }
+  if (newDispo === 'appointment') { _openApptPicker();    return; }
   await _saveDialerDispo(newDispo);
 }
 
+// ── CALLBACK PICKER ──────────────────────────────────────────────────────────
 function _openCallbackPicker() {
-  const lead = dialerQueue[dialerIndex];
-  const namEl = document.getElementById('cb-lead-name');
-  if (namEl) namEl.textContent = lead ? (lead.business_name || lead.contact_name || '') : '';
-  const d = new Date(); d.setDate(d.getDate() + 1);
-  document.getElementById('cb-date').value = d.toISOString().split('T')[0];
-  document.getElementById('cb-time').value = '09:00';
-  document.getElementById('callbackPickerModal').style.display = 'flex';
+  const lead=dialerQueue[dialerIndex];
+  const namEl=document.getElementById('cb-lead-name');
+  if(namEl)namEl.textContent=lead?(lead.business_name||lead.contact_name||''):'';
+  const d=new Date();d.setDate(d.getDate()+1);
+  document.getElementById('cb-date').value=d.toISOString().split('T')[0];
+  document.getElementById('cb-time').value='09:00';
+  document.getElementById('callbackPickerModal').style.display='flex';
 }
-
-function cancelCallbackPicker() {
-  document.getElementById('callbackPickerModal').style.display = 'none';
+function cancelCallbackPicker(){document.getElementById('callbackPickerModal').style.display='none';}
+function setCallbackQuick(amount,unit,time){
+  const d=new Date();
+  if(unit==='hours'){d.setHours(d.getHours()+amount);document.getElementById('cb-date').value=d.toISOString().split('T')[0];document.getElementById('cb-time').value=`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;}
+  else{d.setDate(d.getDate()+amount);document.getElementById('cb-date').value=d.toISOString().split('T')[0];document.getElementById('cb-time').value=time||'09:00';}
 }
-
-function setCallbackQuick(amount, unit, time) {
-  const d = new Date();
-  if (unit === 'hours') {
-    d.setHours(d.getHours() + amount);
-    document.getElementById('cb-date').value = d.toISOString().split('T')[0];
-    document.getElementById('cb-time').value = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-  } else {
-    d.setDate(d.getDate() + amount);
-    document.getElementById('cb-date').value = d.toISOString().split('T')[0];
-    document.getElementById('cb-time').value = time || '09:00';
-  }
-}
-
-async function confirmCallbackDispo() {
-  const date = document.getElementById('cb-date').value;
-  const time = document.getElementById('cb-time').value || '09:00';
-  if (!date) { showToast('Please pick a date', 'error'); return; }
-  document.getElementById('callbackPickerModal').style.display = 'none';
-  const callbackAt = new Date(`${date}T${time}:00`).toISOString();
-  const lead = dialerQueue[dialerIndex];
-  if (lead) {
-    try {
-      await fetch(db(`crm_leads?id=eq.${lead.id}`), {
-        method:'PATCH', headers:hdr(),
-        body:JSON.stringify({ follow_up_date:date, callback_at:callbackAt })
-      });
-      lead.follow_up_date = date; lead.callback_at = callbackAt;
-      const idx = allLeads.findIndex(l => l.id === lead.id);
-      if (idx !== -1) { allLeads[idx].follow_up_date = date; allLeads[idx].callback_at = callbackAt; }
-    } catch(e) {}
+async function confirmCallbackDispo(){
+  const date=document.getElementById('cb-date').value;
+  const time=document.getElementById('cb-time').value||'09:00';
+  if(!date){showToast('Please pick a date','error');return;}
+  document.getElementById('callbackPickerModal').style.display='none';
+  const callbackAt=new Date(`${date}T${time}:00`).toISOString();
+  const lead=dialerQueue[dialerIndex];
+  if(lead){
+    try{
+      await fetch(db(`crm_leads?id=eq.${lead.id}`),{method:'PATCH',headers:hdr(),body:JSON.stringify({follow_up_date:date,callback_at:callbackAt})});
+      lead.follow_up_date=date;lead.callback_at=callbackAt;
+      const idx=allLeads.findIndex(l=>l.id===lead.id);
+      if(idx!==-1){allLeads[idx].follow_up_date=date;allLeads[idx].callback_at=callbackAt;}
+    }catch(e){}
   }
   await _saveDialerDispo('call_back');
 }
 
+// ── APPOINTMENT PICKER ───────────────────────────────────────────────────────
+function _openApptPicker(){
+  const lead=dialerQueue[dialerIndex];
+  if(!lead)return;
+  document.getElementById('ap-title').value=lead.business_name||'';
+  document.getElementById('ap-client').value=lead.contact_name||'';
+  document.getElementById('ap-email').value=lead.email||'';
+  document.getElementById('ap-notes').value='';
+  const phones=[lead.phone].concat(_parseExtras(lead.extra_phones)).filter(Boolean);
+  const wrap=document.getElementById('ap-phone-wrap');
+  wrap.innerHTML=phones.length>1
+    ?`<select id="ap-phone" class="ap-field">${phones.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('')}</select>`
+    :`<input type="tel" id="ap-phone" class="ap-field" value="${esc(phones[0]||'')}" placeholder="Phone">`;
+  const d=new Date();d.setDate(d.getDate()+1);
+  document.getElementById('ap-date').value=d.toISOString().split('T')[0];
+  document.getElementById('ap-time').value='10:00';
+  document.getElementById('apptPickerModal').style.display='flex';
+}
+function cancelApptPicker(){document.getElementById('apptPickerModal').style.display='none';}
+async function confirmApptDispo(){
+  const title=document.getElementById('ap-title').value.trim();
+  const client=document.getElementById('ap-client').value.trim();
+  const phone=(document.getElementById('ap-phone')?.value||'').trim();
+  const email=document.getElementById('ap-email').value.trim();
+  const date=document.getElementById('ap-date').value;
+  const time=document.getElementById('ap-time').value;
+  const tz=document.getElementById('ap-tz').value;
+  const notes=document.getElementById('ap-notes').value.trim();
+  if(!title||!date||!time){showToast('Title, date and time required','error');return;}
+  document.getElementById('apptPickerModal').style.display='none';
+  function _localToUtc(ds,ts,timezone){
+    const base=new Date(`${ds}T${ts}:00`);
+    const[wH,wM]=ts.split(':').map(Number);
+    const parts=new Intl.DateTimeFormat('en-US',{timeZone:timezone,hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(base);
+    const tzH=parseInt(parts.find(p=>p.type==='hour').value);
+    const tzM=parseInt(parts.find(p=>p.type==='minute').value);
+    return new Date(base.getTime()+((wH-tzH)*60+(wM-tzM))*60000).toISOString();
+  }
+  const apptUtc=_localToUtc(date,time,tz);
+  const lead=dialerQueue[dialerIndex];
+  const apptPayload={name:title,client_name:client||null,phone:phone.replace(/\D/g,'')||null,email:email||null,notes:notes||null,appointment_utc:apptUtc,timezone:tz};
+  try{
+    const res=await fetch(db('appointments'),{method:'POST',headers:{...hdr(),'Prefer':'return=representation'},body:JSON.stringify(apptPayload)});
+    const saved=res.ok?await res.json():[];
+    const savedAppt=Array.isArray(saved)?saved[0]:saved;
+    fetch(CALENDAR_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'notify',name:title,client_name:client||null,phone:phone||null,email:email||null,notes:notes||null,appointment_utc:apptUtc,timezone:tz,appointment_id:savedAppt?.id||null,dispo:'pending',source:'crm_dialer',lead_id:lead?.id||null})
+    }).catch(e=>console.warn('Calendar webhook failed:',e));
+    if(lead){
+      await fetch(db(`crm_leads?id=eq.${lead.id}`),{method:'PATCH',headers:hdr(),body:JSON.stringify({appointment_date:date})});
+      lead.appointment_date=date;
+      const idx=allLeads.findIndex(l=>l.id===lead.id);
+      if(idx!==-1)allLeads[idx].appointment_date=date;
+    }
+    showToast('Appointment booked & notification sent!','success');
+  }catch(e){console.error('Appt save error:',e);showToast('Dispo saved but appointment save failed','error');}
+  await _saveDialerDispo('appointment');
+}
+
+// ── CORE DISPO SAVE ──────────────────────────────────────────────────────────
 async function _saveDialerDispo(newDispo) {
   const lead = dialerQueue[dialerIndex];
   if (!lead) return;
 
-  // Cancel all timers and reset call UI immediately
   if (autoDialTmo)  { clearTimeout(autoDialTmo);   autoDialTmo  = null; }
   if (autoAdvanceTmo){ clearTimeout(autoAdvanceTmo); autoAdvanceTmo = null; }
   if (countdownInt) { clearInterval(countdownInt);  countdownInt = null; }
@@ -1393,6 +1450,7 @@ async function _saveDialerDispo(newDispo) {
     autoAdvanceTmo = setTimeout(() => { dialerNext(); }, autoAdvanceSec * 1000);
   }
 }
+
 function dialerNext() {
   clearDialerTimers();
   dialerIndex++;
@@ -1740,24 +1798,83 @@ async function saveTodayActivity() {
   loadLeads();
 })();
 </script>
-  <!-- CALLBACK PICKER MODAL -->
-<div id="callbackPickerModal" style="display:none">
+
+<!-- CALLBACK PICKER MODAL -->
+<div id="callbackPickerModal" style="display:none;position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.78);backdrop-filter:blur(6px);align-items:center;justify-content:center;">
   <div style="background:#292a2d;border:1px solid rgba(255,255,255,.15);border-radius:16px;padding:24px;width:90%;max-width:340px;box-shadow:0 24px 64px rgba(0,0,0,.5);">
     <div style="font-size:15px;font-weight:500;color:#e8eaed;margin-bottom:4px;">📅 Schedule Call Back</div>
     <div style="font-size:12px;color:#9aa0a6;margin-bottom:16px;" id="cb-lead-name"></div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">
-      <button class="cb-quick" onclick="setCallbackQuick(2,'hours')">In 2 hrs</button>
-      <button class="cb-quick" onclick="setCallbackQuick(1,'days','09:00')">Tomorrow 9am</button>
-      <button class="cb-quick" onclick="setCallbackQuick(1,'days','14:00')">Tomorrow 2pm</button>
-      <button class="cb-quick" onclick="setCallbackQuick(7,'days','09:00')">Next week</button>
+      <button onclick="setCallbackQuick(2,'hours')" style="background:#35363a;border:1px solid rgba(255,255,255,.15);color:#9aa0a6;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;">In 2 hrs</button>
+      <button onclick="setCallbackQuick(1,'days','09:00')" style="background:#35363a;border:1px solid rgba(255,255,255,.15);color:#9aa0a6;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;">Tomorrow 9am</button>
+      <button onclick="setCallbackQuick(1,'days','14:00')" style="background:#35363a;border:1px solid rgba(255,255,255,.15);color:#9aa0a6;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;">Tomorrow 2pm</button>
+      <button onclick="setCallbackQuick(7,'days','09:00')" style="background:#35363a;border:1px solid rgba(255,255,255,.15);color:#9aa0a6;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;">Next week</button>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:16px;">
-      <input type="date" id="cb-date" class="cb-field" style="flex:1">
-      <input type="time" id="cb-time" class="cb-field" style="width:110px">
+      <input type="date" id="cb-date" style="background:#35363a;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:10px;color:#e8eaed;font-size:14px;flex:1;outline:none;">
+      <input type="time" id="cb-time" style="background:#35363a;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:10px;color:#e8eaed;font-size:14px;width:110px;outline:none;">
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
       <button onclick="cancelCallbackPicker()" style="background:#35363a;border:1px solid rgba(255,255,255,.15);color:#9aa0a6;padding:9px 16px;border-radius:20px;font-size:13px;cursor:pointer;font-family:inherit;">Cancel</button>
       <button onclick="confirmCallbackDispo()" style="background:#16a34a;border:none;color:#fff;padding:9px 20px;border-radius:20px;font-size:13px;cursor:pointer;font-family:inherit;font-weight:500;">Save Call Back</button>
+    </div>
+  </div>
+</div>
+
+<!-- APPOINTMENT PICKER MODAL -->
+<div id="apptPickerModal" style="display:none;position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.78);backdrop-filter:blur(6px);align-items:center;justify-content:center;">
+  <div style="background:#292a2d;border:1px solid rgba(255,255,255,.15);border-radius:16px;padding:24px;width:92%;max-width:420px;max-height:92vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.5);">
+    <div style="font-size:15px;font-weight:500;color:#e8eaed;margin-bottom:16px;">📅 Book Appointment</div>
+    <div style="display:grid;gap:12px;">
+      <div>
+        <label style="font-size:11px;color:#9aa0a6;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px;">Title *</label>
+        <input type="text" id="ap-title" style="background:#35363a;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:10px;color:#e8eaed;font-size:14px;width:100%;outline:none;" placeholder="Appointment title">
+      </div>
+      <div>
+        <label style="font-size:11px;color:#9aa0a6;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px;">Client Name</label>
+        <input type="text" id="ap-client" style="background:#35363a;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:10px;color:#e8eaed;font-size:14px;width:100%;outline:none;" placeholder="Contact name">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div>
+          <label style="font-size:11px;color:#9aa0a6;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px;">Phone</label>
+          <div id="ap-phone-wrap"><input type="tel" id="ap-phone" style="background:#35363a;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:10px;color:#e8eaed;font-size:14px;width:100%;outline:none;" placeholder="Phone"></div>
+        </div>
+        <div>
+          <label style="font-size:11px;color:#9aa0a6;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px;">Email</label>
+          <input type="email" id="ap-email" style="background:#35363a;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:10px;color:#e8eaed;font-size:14px;width:100%;outline:none;" placeholder="Email">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div>
+          <label style="font-size:11px;color:#9aa0a6;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px;">Date *</label>
+          <input type="date" id="ap-date" style="background:#35363a;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:10px;color:#e8eaed;font-size:14px;width:100%;outline:none;">
+        </div>
+        <div>
+          <label style="font-size:11px;color:#9aa0a6;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px;">Time *</label>
+          <input type="time" id="ap-time" style="background:#35363a;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:10px;color:#e8eaed;font-size:14px;width:100%;outline:none;">
+        </div>
+      </div>
+      <div>
+        <label style="font-size:11px;color:#9aa0a6;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px;">Timezone</label>
+        <select id="ap-tz" style="background:#35363a;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:10px;color:#e8eaed;font-size:14px;width:100%;outline:none;">
+          <option value="America/New_York">Eastern (EST/EDT)</option>
+          <option value="America/Chicago">Central (CST/CDT)</option>
+          <option value="America/Denver">Mountain (MST/MDT)</option>
+          <option value="America/Los_Angeles">Pacific (PST/PDT)</option>
+          <option value="America/Phoenix">Arizona (MST)</option>
+          <option value="America/Anchorage">Alaska (AKST)</option>
+          <option value="Pacific/Honolulu">Hawaii (HST)</option>
+          <option value="UTC">UTC</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:11px;color:#9aa0a6;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px;">Notes</label>
+        <textarea id="ap-notes" rows="3" style="background:#35363a;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:10px;color:#e8eaed;font-size:14px;width:100%;outline:none;resize:vertical;font-family:inherit;" placeholder="Additional details…"></textarea>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end;">
+      <button onclick="cancelApptPicker()" style="background:#35363a;border:1px solid rgba(255,255,255,.15);color:#9aa0a6;padding:9px 16px;border-radius:20px;font-size:13px;cursor:pointer;font-family:inherit;">Cancel</button>
+      <button onclick="confirmApptDispo()" style="background:#1a73e8;border:none;color:#fff;padding:9px 20px;border-radius:20px;font-size:13px;cursor:pointer;font-family:inherit;font-weight:500;">Book Appointment</button>
     </div>
   </div>
 </div>
