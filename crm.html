@@ -625,14 +625,25 @@ function mergeLeads(group) {
 async function loadLeads() {
   try {
     const today = new Date().toISOString().split('T')[0];
-    const [leadsRes, tagsRes, leadTagsRes, actRes] = await Promise.all([
-      fetch(db("crm_leads?select=*&order=created_at.desc"), { headers: hdr() }),
+    const [tagsRes, leadTagsRes, actRes] = await Promise.all([
       fetch(db("crm_tags?order=name.asc"), { headers: hdr() }),
-      fetch(db("crm_lead_tags?select=lead_id,tag_id"), { headers: hdr() }),
+      fetch(db("crm_lead_tags?select=lead_id,tag_id&limit=50000"), { headers: hdr() }),
       fetch(db(`crm_daily_activity?date=eq.${today}`), { headers: hdr() }),
     ]);
-    if (!leadsRes.ok) throw new Error(await leadsRes.text());
-    allLeads = await leadsRes.json();
+
+    // Paginate leads — Supabase returns max 1000 per request
+    allLeads = [];
+    let offset = 0;
+    const PAGE = 1000;
+    while (true) {
+      const res = await fetch(db(`crm_leads?select=*&order=created_at.desc&limit=${PAGE}&offset=${offset}`), { headers: hdr() });
+      if (!res.ok) throw new Error(await res.text());
+      const batch = await res.json();
+      allLeads = allLeads.concat(batch);
+      if (batch.length < PAGE) break;
+      offset += PAGE;
+    }
+
     allTags = tagsRes.ok ? await tagsRes.json() : [];
     const ltRows = leadTagsRes.ok ? await leadTagsRes.json() : [];
     leadTagsMap = {};
@@ -1043,10 +1054,10 @@ function updateDialerCount() {
   if(useFilter){count=filteredLeads.length;}
   else{
     const selDispos=new Set([...document.querySelectorAll('.dd-check:checked')].map(el=>el.value));
-    count=allLeads.filter(l=>{
+        count=allLeads.filter(l=>{
       const matchDispo=selDispos.has(l.dispo);
-      const matchTag=dialerTagIds.length>0&&dialerTagIds.some(tid=>(leadTagsMap[l.id]||[]).includes(tid));
-      return matchDispo||matchTag;
+      const matchTag=dialerTagIds.length===0||dialerTagIds.some(tid=>(leadTagsMap[l.id]||[]).includes(tid));
+      return matchDispo&&matchTag;
     }).length;
   }
   document.getElementById('dialer-queue-count').textContent=count;
@@ -1060,10 +1071,15 @@ function startDialerSession() {
     const selDispos=new Set([...document.querySelectorAll('.dd-check:checked')].map(el=>el.value));
     dialerQueue=allLeads.filter(l=>{
       const matchDispo=selDispos.has(l.dispo);
-      const matchTag=dialerTagIds.length>0&&dialerTagIds.some(tid=>(leadTagsMap[l.id]||[]).includes(tid));
-      return matchDispo||matchTag;
+      const matchTag=dialerTagIds.length===0||dialerTagIds.some(tid=>(leadTagsMap[l.id]||[]).includes(tid));
+      return matchDispo&&matchTag;
     });
   }
+  // Auto-inject overdue callbacks at the front
+  const now=new Date();
+  const queueIds=new Set(dialerQueue.map(l=>l.id));
+  const dueCallbacks=allLeads.filter(l=>l.dispo==='call_back'&&l.callback_at&&new Date(l.callback_at)<=now&&!queueIds.has(l.id)).sort((a,b)=>new Date(a.callback_at)-new Date(b.callback_at));
+  if(dueCallbacks.length){dialerQueue=[...dueCallbacks,...dialerQueue];showToast(`${dueCallbacks.length} overdue callback${dueCallbacks.length!==1?'s':''} added to front of queue`,'success');}
   if(!dialerQueue.length){showToast('No leads to dial','error');return;}
   dialerIndex=0; dialerStats={called:0,connected:0,voicemail:0,noAnswer:0,appointments:0};
   document.getElementById('dialer-setup-modal').classList.remove('open');
@@ -1252,6 +1268,59 @@ async function dialerCall() {
 }
 
 async function dialerSetDispo(newDispo) {
+  if (newDispo === 'call_back') { _openCallbackPicker(); return; }
+  await _saveDialerDispo(newDispo);
+}
+
+function _openCallbackPicker() {
+  const lead = dialerQueue[dialerIndex];
+  const namEl = document.getElementById('cb-lead-name');
+  if (namEl) namEl.textContent = lead ? (lead.business_name || lead.contact_name || '') : '';
+  const d = new Date(); d.setDate(d.getDate() + 1);
+  document.getElementById('cb-date').value = d.toISOString().split('T')[0];
+  document.getElementById('cb-time').value = '09:00';
+  document.getElementById('callbackPickerModal').style.display = 'flex';
+}
+
+function cancelCallbackPicker() {
+  document.getElementById('callbackPickerModal').style.display = 'none';
+}
+
+function setCallbackQuick(amount, unit, time) {
+  const d = new Date();
+  if (unit === 'hours') {
+    d.setHours(d.getHours() + amount);
+    document.getElementById('cb-date').value = d.toISOString().split('T')[0];
+    document.getElementById('cb-time').value = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  } else {
+    d.setDate(d.getDate() + amount);
+    document.getElementById('cb-date').value = d.toISOString().split('T')[0];
+    document.getElementById('cb-time').value = time || '09:00';
+  }
+}
+
+async function confirmCallbackDispo() {
+  const date = document.getElementById('cb-date').value;
+  const time = document.getElementById('cb-time').value || '09:00';
+  if (!date) { showToast('Please pick a date', 'error'); return; }
+  document.getElementById('callbackPickerModal').style.display = 'none';
+  const callbackAt = new Date(`${date}T${time}:00`).toISOString();
+  const lead = dialerQueue[dialerIndex];
+  if (lead) {
+    try {
+      await fetch(db(`crm_leads?id=eq.${lead.id}`), {
+        method:'PATCH', headers:hdr(),
+        body:JSON.stringify({ follow_up_date:date, callback_at:callbackAt })
+      });
+      lead.follow_up_date = date; lead.callback_at = callbackAt;
+      const idx = allLeads.findIndex(l => l.id === lead.id);
+      if (idx !== -1) { allLeads[idx].follow_up_date = date; allLeads[idx].callback_at = callbackAt; }
+    } catch(e) {}
+  }
+  await _saveDialerDispo('call_back');
+}
+
+async function _saveDialerDispo(newDispo) {
   const lead = dialerQueue[dialerIndex];
   if (!lead) return;
 
@@ -1324,7 +1393,6 @@ async function dialerSetDispo(newDispo) {
     autoAdvanceTmo = setTimeout(() => { dialerNext(); }, autoAdvanceSec * 1000);
   }
 }
-
 function dialerNext() {
   clearDialerTimers();
   dialerIndex++;
