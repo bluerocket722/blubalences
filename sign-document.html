@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Sign Document | Blu Balence</title>
+<title>Sign Document | Blu Balences</title>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Dancing+Script:wght@600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
@@ -470,8 +470,14 @@ async function renderAllPages(url) {
     wrap.style.width = viewport.width + "px";
     wrap.style.height = viewport.height + "px";
     const canvas = document.createElement("canvas");
-    canvas.width = viewport.width; canvas.height = viewport.height;
-    await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+const dpr = window.devicePixelRatio || 1;
+canvas.width = Math.floor(viewport.width * dpr);
+canvas.height = Math.floor(viewport.height * dpr);
+canvas.style.width = viewport.width + "px";
+canvas.style.height = viewport.height + "px";
+const ctx = canvas.getContext("2d");
+ctx.scale(dpr, dpr);
+await page.render({ canvasContext: ctx, viewport }).promise;
     wrap.appendChild(canvas);
     viewer.appendChild(wrap);
     const signerId = Number(record.signer_order || 1);
@@ -575,10 +581,16 @@ function applySignature() {
 }
 
 function resizeModalCanvas() {
-  const rect=modalCanvas.getBoundingClientRect(); modalCanvas.width=rect.width; modalCanvas.height=rect.height;
-  mCtx.lineWidth=2.5; mCtx.lineCap="round"; mCtx.lineJoin="round"; mCtx.strokeStyle="#111";
+  const dpr = window.devicePixelRatio || 1;
+  const rect = modalCanvas.getBoundingClientRect();
+  modalCanvas.width = Math.floor(rect.width * dpr);
+  modalCanvas.height = Math.floor(rect.height * dpr);
+  modalCanvas.style.width = rect.width + "px";
+  modalCanvas.style.height = rect.height + "px";
+  mCtx.scale(dpr, dpr);
+  mCtx.lineWidth = 2.5; mCtx.lineCap = "round"; mCtx.lineJoin = "round"; mCtx.strokeStyle = "#111";
 }
-function getPointerPos(e) { const rect=modalCanvas.getBoundingClientRect(); return { x:(e.clientX-rect.left)*(modalCanvas.width/rect.width), y:(e.clientY-rect.top)*(modalCanvas.height/rect.height) }; }
+function getPointerPos(e) { const rect=modalCanvas.getBoundingClientRect(); return { x:e.clientX-rect.left, y:e.clientY-rect.top }; }
 
 modalCanvas.addEventListener("pointerdown",(e)=>{e.preventDefault();isDrawing=true;mCtx.beginPath();const pos=getPointerPos(e);mCtx.moveTo(pos.x,pos.y);});
 modalCanvas.addEventListener("pointermove",(e)=>{if(!isDrawing)return;e.preventDefault();const pos=getPointerPos(e);mCtx.lineTo(pos.x,pos.y);mCtx.stroke();});
