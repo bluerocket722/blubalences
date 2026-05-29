@@ -218,6 +218,13 @@ select.field-input:focus{border-color:#1a73e8;outline:none}
 #login-overlay .login-btn{width:100%;background:#22c55e;color:#fff;border:none;border-radius:10px;padding:13px;font-size:16px;font-weight:600;cursor:pointer;transition:background .2s;margin-top:18px}
 #login-overlay .login-btn:hover{background:#16a34a}
 #login-overlay .login-err{color:#f87171;font-size:13px;margin-top:12px;text-align:center;min-height:20px}
+  /* ── CALLBACK PICKER ── */
+#callbackPickerModal { position:fixed; inset:0; z-index:2147483647; background:rgba(0,0,0,.78); backdrop-filter:blur(6px); align-items:center; justify-content:center; }
+.cb-quick { background:#35363a; border:1px solid rgba(255,255,255,.15); color:#9aa0a6; padding:6px 12px; border-radius:20px; font-size:12px; font-weight:500; cursor:pointer; font-family:inherit; transition:all .12s; }
+.cb-quick:hover { color:#e8eaed; border-color:rgba(26,115,232,.5); background:#3c3d42; }
+.cb-field { background:#35363a; border:1px solid rgba(255,255,255,.15); border-radius:8px; padding:10px; color:#e8eaed; font-size:14px; width:100%; outline:none; }
+.cb-field:focus { border-color:rgba(26,115,232,.5); }
+#due-callbacks-badge { display:none; background:#16a34a; color:#fff; font-size:11px; font-weight:600; padding:2px 8px; border-radius:99px; margin-left:6px; }
 </style>
 </head>
 <body>
@@ -1099,7 +1106,7 @@ function renderDialerLead() {
     ${lead.email?`<div class="d-info-row"><span class="d-info-icon">✉</span>${esc(lead.email)}</div>`:''}
     ${lead.website?`<div class="d-info-row"><span class="d-info-icon">🌐</span><a href="${esc(lead.website)}" target="_blank" style="color:#8ab4f8;font-size:13px;word-break:break-all">${esc(lead.website)}</a></div>`:''}
     ${lead.google_maps_link?`<div class="d-info-row"><span class="d-info-icon">🗺</span><a href="${esc(lead.google_maps_link)}" target="_blank" style="color:#8ab4f8;font-size:13px">Open Maps</a></div>`:''}
-    ${lead.follow_up_date?`<div class="d-info-row"><span class="d-info-icon">📅</span>Call back: ${lead.follow_up_date}</div>`:''}
+    ${lead.callback_at ? `<div class="d-info-row" style="color:#4ade80;font-weight:500"><span class="d-info-icon">⏰</span>Callback scheduled: ${new Date(lead.callback_at).toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}</div>` : lead.follow_up_date ? `<div class="d-info-row"><span class="d-info-icon">📅</span>Call back: ${lead.follow_up_date}</div>` : ''}
     ${lead.notes?`<div style="margin-top:14px"><div class="d-section-label">Notes</div><div class="d-notes-box">${esc(lead.notes)}</div></div>`:''}
     <div style="margin-top:16px"><div class="d-section-label">Quick Note</div><textarea id="d-quick-note" class="d-quick-note" placeholder="Note about this call..."></textarea></div>`;
 
@@ -1665,5 +1672,26 @@ async function saveTodayActivity() {
   loadLeads();
 })();
 </script>
+  <!-- CALLBACK PICKER MODAL -->
+<div id="callbackPickerModal" style="display:none">
+  <div style="background:#292a2d;border:1px solid rgba(255,255,255,.15);border-radius:16px;padding:24px;width:90%;max-width:340px;box-shadow:0 24px 64px rgba(0,0,0,.5);">
+    <div style="font-size:15px;font-weight:500;color:#e8eaed;margin-bottom:4px;">📅 Schedule Call Back</div>
+    <div style="font-size:12px;color:#9aa0a6;margin-bottom:16px;" id="cb-lead-name"></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">
+      <button class="cb-quick" onclick="setCallbackQuick(2,'hours')">In 2 hrs</button>
+      <button class="cb-quick" onclick="setCallbackQuick(1,'days','09:00')">Tomorrow 9am</button>
+      <button class="cb-quick" onclick="setCallbackQuick(1,'days','14:00')">Tomorrow 2pm</button>
+      <button class="cb-quick" onclick="setCallbackQuick(7,'days','09:00')">Next week</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:16px;">
+      <input type="date" id="cb-date" class="cb-field" style="flex:1">
+      <input type="time" id="cb-time" class="cb-field" style="width:110px">
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button onclick="cancelCallbackPicker()" style="background:#35363a;border:1px solid rgba(255,255,255,.15);color:#9aa0a6;padding:9px 16px;border-radius:20px;font-size:13px;cursor:pointer;font-family:inherit;">Cancel</button>
+      <button onclick="confirmCallbackDispo()" style="background:#16a34a;border:none;color:#fff;padding:9px 20px;border-radius:20px;font-size:13px;cursor:pointer;font-family:inherit;font-weight:500;">Save Call Back</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
