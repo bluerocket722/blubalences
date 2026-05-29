@@ -1,0 +1,1994 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Email Control — Blu Balence</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--blue:#1a56db;--blue-dark:#1141a8;--blue-light:#e8f0fe;--gray:#6b7280;--gray-light:#f3f4f6;--border:#e5e7eb;--text:#111827;--green:#10b981;--red:#ef4444;--yellow:#f59e0b;--purple:#8b5cf6}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--gray-light);color:var(--text);height:100vh;overflow:hidden}
+#config-screen{position:fixed;inset:0;background:var(--gray-light);display:flex;align-items:center;justify-content:center;z-index:200}
+#config-screen .box{background:#fff;border-radius:12px;padding:32px;width:440px;box-shadow:0 4px 24px rgba(0,0,0,.1)}
+#config-screen h1{font-size:22px;font-weight:700;margin-bottom:6px}
+#config-screen .sub{color:var(--gray);font-size:14px;margin-bottom:24px}
+#app{display:none;width:100%;height:100vh;flex-direction:row}
+#app.show{display:flex}
+#sidebar{width:220px;background:var(--blue);color:#fff;display:flex;flex-direction:column;flex-shrink:0}
+.logo{padding:24px 20px 20px;font-weight:700;font-size:16px;border-bottom:1px solid rgba(255,255,255,.1)}
+.logo span{opacity:.7;display:block;font-size:12px;font-weight:400;margin-top:2px}
+nav{padding:12px 0;flex:1}
+nav a{display:flex;align-items:center;gap:10px;padding:10px 20px;color:rgba(255,255,255,.8);text-decoration:none;font-size:14px;cursor:pointer;transition:background .15s}
+nav a:hover,nav a.active{background:rgba(255,255,255,.15);color:#fff}
+nav a.active{font-weight:600}
+nav a svg{width:18px;height:18px;flex-shrink:0}
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+#topbar{background:#fff;border-bottom:1px solid var(--border);padding:16px 24px;display:flex;align-items:center;justify-content:space-between}
+#topbar h1{font-size:18px;font-weight:600}
+#content{flex:1;overflow-y:auto;padding:24px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:24px}
+.card{background:#fff;border-radius:10px;padding:20px;border:1px solid var(--border)}
+.card .label{font-size:12px;color:var(--gray);text-transform:uppercase;letter-spacing:.05em}
+.card .value{font-size:28px;font-weight:700;margin-top:6px}
+.card .sub{font-size:12px;color:var(--gray);margin-top:4px}
+.panel{background:#fff;border-radius:10px;border:1px solid var(--border);overflow:hidden;margin-bottom:20px}
+.panel-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.panel-header h2{font-size:15px;font-weight:600}
+table{width:100%;border-collapse:collapse}
+th{padding:10px 16px;text-align:left;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--gray);background:var(--gray-light)}
+td{padding:12px 16px;font-size:14px;border-top:1px solid var(--border)}
+tr:hover td{background:#fafafa}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:7px;font-size:14px;font-weight:500;cursor:pointer;border:none;transition:opacity .15s}
+.btn:hover{opacity:.85}
+.btn-primary{background:var(--blue);color:#fff}
+.btn-secondary{background:var(--gray-light);color:var(--text);border:1px solid var(--border)}
+.btn-danger{background:var(--red);color:#fff}
+.btn-ghost{background:none;color:var(--blue);border:1px solid var(--blue)}
+.btn-sm{padding:5px 10px;font-size:12px}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:13px;font-weight:500;margin-bottom:6px}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:7px;font-size:14px;outline:none;transition:border-color .15s;font-family:inherit}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--blue)}
+.form-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.form-row-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:100}
+.modal{background:#fff;border-radius:12px;padding:24px;width:560px;max-width:95vw;max-height:90vh;overflow-y:auto}
+.modal h2{font-size:18px;font-weight:600;margin-bottom:20px}
+.modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:20px;border-top:1px solid var(--border)}
+.badge{display:inline-block;padding:3px 10px;border-radius:100px;font-size:12px;font-weight:500}
+.badge-green{background:#d1fae5;color:#065f46}
+.badge-gray{background:#f3f4f6;color:#6b7280}
+.badge-yellow{background:#fef3c7;color:#92400e}
+.badge-red{background:#fee2e2;color:#991b1b}
+.badge-blue{background:var(--blue-light);color:var(--blue-dark)}
+.badge-purple{background:#ede9fe;color:#5b21b6}
+.toggle{position:relative;width:40px;height:22px;display:inline-block}
+.toggle input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;inset:0;background:#d1d5db;border-radius:22px;cursor:pointer;transition:background .2s}
+.toggle input:checked+.toggle-slider{background:var(--blue)}
+.toggle-slider:before{position:absolute;content:"";height:16px;width:16px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:transform .2s}
+.toggle input:checked+.toggle-slider:before{transform:translateX(18px)}
+.empty{text-align:center;padding:40px;color:var(--gray);font-size:14px}
+.actions{display:flex;gap:6px}
+.step-card{background:var(--gray-light);border-radius:8px;padding:14px 16px;margin-bottom:10px;border:1px solid var(--border)}
+.step-card-header{display:flex;align-items:center;justify-content:space-between}
+.step-num{background:var(--blue);color:#fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+.step-meta{font-size:12px;color:var(--gray);margin-top:4px}
+.step-body-preview{font-size:12px;color:#374151;margin-top:4px;font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:400px}
+textarea{resize:vertical;min-height:80px}
+.section-title{font-size:13px;font-weight:600;margin:16px 0 8px;color:var(--gray);text-transform:uppercase;letter-spacing:.04em}
+.hint{font-size:12px;color:var(--gray);margin-top:4px}
+  #login-overlay{position:fixed;inset:0;background:#0a1628;display:flex;align-items:center;justify-content:center;z-index:300}
+#login-overlay .login-card{background:#111827;border:1px solid rgba(255,255,255,0.12);border-radius:16px;padding:40px 36px;width:100%;max-width:420px}
+#login-overlay h1{color:#fff;font-size:26px;font-weight:700;margin-bottom:8px}
+#login-overlay .login-sub{color:#9ca3af;font-size:15px;margin-bottom:28px}
+#login-overlay .form-group label{color:#d1d5db;font-size:14px;font-weight:500;margin-bottom:6px;display:block}
+#login-overlay .form-group input{background:#1f2937;border:1px solid rgba(255,255,255,0.12);color:#fff;border-radius:8px;padding:12px 14px;font-size:15px;width:100%;outline:none;transition:border-color .2s}
+#login-overlay .form-group input:focus{border-color:#22c55e}
+#login-overlay .login-btn{width:100%;background:#22c55e;color:#fff;border:none;border-radius:10px;padding:13px;font-size:16px;font-weight:600;cursor:pointer;transition:background .2s;margin-top:6px}
+#login-overlay .login-btn:hover{background:#16a34a}
+#login-overlay .login-err{color:#f87171;font-size:13px;margin-top:12px;text-align:center;min-height:20px}
+.tag-pill{display:inline-block;padding:2px 8px;border-radius:100px;font-size:11px;font-weight:500;background:var(--blue-light);color:var(--blue-dark);margin-right:4px;margin-top:3px}
+.info-banner{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px 16px;font-size:13px;color:#1e40af;margin-bottom:20px}
+.filter-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;align-items:flex-end}
+.fg{display:flex;flex-direction:column;gap:4px}
+.fg label{font-size:12px;font-weight:500;color:var(--gray)}
+.fg select,.fg input{padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:#fff;outline:none}
+.fg select:focus,.fg input:focus{border-color:var(--blue)}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:14px;margin-bottom:20px}
+.stat-card{background:#fff;border-radius:10px;padding:16px;border:1px solid var(--border);text-align:center}
+.stat-card .sv{font-size:26px;font-weight:700}
+.stat-card .sl{font-size:11px;color:var(--gray);text-transform:uppercase;letter-spacing:.05em;margin-top:4px}
+.stat-card .ss{font-size:12px;color:var(--gray);margin-top:2px}
+.days-grid{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.day-chip{padding:6px 14px;border-radius:20px;font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:#fff;color:var(--gray);transition:all .15s}
+.day-chip.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+/* ── NEW STYLES ── */
+.countdown-box{background:linear-gradient(135deg,var(--blue),var(--blue-dark));color:#fff;border-radius:10px;padding:20px 24px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px}
+.countdown-time{font-size:42px;font-weight:700;letter-spacing:.05em;font-family:monospace;font-variant-numeric:tabular-nums}
+.countdown-label{font-size:11px;opacity:.75;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px}
+.countdown-detail{font-size:13px;opacity:.85;margin-top:6px}
+.countdown-right{text-align:right;font-size:13px;opacity:.85;line-height:1.6}
+.reply-card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:10px;cursor:pointer;transition:box-shadow .15s;display:flex;align-items:flex-start;gap:14px}
+.reply-card:hover{box-shadow:0 2px 12px rgba(0,0,0,.09)}
+.reply-card.unread{border-left:3px solid var(--blue)}
+.reply-meta{flex:1;min-width:0}
+.reply-from{font-weight:600;font-size:14px}
+.reply-subj{font-size:13px;color:var(--gray);margin-top:2px}
+.reply-preview{font-size:13px;color:#374151;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.reply-time{font-size:11px;color:var(--gray);flex-shrink:0;white-space:nowrap}
+.reply-thread{background:var(--gray-light);border-radius:8px;padding:14px;margin-bottom:16px;font-size:14px;line-height:1.6;white-space:pre-wrap;max-height:260px;overflow-y:auto}
+.inbox-card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin-bottom:10px;display:flex;align-items:center;gap:14px}
+.inbox-info{flex:1;min-width:0}
+.inbox-name{font-weight:600;font-size:15px}
+.inbox-email{font-size:13px;color:var(--gray);margin-top:2px}
+.inbox-hint{font-size:11px;color:var(--gray);margin-top:2px}
+.seq-sched{display:inline-block;font-size:11px;padding:2px 7px;border-radius:4px;background:var(--blue-light);color:var(--blue-dark);margin-top:4px}
+.unread-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--red);margin-left:6px;flex-shrink:0}
+.menu-btn{display:none;background:none;border:none;cursor:pointer;padding:6px;margin-right:10px}
+.menu-btn svg{width:24px;height:24px;color:var(--blue)}
+#nav-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:90}
+#nav-overlay.show{display:block}
+@media (max-width:768px){
+  #sidebar{position:fixed;top:0;left:0;height:100vh;z-index:100;transform:translateX(-100%);transition:transform .25s ease}
+  #sidebar.open{transform:translateX(0)}
+  .menu-btn{display:inline-flex;align-items:center}
+  #topbar{padding:14px 16px}
+  #content{padding:16px}
+  .cards{grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px}
+  #topbar-actions .btn{font-size:13px;padding:8px 12px}
+  table{font-size:13px}
+  .inbox-card{flex-direction:column;align-items:stretch}
+}
+</style>
+</head>
+<body>
+  <div id="login-overlay">
+  <div class="login-card">
+    <h1>Welcome Back</h1>
+    <p class="login-sub">Please sign in to your account.</p>
+    <div class="form-group"><label>Email</label><input id="lo-email" type="email" placeholder="you@example.com" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <div class="form-group" style="margin-top:14px"><label>Password</label><input id="lo-pass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <button class="login-btn" onclick="doLogin()">Sign In</button>
+    <div class="login-err" id="lo-err"></div>
+  </div>
+</div>
+
+<div id="config-screen">
+  <div class="box">
+    <h1>Email Control</h1>
+    <p class="sub">Connect your Supabase project to get started. Find these in Supabase → Project Settings → API.</p>
+    <div class="form-group"><label>Supabase Project URL</label><input id="cfg-url" type="url" placeholder="https://xxxx.supabase.co"></div>
+    <div class="form-group"><label>Supabase Service Role Key</label><input id="cfg-key" type="text" placeholder="eyJ..."></div>
+    <div id="cfg-error" style="display:none;color:var(--red);font-size:13px;margin-bottom:10px"></div>
+    <button class="btn btn-primary" style="width:100%" onclick="saveConfig()">Connect</button>
+  </div>
+</div>
+
+<div id="app">
+  <div id="sidebar">
+    <div class="logo">Blu Balence<span>Email Control</span></div>
+    <nav>
+      <a onclick="navigate('dashboard')" id="nav-dashboard">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+        Dashboard
+      </a>
+      <a onclick="navigate('sequences')" id="nav-sequences">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+        Sequences
+      </a>
+      <a onclick="navigate('subscribers')" id="nav-subscribers">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        Subscribers
+      </a>
+      <a onclick="navigate('analytics')" id="nav-analytics">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        Analytics
+      </a>
+      <a onclick="navigate('inboxes')" id="nav-inboxes">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg>
+        Inboxes
+      </a>
+      <a onclick="navigate('replies')" id="nav-replies" style="justify-content:space-between">
+        <div style="display:flex;align-items:center;gap:10px">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:18px;height:18px;flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+          Replies
+        </div>
+        <span id="nav-replies-badge" style="display:none;background:var(--red);color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700"></span>
+      </a>
+            <a onclick="navigate('lists')" id="nav-lists">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        Lists
+      </a>
+            <a onclick="navigate('copy')" id="nav-copy">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+        Copy
+      </a>
+      <a onclick="navigate('settings')" id="nav-settings">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        Settings
+      </a>
+    </nav>
+  </div>
+  <div id="main">
+        <div id="topbar">
+      <div style="display:flex;align-items:center;min-width:0">
+        <button class="menu-btn" onclick="toggleSidebar()" aria-label="Menu">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <h1 id="page-title">Dashboard</h1>
+      </div>
+      <div id="topbar-actions"></div>
+    </div>
+    <div id="nav-overlay" onclick="toggleSidebar()"></div>
+    <div id="content"></div>
+  </div>
+</div>
+<div id="modals"></div>
+
+<script>
+let sb;
+  const AUTH_CONFIG = {
+  url: 'https://rfdvogakvyodixgpvqvz.supabase.co',
+  key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJmZHZvZ2FrdnlvZGl4Z3B2cXZ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcwMzU4MDMsImV4cCI6MjA4MjYxMTgwM30.UumTuz6AaKL8uYmmNxFj1ec5CInHVNQowt6LRo4cu-E'
+};
+const authClient = supabase.createClient(AUTH_CONFIG.url, AUTH_CONFIG.key);
+
+function bootFromStorage() {
+  const url = localStorage.getItem('sb_url');
+  const key = localStorage.getItem('sb_key');
+  if (url && key) boot(url, key);
+}
+
+async function doLogin() {
+  const email = document.getElementById('lo-email').value.trim();
+  const pass  = document.getElementById('lo-pass').value;
+  document.getElementById('lo-err').textContent = '';
+  const { error } = await authClient.auth.signInWithPassword({ email, password: pass });
+  if (error) { document.getElementById('lo-err').textContent = error.message; return; }
+  document.getElementById('login-overlay').style.display = 'none';
+  bootFromStorage();
+}
+  function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('nav-overlay').classList.toggle('show');
+}
+let aF = { days: '30', seqId: '', status: '', search: '' };
+
+function saveConfig() {
+  const url = document.getElementById('cfg-url').value.trim();
+  const key = document.getElementById('cfg-key').value.trim();
+  if (!url || !key) { alert('Both fields are required'); return; }
+  localStorage.setItem('sb_url', url);
+  localStorage.setItem('sb_key', key);
+  boot(url, key);
+}
+
+function boot(url, key) {
+  try { sb = supabase.createClient(url, key); }
+  catch(e) {
+    const err = document.getElementById('cfg-error');
+    if (err) { err.textContent = 'Failed to connect: ' + e.message; err.style.display = 'block'; }
+    return;
+  }
+  document.getElementById('config-screen').style.display = 'none';
+  document.getElementById('app').classList.add('show');
+  navigate('dashboard');
+  initAutoSend();
+  refreshUnreadBadge();
+}
+
+async function navigate(tab) {
+    document.getElementById('sidebar').classList.remove('open');
+  const _ov = document.getElementById('nav-overlay'); if (_ov) _ov.classList.remove('show');
+  if (window._liveLogTimer) { clearInterval(window._liveLogTimer); window._liveLogTimer = null; }
+  document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+  const el = document.getElementById('nav-' + tab);
+  if (el) el.classList.add('active');
+  document.getElementById('page-title').textContent =
+     { dashboard:'Dashboard', sequences:'Sequences', subscribers:'Subscribers', analytics:'Analytics', settings:'Settings', inboxes:'Inboxes', replies:'Replies', copy:'Copy', lists:'Lists' }[tab] || tab;
+  document.getElementById('topbar-actions').innerHTML = '';
+  document.getElementById('content').innerHTML = '<div style="padding:40px;text-align:center;color:#6b7280">Loading…</div>';
+  if (tab === 'dashboard') await renderDashboard();
+  else if (tab === 'sequences') await renderSequences();
+  else if (tab === 'subscribers') await renderSubscribers();
+  else if (tab === 'copy') await renderCopy();
+  else if (tab === 'lists') await renderLists();
+  else if (tab === 'analytics') await renderAnalytics();
+  else if (tab === 'settings') await renderSettings();
+  else if (tab === 'inboxes') await renderInboxes();
+  else if (tab === 'replies') await renderReplies();
+}
+
+function cfgVal(v) { return typeof v === 'string' ? v.replace(/^"|"$/g, '') : (v || ''); }
+
+/* ─── COUNTDOWN ─── */
+function computeNextSendMs(sendTime, sendDays, tz) {
+  if (!sendTime || !sendDays || !sendDays.length) return null;
+  const [sendH, sendM] = sendTime.split(':').map(Number);
+  const now = new Date();
+  for (let d = 0; d <= 7; d++) {
+    const probe = new Date(now.getTime() + d * 86400000);
+    const str = probe.toLocaleString('en-US', {
+      timeZone: tz, hour12: false,
+      year:'numeric', month:'2-digit', day:'2-digit',
+      weekday:'short', hour:'2-digit', minute:'2-digit', second:'2-digit'
+    });
+    const m = str.match(/(\w+),\s+(\d+)\/(\d+)\/(\d+),\s+(\d+):(\d+):(\d+)/);
+    if (!m) continue;
+    const [, wday, mo, da, yr, h, min, sec] = m;
+    const dayKey = {Sun:'sun',Mon:'mon',Tue:'tue',Wed:'wed',Thu:'thu',Fri:'fri',Sat:'sat'}[wday] || '';
+    if (!sendDays.includes(dayKey)) continue;
+    const curMin = parseInt(h) * 60 + parseInt(min);
+    const sendMin = sendH * 60 + sendM;
+    if (d === 0 && curMin >= sendMin) continue;
+    const tzNowMs = new Date(`${yr}-${mo}-${da}T${h}:${min}:${sec}Z`).getTime();
+    const offset = probe.getTime() - tzNowMs;
+    const tzSendMs = new Date(`${yr}-${mo}-${da}T${String(sendH).padStart(2,'0')}:${String(sendM).padStart(2,'0')}:00Z`).getTime();
+    const utcSend = tzSendMs + offset;
+    if (utcSend > now.getTime()) return utcSend - now.getTime();
+  }
+  return null;
+}
+
+function startCountdown(sendTime, sendDays, tz) {
+  if (window._countdownTimer) clearInterval(window._countdownTimer);
+  function tick() {
+    const el = document.getElementById('cd-time');
+    const dtEl = document.getElementById('cd-next');
+    if (!el) { clearInterval(window._countdownTimer); return; }
+    const ms = computeNextSendMs(sendTime, sendDays, tz);
+    if (ms === null) { el.textContent = '—'; if (dtEl) dtEl.textContent = 'No schedule'; return; }
+    const s = Math.floor(ms / 1000);
+    const h = Math.floor(s / 3600), min = Math.floor((s % 3600) / 60), sec = s % 60;
+    el.textContent = `${String(h).padStart(2,'0')}:${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+    if (dtEl) {
+      const next = new Date(Date.now() + ms);
+      dtEl.textContent = next.toLocaleString('en-US', { timeZone: tz, weekday:'short', month:'short', day:'numeric', hour:'numeric', minute:'2-digit', timeZoneName:'short' });
+    }
+  }
+  tick();
+  window._countdownTimer = setInterval(tick, 1000);
+}
+
+/* ─── DASHBOARD ─── */
+async function renderDashboard() {
+  const [{ data: seqs }, { data: enrs }, { data: logs }, { data: evts }, { data: settRows }, { data: seqSchedules }] = await Promise.all([
+    sb.from('sequences').select('id,active'),
+    sb.from('enrollments').select('status'),
+    sb.from('send_log').select('id,sent_at').order('sent_at', { ascending: false }).limit(200),
+    sb.from('email_events').select('event_type').limit(1000),
+    sb.from('settings').select('key,value'),
+    sb.from('sequences').select('id,name,send_time,send_days,active').eq('active', true),
+  ]);
+  const cfg = Object.fromEntries((settRows||[]).map(r => [r.key, cfgVal(r.value)]));
+  const sendTime = cfg.send_time || '';
+  const sendDays = (cfg.send_days || 'mon,tue,wed,thu,fri').split(',').map(d => d.trim());
+  const tz = cfg.send_timezone || 'America/New_York';
+
+  const today = new Date().toDateString();
+  const sentToday = (logs || []).filter(l => new Date(l.sent_at).toDateString() === today).length;
+  const evCounts = {};
+  (evts || []).forEach(ev => { evCounts[ev.event_type] = (evCounts[ev.event_type] || 0) + 1; });
+  const opens = evCounts['opened'] || 0;
+  const clicks = evCounts['clicked'] || 0;
+  const totalSent = (logs || []).length;
+  const openRate = totalSent > 0 ? Math.round((opens / totalSent) * 100) : 0;
+  const clickRate = totalSent > 0 ? Math.round((clicks / totalSent) * 100) : 0;
+
+  const seqScheds = (seqSchedules || []).filter(s => s.send_time);
+  const scheduleRows = seqScheds.map(s => {
+    const t = s.send_time;
+    const days = s.send_days || cfg.send_days || 'mon-fri';
+    const ms = computeNextSendMs(t, days.split(',').map(d=>d.trim()), tz);
+    const nextStr = ms ? new Date(Date.now() + ms).toLocaleString('en-US', { timeZone: tz, weekday:'short', month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) : '—';
+    return `<tr><td><strong>${s.name}</strong></td><td>${t}</td><td>${days}</td><td>${nextStr}</td></tr>`;
+  }).join('');
+
+  document.getElementById('content').innerHTML = `
+    ${sendTime ? `<div class="countdown-box">
+      <div>
+        <div class="countdown-label">Next Auto-Send</div>
+        <div class="countdown-time" id="cd-time">--:--:--</div>
+        <div class="countdown-detail" id="cd-next"></div>
+      </div>
+      <div class="countdown-right">
+        <div>⏰ ${sendTime} · ${tz}</div>
+        <div>📅 ${sendDays.join(', ')}</div>
+      </div>
+    </div>` : `<div class="info-banner">ℹ️ No send schedule set yet. Go to Settings → Daily Send Schedule to configure auto-send.</div>`}
+    ${seqScheds.length ? `<div class="panel" style="margin-bottom:20px">
+      <div class="panel-header"><h2>Sequence Schedules</h2></div>
+      <table><thead><tr><th>Sequence</th><th>Time</th><th>Days</th><th>Next Send</th></tr></thead><tbody>${scheduleRows}</tbody></table>
+    </div>` : ''}
+    <div class="cards">
+      <div class="card"><div class="label">Active Sequences</div><div class="value" style="color:var(--blue)">${(seqs||[]).filter(s=>s.active).length}</div><div class="sub">${(seqs||[]).length} total</div></div>
+      <div class="card"><div class="label">Active Enrollments</div><div class="value">${(enrs||[]).filter(e=>e.status==='active').length}</div><div class="sub">${(enrs||[]).filter(e=>e.status==='completed').length} completed</div></div>
+      <div class="card"><div class="label">Sent Today</div><div class="value" style="color:var(--green)">${sentToday}</div><div class="sub">emails</div></div>
+      <div class="card"><div class="label">Total Sent</div><div class="value">${totalSent}</div><div class="sub">all time</div></div>
+      <div class="card"><div class="label">Open Rate</div><div class="value" style="color:var(--green)">${openRate}%</div><div class="sub">${opens} opens</div></div>
+      <div class="card"><div class="label">Click Rate</div><div class="value" style="color:var(--purple)">${clickRate}%</div><div class="sub">${clicks} clicks</div></div>
+    </div>
+        <div id="brevo-stats-panel" class="panel" style="margin-bottom:20px"></div>
+        <div id="brevo-stats-panel" class="panel" style="margin-bottom:20px"></div>
+    <div class="panel" style="margin-bottom:20px">
+      <div class="panel-header"><h2>Send Drip Emails</h2></div>
+      <div style="padding:20px">
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+          <button class="btn btn-primary" id="send-btn" onclick="sendNow()">&#9654; Send Now</button>
+          <span id="send-status" style="font-size:14px;color:var(--gray)"></span>
+        </div>
+        <div id="run-status-box" style="margin-top:16px;display:none;background:var(--gray-light);border-radius:8px;padding:14px 16px;font-size:13px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span id="run-status-dot" style="width:10px;height:10px;border-radius:50%;flex-shrink:0;background:#d1d5db"></span>
+            <div>
+              <div id="run-status-text" style="font-weight:600">Checking…</div>
+              <div id="run-status-time" style="color:var(--gray);margin-top:2px"></div>
+            </div>
+            <a id="run-status-link" href="#" target="_blank" style="margin-left:auto;font-size:12px;color:var(--blue)">View on GitHub →</a>
+          </div>
+        </div>
+      </div>
+    </div>
+            <div class="panel">
+      <div class="panel-header">
+        <h2>Recent Activity <span style="font-size:11px;font-weight:400;color:var(--green)">● live</span></h2>
+        <button class="btn btn-secondary btn-sm" onclick="refreshLog()">Refresh</button>
+      </div>
+      <div id="recent-log"><div class="empty">Loading…</div></div>
+    </div>`;
+
+      await refreshLog();
+  startLiveLog();
+  await loadBrevoStats(cfg.brevo_api_key || '');
+  checkRunStatus();
+  if (sendTime) startCountdown(sendTime, sendDays, tz);
+}
+
+async function refreshLog() {
+  const el = document.getElementById('recent-log');
+  if (!el) return;
+  const { data: recent } = await sb.from('send_log')
+    .select('sent_at,step_number,inbox_id,enrollments(email,sequences(name)),inboxes(name,email)')
+    .order('sent_at', { ascending: false }).limit(30);
+  if (!recent || !recent.length) {
+    el.innerHTML = '<div class="empty">No sends yet. Create a sequence and enroll subscribers.</div>';
+    return;
+  }
+  const now = Date.now();
+  el.innerHTML = `<table><thead><tr><th>Sent At</th><th>To</th><th>Sequence</th><th>Step</th><th>From Inbox</th></tr></thead><tbody>
+    ${recent.map(l => {
+      const ageMs  = now - new Date(l.sent_at).getTime();
+      const isLive = ageMs < 120000;
+      const timeStr = isLive
+        ? `<span style="color:var(--green);font-weight:600">● ${ageMs < 8000 ? 'Just now' : Math.floor(ageMs / 1000) + 's ago'}</span>`
+        : new Date(l.sent_at).toLocaleString();
+      const inbox = l.inboxes
+        ? `<span style="font-weight:500">${l.inboxes.name}</span><br><span style="font-size:11px;color:var(--gray)">${l.inboxes.email}</span>`
+        : '<span style="font-size:12px;color:var(--gray)">global</span>';
+      return `<tr style="${isLive ? 'background:#f0fdf4;' : ''}">
+        <td style="white-space:nowrap">${timeStr}</td>
+        <td>${l.enrollments?.email || '—'}</td>
+        <td>${l.enrollments?.sequences?.name || '—'}</td>
+        <td>Step ${l.step_number}</td>
+        <td>${inbox}</td>
+      </tr>`;
+    }).join('')}</tbody></table>`;
+}
+
+function startLiveLog() {
+  if (window._liveLogTimer) clearInterval(window._liveLogTimer);
+  window._liveLogTimer = setInterval(() => {
+    if (document.getElementById('recent-log')) refreshLog();
+    else { clearInterval(window._liveLogTimer); window._liveLogTimer = null; }
+  }, 5000);
+}
+
+async function checkRunStatus(poll) {
+  const { data: rows } = await sb.from('settings').select('key,value');
+  const cfg = Object.fromEntries((rows||[]).map(r => [r.key, cfgVal(r.value)]));
+  const token = cfg.github_token;
+  const repo = cfg.github_repo;
+  if (!token || !repo) return;
+  const box = document.getElementById('run-status-box');
+  const dot = document.getElementById('run-status-dot');
+  const text = document.getElementById('run-status-text');
+  const time = document.getElementById('run-status-time');
+  const link = document.getElementById('run-status-link');
+  if (!box) return;
+  try {
+    const r = await fetch(`https://api.github.com/repos/${repo}/actions/workflows/drip.yml/runs?per_page=1`, {
+      headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github+json' }
+    });
+    const data = await r.json();
+    const run = data.workflow_runs?.[0];
+    if (!run) { box.style.display = 'none'; return; }
+    box.style.display = 'block';
+    link.href = run.html_url;
+    const started = new Date(run.created_at).toLocaleString();
+    if (run.status === 'in_progress' || run.status === 'queued') {
+      dot.style.background = '#f59e0b';
+      text.textContent = run.status === 'queued' ? 'Queued — starting soon…' : 'Running — emails sending now…';
+      time.textContent = `Started ${started}`;
+      if (poll !== false) setTimeout(() => checkRunStatus(true), 10000);
+    } else if (run.conclusion === 'success') {
+      dot.style.background = '#10b981';
+      text.textContent = 'Completed successfully';
+      time.textContent = `Finished ${new Date(run.updated_at).toLocaleString()}`;
+      if (poll) refreshLog();
+    } else if (run.conclusion === 'failure') {
+      dot.style.background = '#ef4444';
+      text.textContent = 'Run failed — check GitHub Actions for details';
+      time.textContent = `Failed ${new Date(run.updated_at).toLocaleString()}`;
+    } else {
+      dot.style.background = '#d1d5db';
+      text.textContent = `Last run: ${run.conclusion || run.status}`;
+      time.textContent = started;
+    }
+  } catch(e) { box.style.display = 'none'; }
+}
+
+async function sendNow() {
+  const btn = document.getElementById('send-btn');
+  const status = document.getElementById('send-status');
+  btn.disabled = true;
+  status.textContent = 'Triggering…';
+  status.style.color = 'var(--gray)';
+  const { data: rows } = await sb.from('settings').select('key,value');
+  const cfg = Object.fromEntries((rows||[]).map(r => [r.key, cfgVal(r.value)]));
+  const token = cfg.github_token;
+  const repo = cfg.github_repo;
+  if (!token || !repo) {
+    status.textContent = 'GitHub token and repo not set in Settings.';
+    status.style.color = 'var(--red)';
+    btn.disabled = false;
+    return;
+  }
+  try {
+    const r = await fetch(`https://api.github.com/repos/${repo}/actions/workflows/drip.yml/dispatches`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ref: 'main' }),
+    });
+    if (r.status === 204) {
+      status.textContent = '✓ Triggered!';
+      status.style.color = 'var(--green)';
+      setTimeout(() => checkRunStatus(true), 3000);
+    } else {
+      const err = await r.json();
+      status.textContent = 'Error: ' + (err.message || r.status);
+      status.style.color = 'var(--red)';
+    }
+  } catch (e) {
+    status.textContent = 'Failed: ' + e.message;
+    status.style.color = 'var(--red)';
+  }
+  btn.disabled = false;
+}
+async function loadBrevoStats(apiKey) {
+  const el = document.getElementById('brevo-stats-panel');
+  if (!el) return;
+  if (!apiKey) {
+    el.innerHTML = '<div class="info-banner" style="margin:16px">⚠️ Add your Brevo API key in Settings to see live delivery stats.</div>';
+    return;
+  }
+  el.innerHTML = '<div style="padding:16px;color:var(--gray);font-size:13px">Loading Brevo stats…</div>';
+  try {
+    const end = new Date().toISOString().slice(0, 10);
+    const start = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+    const r = await fetch(`https://api.brevo.com/v3/smtp/statistics/aggregatedReport?startDate=${start}&endDate=${end}`, {
+      headers: { 'api-key': apiKey, 'Content-Type': 'application/json' }
+    });
+    if (!r.ok) {
+      el.innerHTML = `<div class="info-banner" style="margin:16px">⚠️ Brevo API error ${r.status}. Check your API key in Settings.</div>`;
+      return;
+    }
+    const d = await r.json();
+    const sent = d.requests || 0;
+    const delivered = d.delivered || 0;
+    const uniqueOpens = d.uniqueOpens || 0;
+    const opens = d.opens || 0;
+    const uniqueClicks = d.uniqueClicks || 0;
+    const hardBounces = d.hardBounces || 0;
+    const softBounces = d.softBounces || 0;
+    const spam = d.spamReports || 0;
+    const blocked = d.blocked || 0;
+    const pct = (n) => sent > 0 ? (n / sent * 100).toFixed(2) : '0.00';
+    const bar = (val, color) => `<div style="height:6px;background:var(--border);border-radius:3px;margin-top:6px"><div style="height:6px;background:${color};border-radius:3px;width:${Math.min(parseFloat(val),100)}%"></div></div>`;
+    el.innerHTML = `
+      <div class="panel-header">
+        <h2>Brevo Delivery Stats <span style="font-size:12px;font-weight:400;color:var(--gray)">(last 30 days)</span></h2>
+        <span style="font-size:13px;font-weight:700">${sent} emails sent</span>
+      </div>
+      <div style="padding:20px">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:18px">
+          <div>
+            <div style="font-size:13px;color:var(--gray);margin-bottom:2px">Delivered</div>
+            <div style="font-weight:700;font-size:18px">${pct(delivered)}%</div>
+            ${bar(pct(delivered), '#1a56db')}
+          </div>
+          <div>
+            <div style="font-size:13px;color:var(--gray);margin-bottom:2px">Estimated openers</div>
+            <div style="font-weight:700;font-size:18px">${uniqueOpens}</div>
+            ${bar(pct(uniqueOpens), '#10b981')}
+          </div>
+          <div>
+            <div style="font-size:13px;color:var(--gray);margin-bottom:2px">Trackable openers</div>
+            <div style="font-weight:700;font-size:18px">${pct(opens)}%</div>
+            ${bar(pct(opens), '#10b981')}
+          </div>
+          <div>
+            <div style="font-size:13px;color:var(--gray);margin-bottom:2px">Unique clickers</div>
+            <div style="font-weight:700;font-size:18px">${pct(uniqueClicks)}%</div>
+            ${bar(pct(uniqueClicks), '#10b981')}
+          </div>
+          <div>
+            <div style="font-size:13px;color:var(--gray);margin-bottom:2px">Bounced</div>
+            <div style="font-weight:700;font-size:18px">${(parseFloat(pct(hardBounces))+parseFloat(pct(softBounces))).toFixed(2)}%</div>
+            ${bar(0, '#d1d5db')}
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;padding-top:14px;border-top:1px solid var(--border)">
+          <div style="font-size:13px;color:var(--gray)">Complaint <strong style="color:var(--text)">${pct(spam)}%</strong></div>
+          <div style="font-size:13px;color:var(--gray)">Hard bounce <strong style="color:var(--text)">${pct(hardBounces)}%</strong></div>
+          <div style="font-size:13px;color:var(--gray)">Soft bounce <strong style="color:var(--text)">${pct(softBounces)}%</strong></div>
+          <div style="font-size:13px;color:var(--gray)">Blocked <strong style="color:var(--text)">${pct(blocked)}%</strong></div>
+        </div>
+      </div>`;
+  } catch(e) {
+    el.innerHTML = `<div style="padding:16px;color:var(--red);font-size:13px">Failed to load Brevo stats: ${e.message}</div>`;
+  }
+}
+async function loadBrevoStats(apiKey) {
+  const el = document.getElementById('brevo-stats-panel');
+  if (!el) return;
+  if (!apiKey) {
+    el.innerHTML = '<div class="info-banner" style="margin:16px">⚠️ Add your Brevo API key in Settings to see live delivery stats.</div>';
+    return;
+  }
+  el.innerHTML = '<div style="padding:16px;color:var(--gray);font-size:13px">Loading Brevo stats…</div>';
+  try {
+    const end = new Date().toISOString().slice(0, 10);
+    const start = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+    const r = await fetch(`https://api.brevo.com/v3/smtp/statistics/aggregatedReport?startDate=${start}&endDate=${end}`, {
+      headers: { 'api-key': apiKey, 'Content-Type': 'application/json' }
+    });
+    if (!r.ok) {
+      el.innerHTML = `<div class="info-banner" style="margin:16px">⚠️ Brevo API error ${r.status}. Check your API key in Settings.</div>`;
+      return;
+    }
+    const d = await r.json();
+    const sent = d.requests || 0;
+    const delivered = d.delivered || 0;
+    const uniqueOpens = d.uniqueOpens || 0;
+    const opens = d.opens || 0;
+    const uniqueClicks = d.uniqueClicks || 0;
+    const hardBounces = d.hardBounces || 0;
+    const softBounces = d.softBounces || 0;
+    const spam = d.spamReports || 0;
+    const blocked = d.blocked || 0;
+    const pct = (n) => sent > 0 ? (n / sent * 100).toFixed(2) : '0.00';
+    const bar = (val, color) => `<div style="height:6px;background:var(--border);border-radius:3px;margin-top:6px"><div style="height:6px;background:${color};border-radius:3px;width:${Math.min(parseFloat(val),100)}%"></div></div>`;
+    el.innerHTML = `
+      <div class="panel-header">
+        <h2>Brevo Delivery Stats <span style="font-size:12px;font-weight:400;color:var(--gray)">(last 30 days)</span></h2>
+        <span style="font-size:13px;font-weight:700">${sent} emails sent</span>
+      </div>
+      <div style="padding:20px">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:18px">
+          <div>
+            <div style="font-size:13px;color:var(--gray);margin-bottom:2px">Delivered</div>
+            <div style="font-weight:700;font-size:18px">${pct(delivered)}%</div>
+            ${bar(pct(delivered), '#1a56db')}
+          </div>
+          <div>
+            <div style="font-size:13px;color:var(--gray);margin-bottom:2px">Estimated openers</div>
+            <div style="font-weight:700;font-size:18px">${uniqueOpens}</div>
+            ${bar(pct(uniqueOpens), '#10b981')}
+          </div>
+          <div>
+            <div style="font-size:13px;color:var(--gray);margin-bottom:2px">Trackable openers</div>
+            <div style="font-weight:700;font-size:18px">${pct(opens)}%</div>
+            ${bar(pct(opens), '#10b981')}
+          </div>
+          <div>
+            <div style="font-size:13px;color:var(--gray);margin-bottom:2px">Unique clickers</div>
+            <div style="font-weight:700;font-size:18px">${pct(uniqueClicks)}%</div>
+            ${bar(pct(uniqueClicks), '#10b981')}
+          </div>
+          <div>
+            <div style="font-size:13px;color:var(--gray);margin-bottom:2px">Bounced</div>
+            <div style="font-weight:700;font-size:18px">${(parseFloat(pct(hardBounces))+parseFloat(pct(softBounces))).toFixed(2)}%</div>
+            ${bar(0, '#d1d5db')}
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;padding-top:14px;border-top:1px solid var(--border)">
+          <div style="font-size:13px;color:var(--gray)">Complaint <strong style="color:var(--text)">${pct(spam)}%</strong></div>
+          <div style="font-size:13px;color:var(--gray)">Hard bounce <strong style="color:var(--text)">${pct(hardBounces)}%</strong></div>
+          <div style="font-size:13px;color:var(--gray)">Soft bounce <strong style="color:var(--text)">${pct(softBounces)}%</strong></div>
+          <div style="font-size:13px;color:var(--gray)">Blocked <strong style="color:var(--text)">${pct(blocked)}%</strong></div>
+        </div>
+      </div>`;
+  } catch(e) {
+    el.innerHTML = `<div style="padding:16px;color:var(--red);font-size:13px">Failed to load Brevo stats: ${e.message}</div>`;
+  }
+}
+
+  async function loadBrevoStats(apiKey, targetId) {
+  const el = document.getElementById(targetId || 'brevo-stats-panel');
+  if (!el) return;
+  if (!apiKey) {
+    el.innerHTML = '<div class="info-banner" style="margin:16px">⚠️ Add your Brevo API key in Settings to see live delivery stats.</div>';
+    return;
+  }
+  el.innerHTML = '<div style="padding:16px;color:var(--gray);font-size:13px">Loading Brevo stats…</div>';
+  try {
+    const end = new Date().toISOString().slice(0, 10);
+    const start = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+    const r = await fetch(`https://api.brevo.com/v3/smtp/statistics/aggregatedReport?startDate=${start}&endDate=${end}`, {
+      headers: { 'api-key': apiKey, 'Content-Type': 'application/json' }
+    });
+    if (!r.ok) {
+      el.innerHTML = `<div class="info-banner" style="margin:16px">⚠️ Brevo API error ${r.status} — check your API key in Settings.</div>`;
+      return;
+    }
+    const d = await r.json();
+    const sent = d.requests || 0;
+    const delivered = d.delivered || 0;
+    const uniqueOpens = d.uniqueOpens || 0;
+    const opens = d.opens || 0;
+    const uniqueClicks = d.uniqueClicks || 0;
+    const clicks = d.clicks || 0;
+    const hardBounces = d.hardBounces || 0;
+    const softBounces = d.softBounces || 0;
+    const spam = d.spamReports || 0;
+    const blocked = d.blocked || 0;
+    const invalid = d.invalid || 0;
+    const unsubs = d.unsubscriptions || 0;
+    try {
+      await sb.from('brevo_stats').upsert({
+        period_start: start, period_end: end, fetched_at: new Date().toISOString(),
+        requests: sent, delivered, unique_opens: uniqueOpens, opens,
+        unique_clicks: uniqueClicks, clicks, hard_bounces: hardBounces,
+        soft_bounces: softBounces, spam_reports: spam, blocked, invalid, unsubscriptions: unsubs
+      }, { onConflict: 'period_end' });
+    } catch(e) { console.warn('brevo_stats save failed:', e.message); }
+    const pct = (n) => sent > 0 ? (n / sent * 100).toFixed(2) : '0.00';
+    const bar = (val, color) => `<div style="height:6px;background:var(--border);border-radius:3px;margin-top:6px"><div style="height:6px;background:${color};border-radius:3px;width:${Math.min(parseFloat(val),100)}%"></div></div>`;
+    el.innerHTML = `
+      <div class="panel-header">
+        <h2>Brevo Delivery Stats <span style="font-size:12px;font-weight:400;color:var(--gray)">(last 30 days)</span></h2>
+        <span style="font-size:13px;font-weight:700">${sent} emails sent</span>
+      </div>
+      <div style="padding:20px">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:18px">
+          <div><div style="font-size:13px;color:var(--gray);margin-bottom:2px">Delivered</div><div style="font-weight:700;font-size:18px">${pct(delivered)}%</div>${bar(pct(delivered),'#1a56db')}</div>
+          <div><div style="font-size:13px;color:var(--gray);margin-bottom:2px">Estimated openers</div><div style="font-weight:700;font-size:18px">${uniqueOpens}</div>${bar(pct(uniqueOpens),'#10b981')}</div>
+          <div><div style="font-size:13px;color:var(--gray);margin-bottom:2px">Trackable openers</div><div style="font-weight:700;font-size:18px">${pct(opens)}%</div>${bar(pct(opens),'#10b981')}</div>
+          <div><div style="font-size:13px;color:var(--gray);margin-bottom:2px">Unique clickers</div><div style="font-weight:700;font-size:18px">${pct(uniqueClicks)}%</div>${bar(pct(uniqueClicks),'#10b981')}</div>
+          <div><div style="font-size:13px;color:var(--gray);margin-bottom:2px">Bounced</div><div style="font-weight:700;font-size:18px">${(parseFloat(pct(hardBounces))+parseFloat(pct(softBounces))).toFixed(2)}%</div>${bar(0,'#d1d5db')}</div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;padding-top:14px;border-top:1px solid var(--border)">
+          <div style="font-size:13px;color:var(--gray)">Complaint <strong style="color:var(--text)">${pct(spam)}%</strong></div>
+          <div style="font-size:13px;color:var(--gray)">Hard bounce <strong style="color:var(--text)">${pct(hardBounces)}%</strong></div>
+          <div style="font-size:13px;color:var(--gray)">Soft bounce <strong style="color:var(--text)">${pct(softBounces)}%</strong></div>
+          <div style="font-size:13px;color:var(--gray)">Blocked <strong style="color:var(--text)">${pct(blocked)}%</strong></div>
+        </div>
+      </div>`;
+  } catch(e) {
+    el.innerHTML = `<div style="padding:16px;color:var(--red);font-size:13px">Failed to load Brevo stats: ${e.message}</div>`;
+  }
+}
+
+function renderBrevoHistory(history, targetId) {
+  const el = document.getElementById(targetId);
+  if (!el || !history || !history.length) { if(el) el.innerHTML=''; return; }
+  const rows = history.map(h => {
+    const sent = h.requests || 0;
+    const pct = (n) => sent > 0 ? (n / sent * 100).toFixed(1) + '%' : '—';
+    return `<tr>
+      <td>${new Date(h.fetched_at).toLocaleDateString()}</td>
+      <td style="font-size:12px;color:var(--gray)">${h.period_start} → ${h.period_end}</td>
+      <td>${sent}</td>
+      <td>${pct(h.delivered)}</td>
+      <td>${h.unique_opens}</td>
+      <td>${pct(h.opens)}</td>
+      <td>${pct(h.unique_clicks)}</td>
+      <td>${pct((h.hard_bounces||0)+(h.soft_bounces||0))}</td>
+    </tr>`;
+  }).join('');
+  el.innerHTML = `
+    <div class="panel-header"><h2>Brevo Stats History</h2></div>
+    <table><thead><tr><th>Fetched</th><th>Period</th><th>Sent</th><th>Delivered</th><th>Uniq Opens</th><th>Open Rate</th><th>Click Rate</th><th>Bounce Rate</th></tr></thead>
+    <tbody>${rows}</tbody></table>`;
+}
+
+  
+/* ─── SEQUENCES ─── */
+async function renderSequences() {
+  const { data: seqs } = await sb.from('sequences').select('*').order('created_at');
+  document.getElementById('topbar-actions').innerHTML = `<button class="btn btn-primary" onclick="openSeqModal()">+ New Sequence</button>`;
+  document.getElementById('content').innerHTML = `
+    <div class="panel">
+      <div class="panel-header"><h2>Sequences</h2></div>
+      ${!seqs||!seqs.length ? '<div class="empty">No sequences yet. Create one to get started.</div>' :
+            `<table><thead><tr><th>Name</th><th>Description</th><th>Schedule</th><th>Thread</th><th>Active</th><th>Actions</th></tr></thead><tbody>
+      ${seqs.map(s=>`<tr>
+        <td><strong>${s.name}</strong></td>
+        <td style="color:var(--gray)">${s.description||'—'}</td>
+        <td>${s.send_time ? `<span class="seq-sched">⏰ ${s.send_time} · ${(s.send_days||'global').replace(',','/')}</span>` : '<span style="font-size:12px;color:var(--gray)">Global schedule</span>'}</td>
+        <td>${s.same_thread ? '<span class="badge badge-blue">On</span>' : '<span style="font-size:12px;color:var(--gray)">Off</span>'}</td>
+        <td><label class="toggle"><input type="checkbox" ${s.active?'checked':''} onchange="toggleSeq('${s.id}',this.checked)"><span class="toggle-slider"></span></label></td>
+        <td><div class="actions">
+                    <button class="btn btn-secondary btn-sm" onclick="openStepsModal('${s.id}','${esc(s.name)}')">Steps</button>
+          <button class="btn btn-secondary btn-sm" onclick="openSeqInboxModal('${s.id}','${esc(s.name)}')">Inboxes</button>
+          <button class="btn btn-secondary btn-sm" onclick="openSeqModal('${s.id}','${esc(s.name)}','${esc(s.description||'')}','${esc(s.send_time||'')}','${esc(s.send_days||'')}',${!!s.same_thread})">Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteSeq('${s.id}')">Delete</button>
+        </div></td>
+      </tr>`).join('')}</tbody></table>`}
+    </div>`;
+}
+
+async function toggleSeq(id, active) {
+  await sb.from('sequences').update({ active }).eq('id', id);
+}
+
+async function deleteSeq(id) {
+  if (!confirm('Delete this sequence and all enrollments?')) return;
+  await sb.from('sequences').delete().eq('id', id);
+  renderSequences();
+}
+
+async function openSeqInboxModal(seqId, seqName) {
+  const { data: allInboxes } = await sb.from('inboxes').select('*').eq('active', true).order('created_at');
+  const { data: assigned }   = await sb.from('sequence_inboxes').select('*').eq('sequence_id', seqId);
+  const aMap = {};
+  (assigned || []).forEach(a => { aMap[a.inbox_id] = a; });
+  if (!allInboxes || !allInboxes.length) {
+    showModal(`<h2>Inboxes — ${seqName}</h2><div class="empty" style="padding:20px">No active inboxes. Add one in the Inboxes tab first.</div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Close</button></div>`);
+    return;
+  }
+  const rows = allInboxes.map(ib => {
+    const a      = aMap[ib.id] || {};
+    const isOn   = !!(a.inbox_id && a.active !== false);
+    const useLim = !!(a.use_inbox_limit);
+    const lim    = a.daily_limit || 0;
+    return `<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:${isOn?'10px':'0'}">
+        <label class="toggle" style="margin:0"><input type="checkbox" id="sqi-chk-${ib.id}" ${isOn?'checked':''} onchange="toggleSeqInboxRow('${ib.id}')"><span class="toggle-slider"></span></label>
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:14px">${ib.name}</div>
+          <div style="font-size:12px;color:var(--gray)">${ib.email}</div>
+        </div>
+      </div>
+      <div id="sqi-opts-${ib.id}" style="${isOn?'':'display:none'}">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <label class="toggle" style="margin:0"><input type="checkbox" id="sqi-uselim-${ib.id}" ${useLim?'checked':''} onchange="toggleSeqInboxLimitRow('${ib.id}')"><span class="toggle-slider"></span></label>
+          <span style="font-size:13px;color:var(--gray)">Set a custom daily send limit for this inbox</span>
+        </div>
+        <div id="sqi-limwrap-${ib.id}" style="${useLim?'':'display:none'}">
+          <div class="form-group" style="margin:0">
+            <label style="font-size:12px;color:var(--gray)">Max emails/day from this inbox (this sequence only)</label>
+            <input id="sqi-lim-${ib.id}" type="number" min="0" value="${lim}" placeholder="e.g. 50">
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  showModal(`
+    <h2>Inboxes — ${seqName}</h2>
+    <p class="hint" style="margin-bottom:14px">Toggle inboxes on to include them in this sequence. The drip script rotates through enabled inboxes picking the one with fewest sends today. Each contact locks to one inbox for the whole sequence so same-thread replies stay consistent.</p>
+    ${rows}
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveSeqInboxes('${seqId}')">Save</button>
+    </div>`, true);
+}
+
+function toggleSeqInboxRow(inboxId) {
+  const checked = document.getElementById(`sqi-chk-${inboxId}`).checked;
+  document.getElementById(`sqi-opts-${inboxId}`).style.display = checked ? '' : 'none';
+}
+
+function toggleSeqInboxLimitRow(inboxId) {
+  const checked = document.getElementById(`sqi-uselim-${inboxId}`).checked;
+  document.getElementById(`sqi-limwrap-${inboxId}`).style.display = checked ? '' : 'none';
+}
+
+async function saveSeqInboxes(seqId) {
+  const { data: allInboxes } = await sb.from('inboxes').select('id').eq('active', true);
+  if (!allInboxes) return;
+  for (const ib of allInboxes) {
+    const chk = document.getElementById(`sqi-chk-${ib.id}`);
+    if (!chk) continue;
+    const active  = chk.checked;
+    const useLim  = document.getElementById(`sqi-uselim-${ib.id}`)?.checked || false;
+    const lim     = parseInt(document.getElementById(`sqi-lim-${ib.id}`)?.value || '0') || 0;
+    await sb.from('sequence_inboxes').upsert(
+      { sequence_id: seqId, inbox_id: ib.id, active, use_inbox_limit: useLim, daily_limit: lim },
+      { onConflict: 'sequence_id,inbox_id' }
+    );
+  }
+  closeModal();
+}
+
+async function openSeqInboxModal(seqId, seqName) {
+  const { data: allInboxes } = await sb.from('inboxes').select('*').eq('active', true).order('created_at');
+  const { data: assigned }   = await sb.from('sequence_inboxes').select('*').eq('sequence_id', seqId);
+  const aMap = {};
+  (assigned || []).forEach(a => { aMap[a.inbox_id] = a; });
+  if (!allInboxes || !allInboxes.length) {
+    showModal(`<h2>Inboxes — ${seqName}</h2><div class="empty" style="padding:20px">No active inboxes. Add one in the Inboxes tab first.</div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Close</button></div>`);
+    return;
+  }
+  const rows = allInboxes.map(ib => {
+    const a      = aMap[ib.id] || {};
+    const isOn   = !!(a.inbox_id && a.active !== false);
+    const useLim = !!(a.use_inbox_limit);
+    const lim    = a.daily_limit || 0;
+    return `<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:${isOn?'10px':'0'}">
+        <label class="toggle" style="margin:0"><input type="checkbox" id="sqi-chk-${ib.id}" ${isOn?'checked':''} onchange="toggleSeqInboxRow('${ib.id}')"><span class="toggle-slider"></span></label>
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:14px">${ib.name}</div>
+          <div style="font-size:12px;color:var(--gray)">${ib.email}</div>
+        </div>
+      </div>
+      <div id="sqi-opts-${ib.id}" style="${isOn?'':'display:none'}">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <label class="toggle" style="margin:0"><input type="checkbox" id="sqi-uselim-${ib.id}" ${useLim?'checked':''} onchange="toggleSeqInboxLimitRow('${ib.id}')"><span class="toggle-slider"></span></label>
+          <span style="font-size:13px;color:var(--gray)">Set a custom daily send limit for this inbox</span>
+        </div>
+        <div id="sqi-limwrap-${ib.id}" style="${useLim?'':'display:none'}">
+          <div class="form-group" style="margin:0">
+            <label style="font-size:12px;color:var(--gray)">Max emails/day from this inbox (this sequence only)</label>
+            <input id="sqi-lim-${ib.id}" type="number" min="0" value="${lim}" placeholder="e.g. 50">
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  showModal(`
+    <h2>Inboxes — ${seqName}</h2>
+    <p class="hint" style="margin-bottom:14px">Toggle inboxes on to include them in this sequence. The drip script rotates through enabled inboxes picking the one with fewest sends today. Each contact locks to one inbox for the whole sequence so same-thread replies stay consistent.</p>
+    ${rows}
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveSeqInboxes('${seqId}')">Save</button>
+    </div>`, true);
+}
+
+function toggleSeqInboxRow(inboxId) {
+  const checked = document.getElementById(`sqi-chk-${inboxId}`).checked;
+  document.getElementById(`sqi-opts-${inboxId}`).style.display = checked ? '' : 'none';
+}
+
+function toggleSeqInboxLimitRow(inboxId) {
+  const checked = document.getElementById(`sqi-uselim-${inboxId}`).checked;
+  document.getElementById(`sqi-limwrap-${inboxId}`).style.display = checked ? '' : 'none';
+}
+
+async function saveSeqInboxes(seqId) {
+  const { data: allInboxes } = await sb.from('inboxes').select('id').eq('active', true);
+  if (!allInboxes) return;
+  for (const ib of allInboxes) {
+    const chk = document.getElementById(`sqi-chk-${ib.id}`);
+    if (!chk) continue;
+    const active  = chk.checked;
+    const useLim  = document.getElementById(`sqi-uselim-${ib.id}`)?.checked || false;
+    const lim     = parseInt(document.getElementById(`sqi-lim-${ib.id}`)?.value || '0') || 0;
+    await sb.from('sequence_inboxes').upsert(
+      { sequence_id: seqId, inbox_id: ib.id, active, use_inbox_limit: useLim, daily_limit: lim },
+      { onConflict: 'sequence_id,inbox_id' }
+    );
+  }
+  closeModal();
+}
+
+async function openSeqInboxModal(seqId, seqName) {
+  const { data: allInboxes } = await sb.from('inboxes').select('*').eq('active', true).order('created_at');
+  const { data: assigned }   = await sb.from('sequence_inboxes').select('*').eq('sequence_id', seqId);
+  const aMap = {};
+  (assigned || []).forEach(a => { aMap[a.inbox_id] = a; });
+  if (!allInboxes || !allInboxes.length) {
+    showModal(`<h2>Inboxes — ${seqName}</h2><div class="empty" style="padding:20px">No active inboxes. Add one in the Inboxes tab first.</div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Close</button></div>`);
+    return;
+  }
+  const rows = allInboxes.map(ib => {
+    const a      = aMap[ib.id] || {};
+    const isOn   = !!(a.inbox_id && a.active !== false);
+    const useLim = !!(a.use_inbox_limit);
+    const lim    = a.daily_limit || 0;
+    return `<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:${isOn?'10px':'0'}">
+        <label class="toggle" style="margin:0"><input type="checkbox" id="sqi-chk-${ib.id}" ${isOn?'checked':''} onchange="toggleSeqInboxRow('${ib.id}')"><span class="toggle-slider"></span></label>
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:14px">${ib.name}</div>
+          <div style="font-size:12px;color:var(--gray)">${ib.email}</div>
+        </div>
+      </div>
+      <div id="sqi-opts-${ib.id}" style="${isOn?'':'display:none'}">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <label class="toggle" style="margin:0"><input type="checkbox" id="sqi-uselim-${ib.id}" ${useLim?'checked':''} onchange="toggleSeqInboxLimitRow('${ib.id}')"><span class="toggle-slider"></span></label>
+          <span style="font-size:13px;color:var(--gray)">Use a custom daily limit for this inbox</span>
+        </div>
+        <div id="sqi-limwrap-${ib.id}" style="${useLim?'':'display:none'}">
+          <div class="form-group" style="margin:0">
+            <label style="font-size:12px;color:var(--gray)">Max emails/day from this inbox (this sequence)</label>
+            <input id="sqi-lim-${ib.id}" type="number" min="0" value="${lim}" placeholder="e.g. 50">
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  showModal(`
+    <h2>Inboxes — ${seqName}</h2>
+    <p class="hint" style="margin-bottom:14px">Toggle inboxes on to include them in this sequence. The drip script rotates through enabled inboxes picking the one with fewest sends today. Each contact is locked to one inbox for their whole sequence — this keeps same-thread replies consistent.</p>
+    ${rows}
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveSeqInboxes('${seqId}')">Save</button>
+    </div>`, true);
+}
+
+function toggleSeqInboxRow(inboxId) {
+  const checked = document.getElementById(`sqi-chk-${inboxId}`).checked;
+  document.getElementById(`sqi-opts-${inboxId}`).style.display = checked ? '' : 'none';
+}
+
+function toggleSeqInboxLimitRow(inboxId) {
+  const checked = document.getElementById(`sqi-uselim-${inboxId}`).checked;
+  document.getElementById(`sqi-limwrap-${inboxId}`).style.display = checked ? '' : 'none';
+}
+
+async function saveSeqInboxes(seqId) {
+  const { data: allInboxes } = await sb.from('inboxes').select('id').eq('active', true);
+  if (!allInboxes) return;
+  for (const ib of allInboxes) {
+    const chk = document.getElementById(`sqi-chk-${ib.id}`);
+    if (!chk) continue;
+    const active  = chk.checked;
+    const useLim  = document.getElementById(`sqi-uselim-${ib.id}`)?.checked || false;
+    const lim     = parseInt(document.getElementById(`sqi-lim-${ib.id}`)?.value || '0') || 0;
+    await sb.from('sequence_inboxes').upsert(
+      { sequence_id: seqId, inbox_id: ib.id, active, use_inbox_limit: useLim, daily_limit: lim },
+      { onConflict: 'sequence_id,inbox_id' }
+    );
+  }
+  closeModal();
+}
+
+function openSeqModal(id, name, desc, seqTime, seqDays, sameThread) {
+  const activeDays = (seqDays || '').split(',').map(d => d.trim()).filter(Boolean);
+  const days = [{v:'mon',l:'Mon'},{v:'tue',l:'Tue'},{v:'wed',l:'Wed'},{v:'thu',l:'Thu'},{v:'fri',l:'Fri'},{v:'sat',l:'Sat'},{v:'sun',l:'Sun'}];
+  showModal(`
+    <h2>${id ? 'Edit' : 'New'} Sequence</h2>
+    <div class="form-group"><label>Name</label><input id="sq-name" value="${name||''}"></div>
+    <div class="form-group"><label>Description</label><textarea id="sq-desc">${desc||''}</textarea></div>
+    <div class="section-title">Send Schedule Override <span style="color:var(--gray);font-weight:400;text-transform:none;font-size:12px">(optional — overrides global schedule for this sequence)</span></div>
+    <div class="form-row-2">
+      <div class="form-group">
+        <label>Send Time</label>
+        <input id="sq-time" type="time" value="${seqTime||''}">
+        <p class="hint">Leave blank to use global schedule.</p>
+      </div>
+      <div class="form-group">
+        <label>Send Days <span style="font-weight:400;color:var(--gray)">(blank = global)</span></label>
+        <div class="days-grid" style="margin-top:0">
+          ${days.map(d=>`<button type="button" class="day-chip sq-day ${activeDays.includes(d.v)?'on':''}" data-day="${d.v}" onclick="this.classList.toggle('on')">${d.l}</button>`).join('')}
+        </div>
+      </div>
+    </div>
+        <div class="section-title">Threading</div>
+    <div class="form-group" style="display:flex;align-items:center;gap:12px">
+      <label class="toggle" style="margin:0"><input type="checkbox" id="sq-thread" ${sameThread?'checked':''}><span class="toggle-slider"></span></label>
+      <span style="font-size:14px">Send sequence emails on the same thread (reply chain)</span>
+    </div>
+    <p class="hint">When on, steps 2+ appear as replies to the first email in each contact's inbox. Keep the same subject line for best threading compatibility.</p>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveSeq('${id||''}')">Save</button>
+    </div>`);
+}
+
+async function saveSeq(id) {
+  const name = document.getElementById('sq-name').value.trim();
+  const description = document.getElementById('sq-desc').value.trim();
+  if (!name) { alert('Name required'); return; }
+  const send_time = document.getElementById('sq-time').value || null;
+  const checkedDays = Array.from(document.querySelectorAll('.sq-day.on')).map(el => el.dataset.day);
+    const send_days = checkedDays.length ? checkedDays.join(',') : null;
+  const same_thread = document.getElementById('sq-thread').checked;
+  const payload = { name, description, send_time, send_days, same_thread };
+  if (id) await sb.from('sequences').update(payload).eq('id', id);
+  else await sb.from('sequences').insert({ ...payload, active: true });
+  closeModal();
+  renderSequences();
+}
+
+async function openStepsModal(seqId, seqName) {
+  const { data: steps } = await sb.from('steps').select('*').eq('sequence_id', seqId).order('step_number');
+  const nextNum = steps && steps.length ? steps[steps.length - 1].step_number + 1 : 1;
+  showModal(`
+    <h2>Steps — ${seqName}</h2>
+    <div id="steps-list">
+      ${!steps||!steps.length ? '<div class="empty">No steps. Add one below.</div>' : steps.map(s => stepCard(s)).join('')}
+    </div>
+    <button class="btn btn-ghost" style="margin-top:12px;width:100%" onclick="openStepForm('${seqId}','${esc(seqName)}',${nextNum},null)">+ Add Step</button>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Done</button></div>
+  `, true);
+}
+
+function delay(s) {
+  const parts = [s.delay_days>0?`${s.delay_days}d`:'', s.delay_hours>0?`${s.delay_hours}h`:'', s.delay_minutes>0?`${s.delay_minutes}m`:''].filter(Boolean);
+  return parts.length ? parts.join(' ') : 'Immediately';
+}
+
+function stepCard(s) {
+  const batchLimit = s.batch_limit > 0 ? s.batch_limit : null;
+  const interval = s.batch_interval_minutes > 0 ? s.batch_interval_minutes : null;
+  const batchText = batchLimit ? `Batch: ${batchLimit} emails${interval ? `, ${interval} min apart` : ''}` : (interval ? `${interval} min between emails` : 'No batch limit');
+  const tagPills = s.tags ? s.tags.split(',').map(t => t.trim()).filter(Boolean).map(t => `<span class="tag-pill">${t}</span>`).join('') : '';
+  const bodyPreview = s.body ? s.body.replace(/<[^>]+>/g, '').trim().substring(0, 80) + (s.body.length > 80 ? '…' : '') : '';
+  return `<div class="step-card">
+    <div class="step-card-header">
+      <div style="display:flex;align-items:flex-start;gap:10px;flex:1;min-width:0">
+        <div class="step-num" style="margin-top:2px">${s.step_number}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:600">${s.subject}</div>
+          <div class="step-meta">Wait: ${delay(s)} · ${s.from_email}</div>
+          ${bodyPreview ? `<div class="step-body-preview">"${bodyPreview}"</div>` : ''}
+          <div class="step-meta" style="margin-top:4px">${batchText}</div>
+          ${tagPills ? `<div style="margin-top:5px">${tagPills}</div>` : ''}
+        </div>
+      </div>
+      <div class="actions" style="flex-shrink:0;margin-left:10px">
+        <button class="btn btn-secondary btn-sm" onclick="openStepForm('${s.sequence_id}','_',${s.step_number},'${s.id}')">Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteStep('${s.id}','${s.sequence_id}')">×</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function openStepForm(seqId, seqName, stepNum, stepId) {
+  showModal(`
+    <h2>${stepId ? 'Edit' : 'New'} Step ${stepNum}</h2>
+    <div class="section-title">Email Details</div>
+    <div class="form-group"><label>Subject Line</label><input id="st-subj" placeholder="Quick question"></div>
+    <div class="form-group"><label>From Email</label><input id="st-from" value="Aaron &lt;aaron@blubalencebookkeeping.com&gt;"></div>
+    <div class="section-title">Email Body</div>
+    <div class="form-group">
+      <label>Body Text <span style="color:var(--gray);font-weight:400">(HTML or plain text)</span></label>
+      <textarea id="st-body" style="min-height:160px;font-family:monospace;font-size:13px" placeholder="Hi {{ .Subscriber.FirstName }},
+
+I noticed you're a realtor in Atlanta and wanted to reach out...
+
+Best,
+Aaron
+Blu Balence Bookkeeping"></textarea>
+            <p class="hint">Variables: <code>{{first_name}}</code> <code>{{last_name}}</code> <code>{{company}}</code> <code>{{today}}</code> <code>{{this_month}}</code> <code>{{email}}</code></p>
+    </div>
+    <div class="section-title">Wait Before Sending This Step</div>
+    <div class="form-row">
+      <div class="form-group"><label>Days</label><input id="st-days" type="number" value="0" min="0"></div>
+      <div class="form-group"><label>Hours</label><input id="st-hours" type="number" value="0" min="0" max="23"></div>
+      <div class="form-group"><label>Minutes</label><input id="st-mins" type="number" value="0" min="0" max="59"></div>
+    </div>
+    <p class="hint">Step 1 always sends immediately on first run. Delay applies from the previous step's send time.</p>
+    <div class="section-title">Batch Controls</div>
+    <div class="form-row-2">
+      <div class="form-group">
+        <label>Batch Limit <span style="color:var(--gray);font-weight:400">(max per run)</span></label>
+        <input id="st-batch" type="number" value="0" min="0" placeholder="0 = unlimited">
+      </div>
+      <div class="form-group">
+        <label>Minutes Between Emails</label>
+        <input id="st-interval" type="number" value="0" min="0" placeholder="0 = use global rate">
+      </div>
+    </div>
+    <p class="hint">Example: Batch 5 + 10 min = send 5 emails, one every 10 minutes.</p>
+    <div class="section-title">Tags</div>
+    <div class="form-group">
+      <label>Tags <span style="color:var(--gray);font-weight:400">(comma-separated)</span></label>
+      <input id="st-tags" placeholder="atlanta-realtors, cold-outreach, step-1">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="openStepsModal('${seqId}','${esc(seqName)}')">Back</button>
+      <button class="btn btn-primary" onclick="saveStep('${seqId}','${esc(seqName)}',${stepNum},'${stepId||''}')">Save Step</button>
+    </div>`, true);
+  if (stepId) {
+    sb.from('steps').select('*').eq('id', stepId).single().then(({ data: s }) => {
+      if (!s) return;
+      document.getElementById('st-subj').value = s.subject || '';
+      document.getElementById('st-from').value = s.from_email || '';
+      document.getElementById('st-days').value = s.delay_days || 0;
+      document.getElementById('st-hours').value = s.delay_hours || 0;
+      document.getElementById('st-mins').value = s.delay_minutes || 0;
+      document.getElementById('st-body').value = s.body || '';
+      document.getElementById('st-batch').value = s.batch_limit || 0;
+      document.getElementById('st-interval').value = s.batch_interval_minutes || 0;
+      document.getElementById('st-tags').value = s.tags || '';
+    });
+  }
+}
+
+async function saveStep(seqId, seqName, stepNum, stepId) {
+  const payload = {
+    sequence_id: seqId, step_number: stepNum,
+    subject: document.getElementById('st-subj').value.trim(),
+    from_email: document.getElementById('st-from').value.trim(),
+    template_id: 1,
+    delay_days: parseInt(document.getElementById('st-days').value) || 0,
+    delay_hours: parseInt(document.getElementById('st-hours').value) || 0,
+    delay_minutes: parseInt(document.getElementById('st-mins').value) || 0,
+    body: document.getElementById('st-body').value,
+    batch_limit: parseInt(document.getElementById('st-batch').value) || 0,
+    batch_interval_minutes: parseInt(document.getElementById('st-interval').value) || 0,
+    tags: document.getElementById('st-tags').value.trim(),
+  };
+  if (!payload.subject || !payload.from_email) { alert('Subject and From email are required'); return; }
+  let error;
+  if (stepId) ({ error } = await sb.from('steps').update(payload).eq('id', stepId));
+  else ({ error } = await sb.from('steps').insert(payload));
+  if (error) { alert('Save failed: ' + error.message); return; }
+  openStepsModal(seqId, seqName);
+}
+
+async function deleteStep(stepId, seqId) {
+  if (!confirm('Delete this step?')) return;
+  await sb.from('steps').delete().eq('id', stepId);
+  const { data: seq } = await sb.from('sequences').select('name').eq('id', seqId).single();
+  openStepsModal(seqId, seq?.name || '');
+}
+
+/* ─── SUBSCRIBERS ─── */
+async function renderSubscribers() {
+  const { data: enrs } = await sb.from('enrollments').select('*,sequences(name)').order('enrolled_at', { ascending: false });
+  document.getElementById('topbar-actions').innerHTML = `
+    <button class="btn btn-secondary" style="margin-right:8px" onclick="openBulkModal()">Bulk CSV</button>
+    <button class="btn btn-primary" onclick="openEnrollModal()">+ Enroll</button>`;
+  const badge = s => ({ active:'badge-green', paused:'badge-yellow', completed:'badge-blue', unsubscribed:'badge-red' }[s] || 'badge-gray');
+  document.getElementById('content').innerHTML = `
+    <div class="panel">
+      <div class="panel-header"><h2>Enrollments (${(enrs||[]).length})</h2></div>
+      ${!enrs||!enrs.length ? '<div class="empty">No enrollments yet.</div>' :
+      `<table><thead><tr><th>Email</th><th>Name</th><th>Sequence</th><th>Step</th><th>Status</th><th>Last Sent</th><th>Actions</th></tr></thead><tbody>
+      ${enrs.map(e=>`<tr>
+        <td>${e.email}</td><td>${e.name||'—'}</td><td>${e.sequences?.name||'—'}</td>
+        <td>Step ${e.current_step}</td>
+        <td><span class="badge ${badge(e.status)}">${e.status}</span></td>
+        <td>${e.last_sent_at ? new Date(e.last_sent_at).toLocaleDateString() : 'Not yet'}</td>
+        <td><div class="actions">
+          ${e.status==='active'?`<button class="btn btn-secondary btn-sm" onclick="setStatus('${e.id}','paused')">Pause</button>`:e.status==='paused'?`<button class="btn btn-secondary btn-sm" onclick="setStatus('${e.id}','active')">Resume</button>`:''}
+          <button class="btn btn-danger btn-sm" onclick="removeEnr('${e.id}')">Remove</button>
+        </div></td>
+      </tr>`).join('')}</tbody></table>`}
+    </div>`;
+}
+
+async function setStatus(id, status) { await sb.from('enrollments').update({ status }).eq('id', id); renderSubscribers(); }
+async function removeEnr(id) {
+  if (!confirm('Remove this enrollment?')) return;
+  sb.from('enrollments').delete().eq('id', id).then(() => renderSubscribers());
+}
+
+async function openEnrollModal() {
+  const { data: seqs } = await sb.from('sequences').select('id,name').eq('active', true);
+  showModal(`
+    <h2>Enroll Subscriber</h2>
+    <div class="form-group"><label>Email</label><input id="en-email" type="email" placeholder="prospect@example.com"></div>
+        <div class="form-group"><label>Name</label><input id="en-name" placeholder="First Last"></div>
+    <div class="form-group"><label>Company</label><input id="en-company" placeholder="Acme Inc."></div>
+    <div class="form-group"><label>Sequence</label><select id="en-seq"><option value="">Select…</option>${(seqs||[]).map(s=>`<option value="${s.id}">${s.name}</option>`).join('')}</select></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="enrollOne()">Enroll</button>
+    </div>`);
+}
+
+async function enrollOne() {
+  const email = document.getElementById('en-email').value.trim();
+  const name = document.getElementById('en-name').value.trim();
+  const company = document.getElementById('en-company').value.trim() || null;
+  const sequence_id = document.getElementById('en-seq').value;
+  if (!email || !sequence_id) { alert('Email and sequence required'); return; }
+  const { error } = await sb.from('enrollments').insert({ email, name, company, sequence_id, current_step: 0, status: 'active' });
+  if (error) { alert(error.message); return; }
+  closeModal(); renderSubscribers();
+}
+
+async function openBulkModal() {
+  const { data: seqs } = await sb.from('sequences').select('id,name').eq('active', true);
+  showModal(`
+    <h2>Bulk Enroll via CSV</h2>
+    <div class="form-group"><label>Sequence</label><select id="bl-seq"><option value="">Select…</option>${(seqs||[]).map(s=>`<option value="${s.id}">${s.name}</option>`).join('')}</select></div>
+    <div class="form-group">
+            <label>Paste CSV — one per line: <code>email, First Last, Company Name</code></label>
+      <textarea id="bl-csv" style="min-height:160px" placeholder="john@example.com, John Smith, Acme Inc&#10;jane@example.com, Jane Doe, Beta Corp"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="bulkEnroll()">Enroll All</button>
+    </div>`);
+}
+
+async function bulkEnroll() {
+  const seq = document.getElementById('bl-seq').value;
+  const csv = document.getElementById('bl-csv').value.trim();
+  if (!seq || !csv) { alert('Sequence and CSV required'); return; }
+    const rows = csv.split('\n').map(line => {
+    const [email, nameVal, companyVal] = line.split(',').map(s => s.trim());
+    return email && email.includes('@') ? { email, name: nameVal || null, company: companyVal || null, sequence_id: seq, current_step: 0, status: 'active' } : null;
+  }).filter(Boolean);
+  if (!rows.length) { alert('No valid emails found'); return; }
+  const { error } = await sb.from('enrollments').upsert(rows, { onConflict: 'email,sequence_id', ignoreDuplicates: true });
+  if (error) { alert(error.message); return; }
+  closeModal(); renderSubscribers();
+}
+
+/* ─── ANALYTICS ─── */
+async function renderAnalytics() {
+  const BADGE = {
+    opened:'badge-green', clicked:'badge-purple', bounced:'badge-yellow',
+    softBounce:'badge-yellow', hardBounce:'badge-yellow', spam:'badge-red',
+    unsubscribed:'badge-red', delivered:'badge-blue', deferred:'badge-yellow',
+    error:'badge-red', sent:'badge-gray', blocked:'badge-yellow', invalid_email:'badge-red',
+  };
+  const cutoff = aF.days ? new Date(Date.now() - parseInt(aF.days) * 86400000).toISOString() : null;
+    const [{ data: seqs }, { data: logs }, { data: evts }, { data: aSettRows }, { data: brevoHistory }] = await Promise.all([
+    sb.from('sequences').select('id,name').order('name'),
+    sb.from('send_log').select('id,sent_at,step_number,brevo_message_id,enrollment_id,enrollments(email,name,sequence_id,sequences(name))').order('sent_at', { ascending: false }).limit(1000),
+    sb.from('email_events').select('message_id,email,event_type,event_at').limit(2000),
+    sb.from('settings').select('key,value'),
+    sb.from('brevo_stats').select('*').order('fetched_at', { ascending: false }).limit(30),
+  ]);
+  
+    const aCfg = Object.fromEntries((aSettRows||[]).map(r => [r.key, cfgVal(r.value)]));
+  const aBrevoKey = aCfg.brevo_api_key || '';
+  const evByMsg = {};
+  (evts||[]).forEach(e => { if (!evByMsg[e.message_id]) evByMsg[e.message_id] = []; evByMsg[e.message_id].push(e); });
+  let filteredLogs = logs || [];
+  if (cutoff) filteredLogs = filteredLogs.filter(l => l.sent_at >= cutoff);
+  if (aF.seqId) filteredLogs = filteredLogs.filter(l => l.enrollments?.sequence_id === aF.seqId);
+  if (aF.search) { const q = aF.search.toLowerCase(); filteredLogs = filteredLogs.filter(l => (l.enrollments?.email||'').toLowerCase().includes(q) || (l.enrollments?.sequences?.name||'').toLowerCase().includes(q)); }
+  const totalSent = filteredLogs.length;
+  const evCounts = {};
+  filteredLogs.forEach(l => { (evByMsg[l.brevo_message_id]||[]).forEach(e => { evCounts[e.event_type] = (evCounts[e.event_type]||0)+1; }); });
+  const opens=evCounts['opened']||0, clicks=evCounts['clicked']||0;
+  const bounces=(evCounts['bounced']||0)+(evCounts['softBounce']||0)+(evCounts['hardBounce']||0);
+  const unsubs=evCounts['unsubscribed']||0, spam=evCounts['spam']||0, delivered=evCounts['delivered']||0;
+  const hasWebhook = evts && evts.length > 0;
+  const openRate=totalSent>0?(opens/totalSent*100).toFixed(1):'0.0';
+  const clickRate=totalSent>0?(clicks/totalSent*100).toFixed(1):'0.0';
+  const bounceRate=totalSent>0?(bounces/totalSent*100).toFixed(1):'0.0';
+  const bySeq = {};
+  filteredLogs.forEach(l => {
+    const sid=l.enrollments?.sequence_id||'unknown', sname=l.enrollments?.sequences?.name||'Unknown';
+    if (!bySeq[sid]) bySeq[sid]={name:sname,sent:0,opens:0,clicks:0};
+    bySeq[sid].sent++;
+    (evByMsg[l.brevo_message_id]||[]).forEach(e => { if(e.event_type==='opened') bySeq[sid].opens++; if(e.event_type==='clicked') bySeq[sid].clicks++; });
+  });
+  const domainMap = {};
+  filteredLogs.forEach(l => { const dom=(l.enrollments?.email||'').split('@')[1]||'unknown'; domainMap[dom]=(domainMap[dom]||0)+1; });
+  const topDomains = Object.entries(domainMap).sort((a,b)=>b[1]-a[1]).slice(0,8);
+
+  document.getElementById('content').innerHTML = `
+    ${!hasWebhook?`<div class="info-banner">ℹ️ <strong>Open &amp; click tracking requires Brevo webhooks.</strong> Set up the <code>brevo-webhook</code> Supabase Edge Function and point your Brevo webhook URL there.</div>`:''}
+        <div id="brevo-analytics-panel" class="panel" style="margin-bottom:20px"></div>
+    <div id="brevo-history-panel" class="panel" style="margin-bottom:20px"></div>
+    <div class="filter-bar">
+      <div class="fg"><label>Date Range</label>
+        <select onchange="aF.days=this.value;renderAnalytics()">
+          <option value="7" ${aF.days==='7'?'selected':''}>Last 7 days</option>
+          <option value="30" ${aF.days==='30'?'selected':''}>Last 30 days</option>
+          <option value="90" ${aF.days==='90'?'selected':''}>Last 90 days</option>
+          <option value="" ${aF.days===''?'selected':''}>All time</option>
+        </select>
+      </div>
+      <div class="fg"><label>Sequence</label>
+        <select onchange="aF.seqId=this.value;renderAnalytics()">
+          <option value="">All sequences</option>
+          ${(seqs||[]).map(s=>`<option value="${s.id}" ${aF.seqId===s.id?'selected':''}>${s.name}</option>`).join('')}
+        </select>
+      </div>
+      <div class="fg"><label>Search email</label>
+        <input type="text" placeholder="Search…" value="${aF.search||''}" oninput="aF.search=this.value;renderAnalytics()" style="width:180px">
+      </div>
+    </div>
+    <div class="stat-grid">
+      <div class="stat-card"><div class="sv">${totalSent}</div><div class="sl">Sent</div></div>
+      <div class="stat-card"><div class="sv" style="color:var(--blue)">${delivered}</div><div class="sl">Delivered</div></div>
+      <div class="stat-card"><div class="sv" style="color:var(--green)">${opens}</div><div class="sl">Opened</div><div class="ss">${openRate}%</div></div>
+      <div class="stat-card"><div class="sv" style="color:var(--purple)">${clicks}</div><div class="sl">Clicked</div><div class="ss">${clickRate}%</div></div>
+      <div class="stat-card"><div class="sv" style="color:var(--yellow)">${bounces}</div><div class="sl">Bounced</div><div class="ss">${bounceRate}%</div></div>
+      <div class="stat-card"><div class="sv" style="color:var(--red)">${unsubs}</div><div class="sl">Unsubs</div></div>
+      <div class="stat-card"><div class="sv" style="color:var(--red)">${spam}</div><div class="sl">Spam</div></div>
+    </div>
+    ${Object.keys(bySeq).length>1?`<div class="panel" style="margin-bottom:20px"><div class="panel-header"><h2>By Sequence</h2></div>
+      <table><thead><tr><th>Sequence</th><th>Sent</th><th>Opens</th><th>Open Rate</th><th>Clicks</th><th>Click Rate</th></tr></thead><tbody>
+      ${Object.values(bySeq).sort((a,b)=>b.sent-a.sent).map(s=>`<tr><td><strong>${s.name}</strong></td><td>${s.sent}</td><td>${s.opens}</td><td>${s.sent>0?(s.opens/s.sent*100).toFixed(1):0}%</td><td>${s.clicks}</td><td>${s.sent>0?(s.clicks/s.sent*100).toFixed(1):0}%</td></tr>`).join('')}
+      </tbody></table></div>`:''}
+    ${topDomains.length?`<div class="panel" style="margin-bottom:20px"><div class="panel-header"><h2>Top Domains</h2></div>
+      <table><thead><tr><th>Domain</th><th>Count</th></tr></thead><tbody>
+      ${topDomains.map(([d,c])=>`<tr><td>${d}</td><td>${c}</td></tr>`).join('')}
+      </tbody></table></div>`:''}
+    <div class="panel"><div class="panel-header"><h2>Send Log</h2></div>
+      ${!filteredLogs.length?'<div class="empty">No sends found for the selected filters.</div>':
+      `<table><thead><tr><th>Sent At</th><th>Email</th><th>Sequence</th><th>Step</th><th>Events</th></tr></thead><tbody>
+      ${filteredLogs.slice(0,200).map(l=>{
+        const evs=evByMsg[l.brevo_message_id]||[];
+        const badges=evs.map(e=>`<span class="badge ${BADGE[e.event_type]||'badge-gray'}">${e.event_type}</span>`).join(' ');
+        return `<tr><td>${new Date(l.sent_at).toLocaleString()}</td><td>${l.enrollments?.email||'—'}</td><td>${l.enrollments?.sequences?.name||'—'}</td><td>Step ${l.step_number}</td><td>${badges||'<span class="badge badge-gray">sent</span>'}</td></tr>`;
+      }).join('')}</tbody></table>`}
+        </div>`;
+  await loadBrevoStats(aBrevoKey, 'brevo-analytics-panel');
+  renderBrevoHistory(brevoHistory, 'brevo-history-panel');
+}
+
+/* ─── SETTINGS ─── */
+async function renderSettings() {
+  const { data: rows } = await sb.from('settings').select('key,value');
+  const cfg = Object.fromEntries((rows||[]).map(r => [r.key, cfgVal(r.value)]));
+  const activeDays = (cfg.send_days || 'mon,tue,wed,thu,fri').split(',').map(d => d.trim());
+  const days = [{v:'mon',l:'Mon'},{v:'tue',l:'Tue'},{v:'wed',l:'Wed'},{v:'thu',l:'Thu'},{v:'fri',l:'Fri'},{v:'sat',l:'Sat'},{v:'sun',l:'Sun'}];
+  document.getElementById('content').innerHTML = `
+    <div style="max-width:560px">
+      <div class="panel" style="margin-bottom:20px">
+        <div class="panel-header"><h2>Brevo Connection</h2></div>
+        <div style="padding:20px">
+          <div class="form-group"><label>Brevo API Key</label><input id="s-brevo" type="password" value="${cfg.brevo_api_key||''}" placeholder="xkeysib-..."><p class="hint">Brevo dashboard → API Keys → Generate.</p></div>
+          <div class="form-group"><label>From Email (default)</label><input id="s-from" value="${cfg.from_email||'Aaron <aaron@blubalencebookkeeping.com>'}"></div>
+        </div>
+      </div>
+      <div class="panel" style="margin-bottom:20px">
+        <div class="panel-header"><h2>GitHub Actions</h2></div>
+        <div style="padding:20px">
+          <div class="form-group"><label>GitHub Repo <span style="color:var(--gray);font-weight:400">(owner/repo)</span></label><input id="s-repo" value="${cfg.github_repo||'aaronjp722/blu-balences'}"></div>
+          <div class="form-group"><label>GitHub Token <span style="color:var(--gray);font-weight:400">(needs workflow scope)</span></label><input id="s-ghtoken" type="password" value="${cfg.github_token||''}" placeholder="ghp_..."><p class="hint">GitHub → Settings → Developer settings → Personal access tokens.</p></div>
+        </div>
+      </div>
+      <div class="panel" style="margin-bottom:20px">
+        <div class="panel-header"><h2>Daily Send Schedule</h2></div>
+        <div style="padding:20px">
+          <div class="form-row-2">
+            <div class="form-group"><label>Send Time</label><input id="s-time" type="time" value="${cfg.send_time||'09:00'}"><p class="hint">Global auto-trigger time (tab must be open).</p></div>
+            <div class="form-group"><label>Timezone</label>
+              <select id="s-tz">${['America/New_York','America/Chicago','America/Denver','America/Los_Angeles','America/Phoenix','UTC'].map(tz=>`<option value="${tz}" ${(cfg.send_timezone||'America/New_York')===tz?'selected':''}>${tz}</option>`).join('')}</select>
+            </div>
+          </div>
+          <div class="form-group"><label>Send Days</label>
+            <div class="days-grid">${days.map(d=>`<button type="button" class="day-chip ${activeDays.includes(d.v)?'on':''}" data-day="${d.v}" onclick="this.classList.toggle('on')">${d.l}</button>`).join('')}</div>
+            <p class="hint" style="margin-top:8px">Blue = active. Per-sequence schedules are set in Sequences → Edit.</p>
+          </div>
+        </div>
+      </div>
+      <div class="panel" style="margin-bottom:20px">
+        <div class="panel-header"><h2>Send Rate (Global Defaults)</h2></div>
+        <div style="padding:20px">
+          <div class="form-row">
+            <div class="form-group"><label>Emails / Min</label><input id="s-rate" type="number" min="1" max="60" value="${cfg.emails_per_minute||'2'}"></div>
+            <div class="form-group"><label>Batch Size</label><input id="s-batch" type="number" min="1" value="${cfg.batch_size||'50'}"></div>
+            <div class="form-group"><label>Daily Limit</label><input id="s-daily" type="number" value="${cfg.daily_limit||'300'}"></div>
+          </div>
+          <p class="hint">Brevo free plan: 300/day.</p>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+        <button class="btn btn-secondary" onclick="resetConn()">Change Supabase Connection</button>
+      </div>
+    </div>`;
+}
+
+async function saveSettings() {
+  const sendDays = Array.from(document.querySelectorAll('.day-chip.on')).map(el => el.dataset.day).join(',');
+  const kvs = [
+    ['brevo_api_key', document.getElementById('s-brevo').value.trim()],
+    ['from_email', document.getElementById('s-from').value.trim()],
+    ['github_repo', document.getElementById('s-repo').value.trim()],
+    ['github_token', document.getElementById('s-ghtoken').value.trim()],
+    ['emails_per_minute', document.getElementById('s-rate').value],
+    ['batch_size', document.getElementById('s-batch').value],
+    ['daily_limit', document.getElementById('s-daily').value],
+    ['send_time', document.getElementById('s-time').value],
+    ['send_timezone', document.getElementById('s-tz').value],
+    ['send_days', sendDays],
+  ];
+  for (const [key, value] of kvs) await sb.from('settings').upsert({ key, value }, { onConflict: 'key' });
+  alert('Settings saved!');
+  initAutoSend();
+}
+
+function resetConn() { localStorage.removeItem('sb_url'); localStorage.removeItem('sb_key'); location.reload(); }
+
+/* ─── AUTO-SEND ─── */
+async function triggerDrip(token, repo) {
+  const r = await fetch(`https://api.github.com/repos/${repo}/actions/workflows/drip.yml/dispatches`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ref: 'main' }),
+  });
+  return r.status === 204;
+}
+
+function initAutoSend() {
+  if (window._autoSendTimer) clearInterval(window._autoSendTimer);
+  window._autoSendTimer = setInterval(async () => {
+    try {
+      const { data: rows } = await sb.from('settings').select('key,value');
+      const cfg = Object.fromEntries((rows||[]).map(r => [r.key, cfgVal(r.value)]));
+      const token = cfg.github_token || '', repo = cfg.github_repo || '';
+      if (!token || !repo) return;
+      const tz = cfg.send_timezone || 'America/New_York';
+      const now = new Date();
+      const str = now.toLocaleString('en-US', { timeZone: tz, hour12: false, year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', weekday:'short' });
+      const m = str.match(/(\w+),\s+(\d+)\/(\d+)\/(\d+),\s+(\d+):(\d+)/);
+      if (!m) return;
+      const [, dayName, month, day, year, hour, minute] = m;
+      const currentTime = `${hour.padStart(2,'0')}:${minute.padStart(2,'0')}`;
+      const dayMap = {Sun:'sun',Mon:'mon',Tue:'tue',Wed:'wed',Thu:'thu',Fri:'fri',Sat:'sat'};
+      const currentDay = dayMap[dayName] || '';
+      const dateKey = `${year}-${month}-${day}`;
+
+      // Global schedule
+      const globalTime = cfg.send_time || '';
+      if (globalTime) {
+        const globalDays = (cfg.send_days||'mon,tue,wed,thu,fri').split(',').map(d=>d.trim());
+        const sk = `auto_sent_${dateKey}_${globalTime}`;
+        if (currentTime === globalTime && globalDays.includes(currentDay) && !sessionStorage.getItem(sk)) {
+          sessionStorage.setItem(sk, '1');
+          const ok = await triggerDrip(token, repo);
+          console.log(`[auto-send] Global trigger: ${ok ? 'ok' : 'failed'}`);
+        }
+      }
+
+      // Per-sequence schedules
+      const { data: seqRows } = await sb.from('sequences').select('id,name,send_time,send_days,active').eq('active', true);
+      for (const seq of (seqRows||[])) {
+        if (!seq.send_time) continue;
+        const seqDays = (seq.send_days || cfg.send_days || 'mon,tue,wed,thu,fri').split(',').map(d=>d.trim());
+        const sk = `auto_sent_seq_${seq.id}_${dateKey}_${seq.send_time}`;
+        if (currentTime === seq.send_time && seqDays.includes(currentDay) && !sessionStorage.getItem(sk)) {
+          sessionStorage.setItem(sk, '1');
+          const ok = await triggerDrip(token, repo);
+          console.log(`[auto-send] Seq "${seq.name}" trigger: ${ok ? 'ok' : 'failed'}`);
+        }
+      }
+    } catch(e) { console.warn('[auto-send] error:', e.message); }
+  }, 30000);
+}  
+
+
+  async function renderCopy() {
+  document.getElementById('topbar-actions').innerHTML = `<button class="btn btn-primary" onclick="openCopyModal()">+ New Copy</button>`;
+  const { data: templates, error } = await sb.from('templates').select('*').order('created_at', { ascending: false });
+  if (error) { document.getElementById('content').innerHTML = `<div class="panel" style="padding:20px;color:var(--red)">Error loading copy: ${error.message}</div>`; return; }
+  document.getElementById('content').innerHTML = !templates || !templates.length
+    ? `<div class="panel"><div class="empty" style="padding:40px;text-align:center;color:var(--gray)">No copy saved yet. Tap "+ New Copy" to write your first email.</div></div>`
+    : templates.map(t => `
+      <div class="panel" style="padding:20px;margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:700;font-size:16px;margin-bottom:4px">${t.name}</div>
+            ${t.subject ? `<div style="font-size:13px;color:var(--gray);margin-bottom:8px">Subject: ${t.subject}</div>` : ''}
+            <div style="font-size:14px;color:#374151;white-space:pre-wrap;line-height:1.6;max-height:120px;overflow:hidden;mask-image:linear-gradient(to bottom,black 60%,transparent)">${t.body||''}</div>
+          </div>
+          <div style="display:flex;gap:8px;flex-shrink:0">
+            <button class="btn btn-secondary btn-sm" onclick="openCopyModal('${t.id}','${esc(t.name)}','${esc(t.subject||'')}','${esc(t.body||'')}')">Edit</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteCopy('${t.id}')">Delete</button>
+          </div>
+        </div>
+      </div>`).join('');
+}
+
+function openCopyModal(id, name, subject, body) {
+  showModal(`
+    <h2 style="margin-bottom:16px">${id ? 'Edit' : 'New'} Copy</h2>
+    <div class="form-group">
+      <label>Name <span style="color:var(--gray);font-weight:400;font-size:12px">(e.g. "Cold Intro Email")</span></label>
+      <input id="cp-name" value="${name||''}" placeholder="What is this email about?">
+    </div>
+    <div class="form-group">
+      <label>Subject Line</label>
+      <input id="cp-subject" value="${subject||''}" placeholder="Quick question about your books…">
+    </div>
+    <div class="form-group">
+      <label>Body</label>
+      <textarea id="cp-body" style="min-height:260px;font-size:15px;line-height:1.7;resize:vertical" placeholder="Hey {{first_name}}, I wanted to reach out…">${body||''}</textarea>
+    </div>
+    <div style="font-size:12px;color:var(--gray);margin:-8px 0 16px">Variables: {{first_name}} {{last_name}} {{company}} {{today}} {{this_month}} {{email}}</div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveCopy('${id||''}')">Save</button>
+    </div>`);
+}
+
+async function saveCopy(id) {
+  const name    = document.getElementById('cp-name').value.trim();
+  const subject = document.getElementById('cp-subject').value.trim();
+  const body    = document.getElementById('cp-body').value;
+  if (!name) { alert('Give this copy a name'); return; }
+  const payload = { name, subject, body };
+  const { error } = id
+    ? await sb.from('templates').update(payload).eq('id', id)
+    : await sb.from('templates').insert(payload);
+  if (error) { alert('Save failed: ' + error.message); return; }
+  closeModal();
+  renderCopy();
+}
+
+async function deleteCopy(id) {
+  if (!confirm('Delete this copy?')) return;
+  await sb.from('templates').delete().eq('id', id);
+  renderCopy();
+}
+  async function renderLists() {
+  document.getElementById('topbar-actions').innerHTML = `<button class="btn btn-primary" onclick="openListModal()">+ New List</button>`;
+  const [{ data: lists }, { data: allMembers }] = await Promise.all([
+    sb.from('lists').select('*').order('created_at', { ascending: false }),
+    sb.from('list_members').select('list_id'),
+  ]);
+  const countMap = {};
+  (allMembers||[]).forEach(r => { countMap[r.list_id] = (countMap[r.list_id]||0)+1; });
+  document.getElementById('content').innerHTML = !lists||!lists.length
+    ? `<div class="panel"><div class="empty" style="padding:40px;text-align:center;color:var(--gray)">No lists yet. Create one to organize your contacts.</div></div>`
+    : lists.map(l => `
+      <div class="panel" style="padding:20px;margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:700;font-size:16px">${l.name}</div>
+            ${l.description?`<div style="font-size:13px;color:var(--gray);margin-top:2px">${l.description}</div>`:''}
+            <div style="font-size:13px;color:var(--gray);margin-top:6px">${countMap[l.id]||0} contact${(countMap[l.id]||0)===1?'':'s'}</div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;flex-shrink:0">
+            <button class="btn btn-secondary btn-sm" onclick="renderListDetail('${l.id}','${esc(l.name)}')">View</button>
+            <button class="btn btn-primary btn-sm" onclick="openEnrollListModal('${l.id}','${esc(l.name)}')">Enroll All</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteList('${l.id}')">Delete</button>
+          </div>
+        </div>
+      </div>`).join('');
+}
+
+function openListModal(id, name, description) {
+  showModal(`
+    <h2>${id?'Edit':'New'} List</h2>
+    <div class="form-group"><label>List Name</label><input id="ls-name" value="${name||''}" placeholder="e.g. Warm-Up Seeds, Cold Prospects Q2"></div>
+    <div class="form-group"><label>Description <span style="color:var(--gray);font-weight:400">(optional)</span></label><input id="ls-desc" value="${description||''}" placeholder="What is this list for?"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveList('${id||''}')">Save</button>
+    </div>`);
+}
+
+async function saveList(id) {
+  const name = document.getElementById('ls-name').value.trim();
+  const description = document.getElementById('ls-desc').value.trim();
+  if (!name) { alert('List name is required'); return; }
+  const { error } = id
+    ? await sb.from('lists').update({ name, description }).eq('id', id)
+    : await sb.from('lists').insert({ name, description });
+  if (error) { alert(error.message); return; }
+  closeModal(); renderLists();
+}
+
+async function deleteList(id) {
+  if (!confirm('Delete this list and all its members? Enrollments already sent are not affected.')) return;
+  await sb.from('lists').delete().eq('id', id);
+  renderLists();
+}
+
+async function renderListDetail(listId, listName) {
+  document.getElementById('topbar-actions').innerHTML = `
+    <button class="btn btn-secondary" style="margin-right:8px" onclick="renderLists()">← Back</button>
+    <button class="btn btn-secondary" style="margin-right:8px" onclick="openAddMembersModal('${listId}','${esc(listName)}')">+ Add Members</button>
+    <button class="btn btn-primary" onclick="openEnrollListModal('${listId}','${esc(listName)}')">Enroll All</button>`;
+  const { data: members } = await sb.from('list_members').select('*').eq('list_id', listId).order('added_at', { ascending: false });
+  document.getElementById('content').innerHTML = `
+    <div class="panel">
+      <div class="panel-header"><h2>${listName} — ${(members||[]).length} contacts</h2></div>
+      ${!members||!members.length
+        ? '<div class="empty" style="padding:24px">No members yet. Click "+ Add Members" to add contacts via CSV.</div>'
+        : `<div style="overflow-x:auto"><table><thead><tr><th>Email</th><th>Name</th><th>Company</th><th></th></tr></thead><tbody>
+          ${members.map(m=>`<tr>
+            <td>${m.email}</td><td>${m.name||'—'}</td><td>${m.company||'—'}</td>
+            <td><button class="btn btn-danger btn-sm" onclick="removeMember('${m.id}','${listId}','${esc(listName)}')">Remove</button></td>
+          </tr>`).join('')}
+          </tbody></table></div>`}
+    </div>`;
+}
+
+async function removeMember(memberId, listId, listName) {
+  await sb.from('list_members').delete().eq('id', memberId);
+  renderListDetail(listId, listName);
+}
+
+function openAddMembersModal(listId, listName) {
+  showModal(`
+    <h2>Add to "${listName}"</h2>
+    <div class="form-group">
+      <label>Paste contacts — one per line: <code>email, Name, Company</code></label>
+      <textarea id="lm-csv" style="min-height:200px;font-size:14px;line-height:1.6" placeholder="john@example.com, John Smith, Acme Inc&#10;jane@example.com, Jane Doe&#10;bob@example.com"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="addMembersToList('${listId}','${esc(listName)}')">Add Contacts</button>
+    </div>`);
+}
+
+async function addMembersToList(listId, listName) {
+  const csv = document.getElementById('lm-csv').value.trim();
+  if (!csv) { alert('Paste at least one email address'); return; }
+  const rows = csv.split('\n').map(line => {
+    const [email, name, company] = line.split(',').map(s => s.trim());
+    return email && email.includes('@') ? { list_id: listId, email, name: name||null, company: company||null } : null;
+  }).filter(Boolean);
+  if (!rows.length) { alert('No valid emails found'); return; }
+  const { error } = await sb.from('list_members').upsert(rows, { onConflict: 'list_id,email', ignoreDuplicates: true });
+  if (error) { alert(error.message); return; }
+  closeModal(); renderListDetail(listId, listName);
+}
+
+async function openEnrollListModal(listId, listName) {
+  const { data: seqs } = await sb.from('sequences').select('id,name').eq('active', true);
+  showModal(`
+    <h2>Enroll "${listName}"</h2>
+    <p style="font-size:14px;color:var(--gray);margin-bottom:16px">All contacts in this list will be enrolled. Anyone already in the sequence is skipped — no duplicates.</p>
+    <div class="form-group"><label>Sequence</label>
+      <select id="el-seq"><option value="">Select a sequence…</option>${(seqs||[]).map(s=>`<option value="${s.id}">${s.name}</option>`).join('')}</select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="enrollList('${listId}','${esc(listName)}')">Enroll All</button>
+    </div>`);
+}
+
+async function enrollList(listId, listName) {
+  const seqId = document.getElementById('el-seq').value;
+  if (!seqId) { alert('Select a sequence'); return; }
+  const { data: members } = await sb.from('list_members').select('*').eq('list_id', listId);
+  if (!members||!members.length) { alert('This list has no members'); return; }
+  const rows = members.map(m => ({ email: m.email, name: m.name||null, company: m.company||null, sequence_id: seqId, current_step: 0, status: 'active' }));
+  const { error } = await sb.from('enrollments').upsert(rows, { onConflict: 'email,sequence_id', ignoreDuplicates: true });
+  if (error) { alert(error.message); return; }
+  closeModal();
+  alert(`Enrolled ${rows.length} contacts from "${listName}".`);
+}
+  /* ─── INBOXES ─── */
+async function renderInboxes() {
+  const [{ data: inboxes }, { data: sendStats }] = await Promise.all([
+    sb.from('inboxes').select('*').order('created_at'),
+    sb.from('send_log').select('inbox_id,sent_at').not('inbox_id', 'is', null),
+  ]);
+  const today = new Date().toDateString();
+  const perInbox = {};
+  (sendStats || []).forEach(l => {
+    if (!perInbox[l.inbox_id]) perInbox[l.inbox_id] = { today: 0, total: 0 };
+    perInbox[l.inbox_id].total++;
+    if (new Date(l.sent_at).toDateString() === today) perInbox[l.inbox_id].today++;
+  });
+  document.getElementById('topbar-actions').innerHTML = `<button class="btn btn-primary" onclick="openInboxModal()">+ Add Inbox</button>`;
+  document.getElementById('content').innerHTML = `
+    <div class="info-banner">ℹ️ Each inbox is a sending email address with its own Brevo API key. Use multiple inboxes to rotate senders or manage separate accounts.</div>
+    ${!inboxes||!inboxes.length ? '<div class="panel"><div class="empty">No inboxes yet. Add one to get started.</div></div>' :
+    (inboxes.map(inbox => {
+      const s = perInbox[inbox.id] || { today: 0, total: 0 };
+      return `
+      <div class="inbox-card" style="flex-wrap:wrap;gap:12px">
+        <div class="inbox-info" style="flex:1;min-width:160px">
+          <div class="inbox-name">${inbox.name}</div>
+          <div class="inbox-email">${inbox.email}${inbox.reply_to?` · Reply-To: ${inbox.reply_to}`:''}</div>
+          <div class="inbox-hint">API Key: ${inbox.brevo_api_key ? '••••••••' + inbox.brevo_api_key.slice(-4) : 'not set'} · ${inbox.active?'<span style="color:var(--green)">Active</span>':'<span style="color:var(--gray)">Inactive</span>'}</div>
+        </div>
+        <div style="display:flex;gap:20px;align-items:center;flex-shrink:0;padding:0 4px">
+          <div style="text-align:center">
+            <div style="font-size:24px;font-weight:700;color:var(--green)">${s.today}</div>
+            <div style="font-size:10px;color:var(--gray);text-transform:uppercase;letter-spacing:.05em">Today</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:24px;font-weight:700">${s.total}</div>
+            <div style="font-size:10px;color:var(--gray);text-transform:uppercase;letter-spacing:.05em">All Time</div>
+          </div>
+        </div>
+        <div class="actions" style="flex-shrink:0">
+          <button class="btn btn-secondary btn-sm" onclick="openInboxModal('${inbox.id}','${esc(inbox.name)}','${esc(inbox.email)}','${esc(inbox.reply_to||'')}','${esc(inbox.brevo_api_key||'')}',${inbox.active})">Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteInbox('${inbox.id}')">Delete</button>
+        </div>
+      </div>`;
+    }).join(''))}`;
+}
+
+function openInboxModal(id, name, email, replyTo, apiKey, active) {
+  showModal(`
+    <h2>${id ? 'Edit' : 'New'} Inbox</h2>
+    <div class="form-group"><label>Display Name</label><input id="ib-name" value="${name||''}" placeholder="Aaron — Blu Balence"></div>
+    <div class="form-group"><label>From Email</label><input id="ib-email" value="${email||''}" placeholder="aaron@blubalencebookkeeping.com"></div>
+    <div class="form-group"><label>Reply-To <span style="color:var(--gray);font-weight:400">(optional)</span></label><input id="ib-replyto" value="${replyTo||''}" placeholder="replies@yourdomain.com"></div>
+    <div class="form-group"><label>Brevo API Key <span style="color:var(--gray);font-weight:400">(leave blank to use global)</span></label><input id="ib-apikey" type="password" value="${apiKey||''}" placeholder="xkeysib-..."></div>
+    <div class="form-group" style="display:flex;align-items:center;gap:10px">
+      <label class="toggle"><input id="ib-active" type="checkbox" ${active!==false?'checked':''}><span class="toggle-slider"></span></label>
+      <span style="font-size:14px">Active</span>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveInbox('${id||''}')">Save</button>
+    </div>`);
+}
+
+async function saveInbox(id) {
+  const payload = {
+    name: document.getElementById('ib-name').value.trim(),
+    email: document.getElementById('ib-email').value.trim(),
+    reply_to: document.getElementById('ib-replyto').value.trim() || null,
+    brevo_api_key: document.getElementById('ib-apikey').value.trim() || null,
+    active: document.getElementById('ib-active').checked,
+  };
+  if (!payload.name || !payload.email) { alert('Name and email are required'); return; }
+  let error;
+  if (id) ({ error } = await sb.from('inboxes').update(payload).eq('id', id));
+  else ({ error } = await sb.from('inboxes').insert(payload));
+  if (error) { alert('Save failed: ' + error.message); return; }
+  closeModal(); renderInboxes();
+}
+
+async function deleteInbox(id) {
+  if (!confirm('Delete this inbox?')) return;
+  await sb.from('inboxes').delete().eq('id', id);
+  renderInboxes();
+}
+
+/* ─── REPLIES ─── */
+let replyFilter = 'all';
+
+async function refreshUnreadBadge() {
+  try {
+    const { count } = await sb.from('replies').select('id', { count: 'exact', head: true }).eq('read', false);
+    const badge = document.getElementById('nav-replies-badge');
+    if (!badge) return;
+    if (count > 0) { badge.textContent = count; badge.style.display = 'inline-block'; }
+    else badge.style.display = 'none';
+  } catch(e) {}
+}
+
+async function renderReplies() {
+  let query = sb.from('replies').select('*').order('received_at', { ascending: false }).limit(200);
+  if (replyFilter === 'unread') query = query.eq('read', false);
+  if (replyFilter === 'replied') query = query.not('replied_at', 'is', null);
+  const { data: replies } = await query;
+
+  const { data: inboxes } = await sb.from('inboxes').select('id,name,email,brevo_api_key').eq('active', true);
+  const { data: settRows } = await sb.from('settings').select('key,value');
+  const cfg = Object.fromEntries((settRows||[]).map(r => [r.key, cfgVal(r.value)]));
+  window._replyInboxes = inboxes || [];
+  window._replyCfg = cfg;
+
+  const unread = (replies||[]).filter(r => !r.read).length;
+  document.getElementById('topbar-actions').innerHTML = `<button class="btn btn-secondary btn-sm" onclick="renderReplies()">Refresh</button>`;
+
+  document.getElementById('content').innerHTML = `
+    <div class="info-banner">ℹ️ Replies are stored in Supabase when someone replies to your emails. You need the <code>replies</code> table and a webhook/forwarding rule to populate it. See SQL below.</div>
+    <div class="filter-bar" style="margin-bottom:16px">
+      <button class="btn ${replyFilter==='all'?'btn-primary':'btn-secondary'} btn-sm" onclick="replyFilter='all';renderReplies()">All (${(replies||[]).length})</button>
+      <button class="btn ${replyFilter==='unread'?'btn-primary':'btn-secondary'} btn-sm" onclick="replyFilter='unread';renderReplies()">Unread${unread>0?` (${unread})`:''}</button>
+      <button class="btn ${replyFilter==='replied'?'btn-primary':'btn-secondary'} btn-sm" onclick="replyFilter='replied';renderReplies()">Replied</button>
+    </div>
+    ${!replies||!replies.length ? '<div class="panel"><div class="empty">No replies yet.</div></div>' :
+    replies.map(r => `
+      <div class="reply-card ${!r.read?'unread':''}" onclick="openReplyModal('${r.id}')">
+        <div class="reply-meta">
+          <div class="reply-from">${r.from_name||r.from_email} ${!r.read?'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--blue);margin-left:4px;vertical-align:middle"></span>':''}</div>
+          <div class="reply-subj">${r.subject||'(no subject)'}</div>
+          <div class="reply-preview">${(r.body_text||'').replace(/\n/g,' ').slice(0,120)}</div>
+          ${r.replied_at?`<div style="margin-top:6px"><span class="badge badge-green" style="font-size:11px">Replied ${new Date(r.replied_at).toLocaleDateString()}</span></div>`:''}
+        </div>
+        <div class="reply-time">${new Date(r.received_at).toLocaleDateString()}<br><span style="color:var(--gray)">${new Date(r.received_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span></div>
+      </div>`).join('')}`;
+
+  refreshUnreadBadge();
+}
+
+async function openReplyModal(replyId) {
+  // Mark as read
+  await sb.from('replies').update({ read: true }).eq('id', replyId);
+  const { data: r } = await sb.from('replies').select('*').eq('id', replyId).single();
+  if (!r) return;
+
+  const inboxOpts = window._replyInboxes && window._replyInboxes.length
+    ? window._replyInboxes.map(ib => `<option value="${ib.id}">${ib.name} &lt;${ib.email}&gt;</option>`).join('')
+    : `<option value="">Global (${window._replyCfg?.from_email||'from settings'})</option>`;
+
+  showModal(`
+    <h2>Reply to ${r.from_name||r.from_email}</h2>
+    <div style="font-size:13px;color:var(--gray);margin-bottom:12px">
+      <strong>From:</strong> ${r.from_name ? `${r.from_name} &lt;${r.from_email}&gt;` : r.from_email}<br>
+      <strong>To:</strong> ${r.to_email||'—'}<br>
+      <strong>Subject:</strong> ${r.subject||'(no subject)'}<br>
+      <strong>Received:</strong> ${new Date(r.received_at).toLocaleString()}
+    </div>
+    <div class="reply-thread">${(r.body_text||r.body_html||'(empty)').replace(/</g,'&lt;')}</div>
+    ${r.replied_at ? `<div class="info-banner" style="margin-bottom:12px">✓ You replied on ${new Date(r.replied_at).toLocaleString()}<br><em>${(r.reply_body||'').slice(0,200)}</em></div>` : ''}
+    <div class="section-title">Compose Reply</div>
+    ${window._replyInboxes && window._replyInboxes.length > 1 ? `<div class="form-group"><label>Send From</label><select id="rp-inbox">${inboxOpts}</select></div>` : ''}
+    <div class="form-group"><label>Subject</label><input id="rp-subj" value="Re: ${esc(r.subject||'')}"></div>
+    <div class="form-group"><label>Message</label><textarea id="rp-body" style="min-height:140px" placeholder="Hi ${r.from_name||'there'},
+
+Thanks for your response...
+
+Best,
+Aaron
+Blu Balence Bookkeeping"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Close</button>
+      <button class="btn btn-primary" onclick="sendReplyEmail('${r.id}','${esc(r.from_email)}')">Send Reply</button>
+    </div>`, true);
+
+  refreshUnreadBadge();
+}
+
+async function sendReplyEmail(replyId, toEmail) {
+  const subject = document.getElementById('rp-subj').value.trim();
+  const body = document.getElementById('rp-body').value.trim();
+  if (!body) { alert('Message is required'); return; }
+
+  const inboxEl = document.getElementById('rp-inbox');
+  let fromEmail, fromName, brevoKey;
+
+  if (inboxEl && inboxEl.value) {
+    const inbox = (window._replyInboxes||[]).find(ib => ib.id === inboxEl.value);
+    if (inbox) {
+      fromEmail = inbox.email;
+      fromName = inbox.name;
+      brevoKey = inbox.brevo_api_key || window._replyCfg?.brevo_api_key;
+    }
+  }
+  if (!fromEmail) {
+    const raw = window._replyCfg?.from_email || '';
+    const m = raw.match(/^(.+?)\s*<(.+?)>\s*$/);
+    fromEmail = m ? m[2] : raw;
+    fromName = m ? m[1] : '';
+    brevoKey = window._replyCfg?.brevo_api_key;
+  }
+  if (!brevoKey) { alert('No Brevo API key found. Add one in Settings or to the inbox.'); return; }
+
+  const htmlBody = '<html><body>' + body.replace(/\n/g,'<br>') + '</body></html>';
+  try {
+    const r = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: { 'api-key': brevoKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sender: { email: fromEmail, name: fromName || fromEmail },
+        to: [{ email: toEmail }],
+        subject,
+        htmlContent: htmlBody,
+      }),
+    });
+    if (!r.ok) { const e = await r.text(); alert('Send failed: ' + e); return; }
+    await sb.from('replies').update({ replied_at: new Date().toISOString(), reply_body: body }).eq('id', replyId);
+    closeModal();
+    renderReplies();
+    alert('Reply sent!');
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+/* ─── SHARED ─── */
+function showModal(html, wide) {
+  const o = document.createElement('div');
+  o.className = 'modal-overlay';
+  o.innerHTML = `<div class="modal" style="${wide?'width:720px':''}">${html}</div>`;
+  o.addEventListener('click', e => { if (e.target === o) closeModal(); });
+  document.getElementById('modals').innerHTML = '';
+  document.getElementById('modals').appendChild(o);
+}
+function closeModal() { document.getElementById('modals').innerHTML = ''; }
+function esc(s) { return (s||'').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
+
+(async function() {
+  const { data: { session } } = await authClient.auth.getSession();
+  if (session) {
+    document.getElementById('login-overlay').style.display = 'none';
+    bootFromStorage();
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Blu Balences | Bookkeeping for Small Business</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --navy: #0a1628; --navy2: #0f1f3d; --navy3: #162444;
+      --blue: #2563eb; --blue-light: #3b82f6; --blue-glow: rgba(37,99,235,0.2);
+      --green: #16a34a; --text: #e2e8f0; --text-sub: #94a3b8; --text-dim: #64748b;
+      --border: rgba(255,255,255,0.08); --white: #ffffff;
+    }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', sans-serif; background: var(--navy); color: var(--text); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+
+    nav { position: sticky; top: 0; z-index: 100; background: rgba(10,22,40,0.96); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 0 32px; }
+    .nav-inner { max-width: 1140px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; height: 68px; }
+    .logo { font-size: 20px; font-weight: 800; color: var(--white); text-decoration: none; letter-spacing: -0.5px; }
+    .logo span { color: var(--blue-light); }
+    .nav-links { display: flex; gap: 32px; list-style: none; }
+    .nav-links a { color: var(--text-sub); text-decoration: none; font-size: 14px; font-weight: 500; transition: color 0.2s; }
+    .nav-links a:hover { color: var(--white); }
+    .nav-cta { background: var(--blue); color: var(--white) !important; padding: 10px 22px; border-radius: 8px; font-weight: 600 !important; font-size: 14px !important; text-decoration: none; transition: background 0.2s; }
+    .nav-cta:hover { background: var(--blue-light) !important; }
+
+    .hero { padding: 80px 32px 100px; max-width: 1140px; margin: 0 auto; display: grid; grid-template-columns: 1fr 420px; gap: 72px; align-items: center; }
+    .hero-label { font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--blue-light); margin-bottom: 20px; }
+    h1 { font-size: clamp(34px, 5vw, 54px); font-weight: 900; line-height: 1.1; letter-spacing: -2px; color: var(--white); margin-bottom: 22px; }
+    h1 em { font-style: normal; color: var(--blue-light); }
+    .hero-sub { font-size: 18px; color: var(--text-sub); line-height: 1.75; margin-bottom: 36px; max-width: 500px; }
+    .hero-trust { display: flex; flex-direction: column; gap: 10px; }
+    .trust-item { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--text-sub); font-weight: 500; }
+    .trust-check { width: 18px; height: 18px; background: rgba(22,163,74,0.15); border: 1px solid rgba(22,163,74,0.3); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--green); flex-shrink: 0; }
+
+    .booking-card { background: var(--navy2); border: 1px solid rgba(59,130,246,0.2); border-radius: 16px; padding: 36px 32px; box-shadow: 0 0 60px rgba(37,99,235,0.12), 0 24px 48px rgba(0,0,0,0.4); }
+    .card-headline { font-size: 18px; font-weight: 700; color: var(--white); margin-bottom: 6px; letter-spacing: -0.3px; }
+    .card-sub { font-size: 14px; color: var(--text-sub); margin-bottom: 24px; }
+    .form-field { margin-bottom: 14px; }
+    .form-field label { display: block; font-size: 11px; font-weight: 600; color: var(--text-sub); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
+    .form-field input, .form-field select, .form-field textarea { width: 100%; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 8px; padding: 11px 13px; color: var(--white); font-family: 'Inter', sans-serif; font-size: 14px; outline: none; transition: border-color 0.2s, box-shadow 0.2s; }
+    .form-field input:focus, .form-field select:focus, .form-field textarea:focus { border-color: var(--blue-light); box-shadow: 0 0 0 3px var(--blue-glow); }
+    .form-field select option { background: #0f1f3d; }
+    .form-field select option:disabled { color: #4b5563; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .btn-primary { width: 100%; background: var(--blue); color: var(--white); border: none; border-radius: 8px; padding: 14px; font-size: 15px; font-weight: 600; cursor: pointer; transition: background 0.2s, transform 0.1s; margin-top: 8px; }
+    .btn-primary:hover { background: var(--blue-light); }
+    .btn-primary:active { transform: scale(0.99); }
+    .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
+    .card-note { text-align: center; font-size: 12px; color: var(--text-dim); margin-top: 12px; }
+    .card-note span { color: var(--green); }
+    .success-state { display: none; text-align: center; padding: 24px 0; }
+    .success-state h3 { font-size: 20px; font-weight: 700; color: var(--white); margin-bottom: 10px; }
+    .success-state p { font-size: 14px; color: var(--text-sub); line-height: 1.65; }
+    .success-icon-box { width: 52px; height: 52px; background: rgba(22,163,74,0.12); border: 1px solid rgba(22,163,74,0.25); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 18px; font-size: 20px; color: var(--green); }
+    .avail-loading { font-size: 12px; color: var(--blue-light); margin-top: 5px; display: none; }
+
+    .section { padding: 88px 32px; }
+    .section-inner { max-width: 1140px; margin: 0 auto; }
+    .section-label { font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--blue-light); margin-bottom: 14px; }
+    h2 { font-size: clamp(28px, 4vw, 42px); font-weight: 900; letter-spacing: -1.5px; color: var(--white); line-height: 1.1; margin-bottom: 14px; }
+    h2 em { font-style: normal; color: var(--blue-light); }
+    .section-desc { font-size: 17px; color: var(--text-sub); max-width: 580px; margin-bottom: 52px; line-height: 1.75; }
+    .divider { height: 1px; background: var(--border); }
+
+    .pain-grid { display: grid; grid-template-columns: repeat(2, 1fr); border: 1px solid rgba(100,116,139,0.15); border-radius: 16px; overflow: hidden; }
+    .pain-card { background: var(--navy2); padding: 32px 28px; border-right: 1px solid rgba(100,116,139,0.15); border-bottom: 1px solid rgba(100,116,139,0.15); }
+    .pain-card:nth-child(even) { border-right: none; }
+    .pain-card:nth-child(3), .pain-card:nth-child(4) { border-bottom: none; }
+    .pain-number { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 14px; }
+    .pain-card h3 { font-size: 16px; font-weight: 700; color: var(--white); margin-bottom: 10px; }
+    .pain-card p { font-size: 14px; color: var(--text-sub); line-height: 1.7; }
+
+    .solution { background: var(--navy2); }
+    .steps-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: rgba(100,116,139,0.12); border-radius: 16px; overflow: hidden; }
+    .step-card { background: var(--navy3); padding: 28px 24px; }
+    .step-number { width: 32px; height: 32px; background: var(--blue); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: var(--white); margin-bottom: 16px; }
+    .step-card h3 { font-size: 15px; font-weight: 700; color: var(--white); margin-bottom: 10px; }
+    .step-card p { font-size: 13px; color: var(--text-sub); line-height: 1.7; }
+
+    .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+    .stat-box { background: var(--navy2); border: 1px solid var(--border); border-radius: 12px; padding: 28px 20px; text-align: center; }
+    .stat-number { font-size: 36px; font-weight: 900; color: var(--white); letter-spacing: -2px; line-height: 1; margin-bottom: 8px; }
+    .stat-number span { color: var(--blue-light); }
+    .stat-label { font-size: 13px; color: var(--text-sub); font-weight: 500; line-height: 1.5; }
+
+    .services-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .service-card { background: var(--navy2); border: 1px solid var(--border); border-radius: 14px; padding: 30px 26px; }
+    .service-tag { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--blue-light); margin-bottom: 14px; }
+    .service-card h3 { font-size: 18px; font-weight: 700; color: var(--white); margin-bottom: 12px; }
+    .service-card p { font-size: 14px; color: var(--text-sub); line-height: 1.75; }
+    .service-list { margin-top: 18px; list-style: none; display: flex; flex-direction: column; gap: 9px; }
+    .service-list li { font-size: 13px; color: var(--text-sub); display: flex; align-items: flex-start; gap: 9px; }
+    .service-list li::before { content: "—"; color: var(--blue-light); font-weight: 700; flex-shrink: 0; }
+
+    .pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; align-items: start; }
+    .pricing-card { background: var(--navy2); border: 1px solid var(--border); border-radius: 16px; padding: 34px 26px; position: relative; }
+    .pricing-card.featured { border-color: var(--blue-light); box-shadow: 0 0 32px var(--blue-glow); }
+    .featured-badge { position: absolute; top: -13px; left: 50%; transform: translateX(-50%); background: var(--blue); color: var(--white); font-size: 11px; font-weight: 700; padding: 4px 16px; border-radius: 100px; white-space: nowrap; letter-spacing: 0.5px; }
+    .pricing-tier { font-size: 12px; font-weight: 700; color: var(--blue-light); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1.5px; }
+    .pricing-price { font-size: 36px; font-weight: 900; color: var(--white); letter-spacing: -2px; line-height: 1; margin-bottom: 4px; }
+    .pricing-price sup { font-size: 20px; vertical-align: top; margin-top: 8px; }
+    .pricing-range { font-size: 13px; color: var(--text-dim); margin-bottom: 6px; }
+    .pricing-note { font-size: 13px; color: var(--text-sub); margin-bottom: 22px; padding-bottom: 22px; border-bottom: 1px solid var(--border); line-height: 1.6; }
+    .pricing-list { list-style: none; display: flex; flex-direction: column; gap: 11px; margin-bottom: 26px; }
+    .pricing-list li { font-size: 13px; color: var(--text-sub); display: flex; align-items: flex-start; gap: 10px; }
+    .pricing-list li::before { content: "—"; color: var(--blue-light); font-weight: 700; flex-shrink: 0; }
+    .btn-outline { width: 100%; background: transparent; color: var(--blue-light); border: 1px solid rgba(59,130,246,0.4); border-radius: 8px; padding: 12px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; text-decoration: none; display: block; text-align: center; }
+    .btn-outline:hover { background: var(--blue); color: var(--white); border-color: var(--blue); }
+    .btn-solid { width: 100%; background: var(--blue); color: var(--white); border: 1px solid var(--blue); border-radius: 8px; padding: 12px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; text-decoration: none; display: block; text-align: center; }
+    .btn-solid:hover { background: var(--blue-light); }
+
+    .cta-section { background: var(--navy2); padding: 88px 32px; }
+    .cta-inner { max-width: 680px; margin: 0 auto; text-align: center; }
+    .cta-inner h2 { margin-bottom: 14px; }
+    .cta-inner > p { font-size: 17px; color: var(--text-sub); margin-bottom: 44px; line-height: 1.75; }
+    .cta-form { background: var(--navy); border: 1px solid rgba(59,130,246,0.15); border-radius: 16px; padding: 40px; text-align: left; }
+
+    footer { padding: 32px; text-align: center; color: var(--text-dim); font-size: 13px; border-top: 1px solid var(--border); }
+    footer a { color: var(--text-sub); text-decoration: none; }
+    footer a:hover { color: var(--white); }
+
+    .toast { position: fixed; bottom: 28px; right: 28px; background: var(--navy2); border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px; color: var(--text); font-size: 13px; font-weight: 500; box-shadow: 0 8px 32px rgba(0,0,0,0.5); transform: translateY(80px); opacity: 0; transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1); z-index: 9999; max-width: 300px; }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.success { border-color: rgba(22,163,74,0.35); }
+    .toast.error { border-color: rgba(220,38,38,0.35); }
+
+    @media (max-width: 960px) {
+      .hero { grid-template-columns: 1fr; gap: 48px; }
+      .pain-grid { grid-template-columns: 1fr; }
+      .pain-card { border-right: none !important; }
+      .pain-card:nth-child(3) { border-bottom: 1px solid rgba(100,116,139,0.15) !important; }
+      .steps-grid { grid-template-columns: repeat(2, 1fr); }
+      .stats-row { grid-template-columns: repeat(2, 1fr); }
+      .services-grid { grid-template-columns: 1fr; }
+      .pricing-grid { grid-template-columns: 1fr; }
+      .nav-links { display: none; }
+      .form-row { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 600px) {
+      .section { padding: 60px 20px; }
+      nav { padding: 0 20px; }
+      .hero { padding: 48px 20px 60px; }
+      .cta-form { padding: 24px 20px; }
+      .steps-grid { grid-template-columns: 1fr; }
+      .stats-row { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a href="#" class="logo">Blu <span>Balence</span></a>
+    <ul class="nav-links">
+      <li><a href="#why">Why Us</a></li>
+      <li><a href="#services">Services</a></li>
+      <li><a href="#pricing">Pricing</a></li>
+      <li><a href="about.html">About</a></li>
+      <li><a href="https://blubalences.com/staff">login</a></li>
+      <li><a href="#book" class="nav-cta">Book a Call</a></li>
+    </ul>
+  </div>
+</nav>
+
+<section style="padding-top:0;">
+  <div class="hero">
+    <div>
+      <div class="hero-label">Flat-Rate Bookkeeping for Small Business</div>
+      <h1>Your books should tell you<br>where your money <em>is going</em></h1>
+      <p class="hero-sub">Most small business owners can't answer basic financial questions about their own company. We change that with clean, accurate books delivered every month — for a flat fee agreed on day one.</p>
+      <div class="hero-trust">
+        <div class="trust-item"><div class="trust-check">&#10003;</div> No long-term contracts</div>
+        <div class="trust-item"><div class="trust-check">&#10003;</div> Onboarding complete within 48 hours</div>
+        <div class="trust-item"><div class="trust-check">&#10003;</div> Tax-ready books, every month</div>
+      </div>
+    </div>
+    <div>
+      <div class="booking-card">
+        <div id="hero-form-wrap">
+          <div class="card-headline">Schedule a Free 30-Minute Call</div>
+          <div class="card-sub">We'll review your current setup and show you exactly what we'd fix.</div>
+          <form id="hero-form" onsubmit="handleHeroBook(event)">
+            <div class="form-field">
+              <label>Full Name <span style="color:#ef4444">*</span></label>
+              <input type="text" id="h-name" placeholder="Jane Smith" required>
+            </div>
+            <div class="form-field">
+              <label>Business Name <span style="color:#ef4444">*</span></label>
+              <input type="text" id="h-biz" placeholder="Smith Plumbing LLC" required>
+            </div>
+            <div class="form-row">
+              <div class="form-field">
+                <label>Phone <span style="color:#ef4444">*</span></label>
+                <input type="tel" id="h-phone" placeholder="(555) 000-0000" required>
+              </div>
+              <div class="form-field">
+                <label>Email <span style="color:#ef4444">*</span></label>
+                <input type="email" id="h-email" placeholder="jane@example.com" required>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-field">
+                <label>Preferred Date <span style="color:#ef4444">*</span></label>
+                <input type="date" id="h-date" required onchange="refreshAvailability('h')">
+              </div>
+              <div class="form-field">
+                <label>Time <span style="color:#ef4444">*</span></label>
+                <select id="h-time" required>
+                  <option value="">Select a date first</option>
+                </select>
+                <div class="avail-loading" id="h-avail-loading">Checking availability...</div>
+              </div>
+            </div>
+            <div class="form-field">
+              <label>Timezone <span style="color:#ef4444">*</span></label>
+              <select id="h-tz" onchange="refreshAvailability('h')">
+                <option value="America/New_York">Eastern (ET)</option>
+                <option value="America/Chicago">Central (CT)</option>
+                <option value="America/Denver">Mountain (MT)</option>
+                <option value="America/Los_Angeles">Pacific (PT)</option>
+                <option value="America/Anchorage">Alaska (AKT)</option>
+                <option value="Pacific/Honolulu">Hawaii (HT)</option>
+              </select>
+            </div>
+            <button type="submit" class="btn-primary" id="hero-btn">Reserve My Call</button>
+          </form>
+          <p class="card-note"><span>&#10003;</span> No credit card required</p>
+        </div>
+        <div class="success-state" id="hero-success">
+          <div class="success-icon-box">&#10003;</div>
+          <h3>You're on the calendar</h3>
+          <p>We'll send a confirmation to your email shortly.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section class="section" id="why">
+  <div class="section-inner">
+    <div class="section-label">The Problem</div>
+    <h2>What disorganized books<br><em>actually cost you</em></h2>
+    <p class="section-desc">The cost isn't just the accountant bill at year-end. It's the decisions you can't make because you don't have the numbers.</p>
+    <div class="pain-grid">
+      <div class="pain-card">
+        <div class="pain-number">01</div>
+        <h3>You don't know if you're profitable</h3>
+        <p>Revenue is up, but after expenses, payroll, and taxes — is there anything left? Without clean books, you're making decisions based on your bank balance, not your actual financial position.</p>
+      </div>
+      <div class="pain-card">
+        <div class="pain-number">02</div>
+        <h3>Tax time is a scramble every year</h3>
+        <p>Receipts from ten months ago, transactions you can't explain, a CPA who charges extra to clean up your records before they can even start filing. It happens every year because nothing changes.</p>
+      </div>
+      <div class="pain-card">
+        <div class="pain-number">03</div>
+        <h3>You're handling it yourself</h3>
+        <p>Evenings and weekends spent on bookkeeping instead of your business or your family. The time cost is real, and the risk of errors doing it yourself compounds over time.</p>
+      </div>
+      <div class="pain-card">
+        <div class="pain-number">04</div>
+        <h3>Deductions you didn't know existed</h3>
+        <p>Business owners who manage their own books commonly miss deductions simply because they don't know what qualifies. That's money returned to the IRS that should stay in your business.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section class="section solution" id="how">
+  <div class="section-inner">
+    <div class="section-label">How We Work</div>
+    <h2>Straightforward process,<br><em>consistent results</em></h2>
+    <p class="section-desc">We built our process around getting you accurate books fast and keeping them that way without requiring anything from you month to month.</p>
+    <div class="steps-grid">
+      <div class="step-card">
+        <div class="step-number">1</div>
+        <h3>Discovery Call</h3>
+        <p>30 minutes to understand your business, your current records, and where things stand. No commitment needed to book.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-number">2</div>
+        <h3>Onboarding</h3>
+        <p>We connect to your accounts and get your books current. Most clients are fully set up within 48 hours of signing.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-number">3</div>
+        <h3>Monthly Delivery</h3>
+        <p>Reconciled accounts, categorized transactions, and a clean P&L delivered every month. Nothing required from you.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-number">4</div>
+        <h3>Tax-Ready, Always</h3>
+        <p>When tax season comes, your books are already in order. Send your accountant a clean file in minutes, not weeks.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section class="section" id="results">
+  <div class="section-inner">
+    <div class="section-label">By the Numbers</div>
+    <h2>What clients see<br><em>when the books are clean</em></h2>
+    <p class="section-desc">These figures reflect common outcomes for small business owners who move from DIY bookkeeping to a managed service.</p>
+    <div class="stats-row">
+      <div class="stat-box">
+        <div class="stat-number"><span>$</span>4,200<span>+</span></div>
+        <div class="stat-label">Average additional deductions identified in year one</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-number">100<span>%</span></div>
+        <div class="stat-label">Of clients have tax-ready books before March 1</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-number">Flat</div>
+        <div class="stat-label">Monthly rate — agreed upfront, no surprise invoices</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-number">48<span>hr</span></div>
+        <div class="stat-label">Typical time from signed agreement to fully onboarded</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section class="section" id="services" style="background: var(--navy2);">
+  <div class="section-inner">
+    <div class="section-label">Services</div>
+    <h2>What's included<br><em>in every engagement</em></h2>
+    <p class="section-desc">We handle the bookkeeping. You stay focused on the business.</p>
+    <div class="services-grid">
+      <div class="service-card">
+        <div class="service-tag">Core Service</div>
+        <h3>Monthly Bookkeeping</h3>
+        <p>Accurate, reconciled books delivered every month. We categorize transactions, reconcile all accounts, and produce your financial statements on a fixed schedule.</p>
+        <ul class="service-list">
+          <li>Bank and credit card reconciliation</li>
+          <li>Monthly P&L and balance sheet</li>
+          <li>Cash flow tracking</li>
+          <li>Expense categorization</li>
+        </ul>
+      </div>
+      <div class="service-card">
+        <div class="service-tag">Tax Support</div>
+        <h3>Tax Season Preparation</h3>
+        <p>We keep your books in the state your CPA needs them year-round. When filing time comes, you hand off a clean package — not a project.</p>
+        <ul class="service-list">
+          <li>Year-round tax-ready records</li>
+          <li>Deduction identification</li>
+          <li>1099 preparation and filing</li>
+          <li>CPA coordination</li>
+        </ul>
+      </div>
+      <div class="service-card">
+        <div class="service-tag">Financial Visibility</div>
+        <h3>Reporting and Clarity</h3>
+        <p>Monthly financials you can actually read. Know your margins, track your expenses, and make decisions with accurate numbers rather than estimates.</p>
+        <ul class="service-list">
+          <li>Monthly review call</li>
+          <li>Profitability by project or client</li>
+          <li>Budget vs. actuals</li>
+          <li>Growth-ready reporting</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section class="section" id="pricing">
+  <div class="section-inner">
+    <div class="section-label">Pricing</div>
+    <h2>Flat monthly rate.<br><em>Set on day one.</em></h2>
+    <p class="section-desc">Your rate is determined by transaction volume and complexity. It doesn't change unless your business grows into a higher tier.</p>
+    <div class="pricing-grid">
+      <div class="pricing-card">
+        <div class="pricing-tier">Essential</div>
+        <div class="pricing-price"><sup>$</sup>300</div>
+        <div class="pricing-range">to $350 / month</div>
+        <div class="pricing-note">Suitable for sole proprietors and freelancers with straightforward finances.</div>
+        <ul class="pricing-list">
+          <li>Monthly bookkeeping</li>
+          <li>Bank and credit reconciliation</li>
+          <li>Monthly P&L statement</li>
+          <li>Tax-ready records</li>
+          <li>Email support</li>
+        </ul>
+        <a href="#book" class="btn-outline">Schedule a Call</a>
+      </div>
+      <div class="pricing-card featured">
+        <div class="featured-badge">Most Common</div>
+        <div class="pricing-tier">Professional</div>
+        <div class="pricing-price"><sup>$</sup>350</div>
+        <div class="pricing-range">to $450 / month</div>
+        <div class="pricing-note">For LLCs and S-Corps with employees, contractors, or higher transaction volume.</div>
+        <ul class="pricing-list">
+          <li>Everything in Essential</li>
+          <li>1099 preparation and filing</li>
+          <li>Monthly review call</li>
+          <li>Cash flow tracking</li>
+          <li>Payroll coordination</li>
+          <li>Priority response (24-hour)</li>
+        </ul>
+        <a href="#book" class="btn-solid">Schedule a Call</a>
+      </div>
+      <div class="pricing-card">
+        <div class="pricing-tier">Premium</div>
+        <div class="pricing-price"><sup>$</sup>450</div>
+        <div class="pricing-range">to $750 / month</div>
+        <div class="pricing-note">For established businesses that need a dedicated financial partner, not just a bookkeeper.</div>
+        <ul class="pricing-list">
+          <li>Everything in Professional</li>
+          <li>Bi-weekly check-ins</li>
+          <li>Project-level profitability</li>
+          <li>Budget vs. actuals tracking</li>
+          <li>CPA coordination</li>
+          <li>Dedicated account manager</li>
+        </ul>
+        <a href="#book" class="btn-outline">Schedule a Call</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section class="cta-section" id="book">
+  <div class="cta-inner">
+    <div class="section-label">Get Started</div>
+    <h2>Schedule your<br><em>free discovery call</em></h2>
+    <p>30 minutes. We'll look at your current setup, identify the gaps, and tell you exactly what working with us would look like. No obligation.</p>
+    <div class="cta-form">
+      <div id="cta-form-wrap">
+        <form id="cta-form" onsubmit="handleCtaBook(event)">
+          <div class="form-row">
+            <div class="form-field">
+              <label>Full Name <span style="color:#ef4444">*</span></label>
+              <input type="text" id="c-name" placeholder="Jane Smith" required>
+            </div>
+            <div class="form-field">
+              <label>Business Name <span style="color:#ef4444">*</span></label>
+              <input type="text" id="c-biz" placeholder="Smith Plumbing LLC" required>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-field">
+              <label>Phone <span style="color:#ef4444">*</span></label>
+              <input type="tel" id="c-phone" placeholder="(555) 000-0000" required>
+            </div>
+            <div class="form-field">
+              <label>Email <span style="color:#ef4444">*</span></label>
+              <input type="email" id="c-email" placeholder="jane@example.com" required>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-field">
+              <label>Preferred Date <span style="color:#ef4444">*</span></label>
+              <input type="date" id="c-date" required onchange="refreshAvailability('c')">
+            </div>
+            <div class="form-field">
+              <label>Time <span style="color:#ef4444">*</span></label>
+              <select id="c-time" required>
+                <option value="">Select a date first</option>
+              </select>
+              <div class="avail-loading" id="c-avail-loading">Checking availability...</div>
+            </div>
+          </div>
+          <div class="form-field">
+            <label>Timezone <span style="color:#ef4444">*</span></label>
+            <select id="c-tz" onchange="refreshAvailability('c')">
+              <option value="America/New_York">Eastern (ET)</option>
+              <option value="America/Chicago">Central (CT)</option>
+              <option value="America/Denver">Mountain (MT)</option>
+              <option value="America/Los_Angeles">Pacific (PT)</option>
+              <option value="America/Anchorage">Alaska (AKT)</option>
+              <option value="Pacific/Honolulu">Hawaii (HT)</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label>Anything we should know? (optional)</label>
+            <textarea id="c-notes" rows="3" placeholder="Current bookkeeping setup, revenue range, biggest pain point..."></textarea>
+          </div>
+          <button type="submit" class="btn-primary" id="cta-btn" style="padding:16px;font-size:15px;">
+            Book My Free Call
+          </button>
+        </form>
+        <p class="card-note" style="margin-top:14px;"><span>&#10003;</span> No credit card required. We'll confirm within 2 hours.</p>
+      </div>
+      <div class="success-state" id="cta-success">
+        <div class="success-icon-box">&#10003;</div>
+        <h3>You're on the calendar</h3>
+        <p>Check your email for a confirmation. We'll be in touch within 2 hours to confirm your slot.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <p style="margin-bottom:8px;">© 2026 Blu Balence &nbsp;·&nbsp; <a href="mailto:hello@blubalences.com">blubalences.com</a> &nbsp;·&nbsp; <a href="tel:+12242063770">(224) 206-3770</a></p>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+  import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+  const supabase = createClient(
+    "https://rfdvogakvyodixgpvqvz.supabase.co",
+    "sb_publishable_zJJjwZoMP0N9dod1KIxLEQ_h7hWDLuv"
+  );
+
+  const WEBHOOK_URL = "https://hook.us1.make.com/e3av1w86ovv5w89fs3hwq50aln33oq3c";
+
+  const ALL_SLOTS = [
+    { label: "9:00 AM",  value: "09:00" },
+    { label: "10:00 AM", value: "10:00" },
+    { label: "11:00 AM", value: "11:00" },
+    { label: "12:00 PM", value: "12:00" },
+    { label: "1:00 PM",  value: "13:00" },
+    { label: "2:00 PM",  value: "14:00" },
+    { label: "3:00 PM",  value: "15:00" },
+    { label: "4:00 PM",  value: "16:00" },
+    { label: "5:00 PM",  value: "17:00" },
+  ];
+
+  function localToUtc(dateStr, timeStr, tz) {
+    const localDt = new Date(`${dateStr}T${timeStr}:00`);
+    const tzDate  = new Date(localDt.toLocaleString("en-US", { timeZone: tz }));
+    return new Date(localDt.getTime() + (localDt - tzDate)).toISOString();
+  }
+
+  function utcToLocalHour(utcStr, tz) {
+    const d = new Date(utcStr);
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: tz, hour: "numeric", hour12: false
+    }).formatToParts(d);
+    return parseInt(parts.find(p => p.type === "hour").value, 10);
+  }
+
+  function detectTz() {
+    try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return "America/New_York"; }
+  }
+
+  function setDefaultDate(id) {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    document.getElementById(id).value = d.toISOString().split("T")[0];
+  }
+
+  function setDefaultTz(id) {
+    const tz  = detectTz();
+    const sel = document.getElementById(id);
+    for (const opt of sel.options) { if (opt.value === tz) { sel.value = tz; return; } }
+  }
+
+  function showToast(msg, type = "success") {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.className = `toast ${type} show`;
+    setTimeout(() => { t.className = "toast"; }, 4500);
+  }
+
+  async function refreshAvailability(prefix) {
+    const date   = document.getElementById(`${prefix}-date`).value;
+    const tz     = document.getElementById(`${prefix}-tz`).value;
+    const timeEl = document.getElementById(`${prefix}-time`);
+    const loader = document.getElementById(`${prefix}-avail-loading`);
+
+    if (!date) { timeEl.innerHTML = '<option value="">Select a date first</option>'; return; }
+
+    loader.style.display = "block";
+    timeEl.disabled = true;
+
+    try {
+      const dayStart = localToUtc(date, "00:00", tz);
+      const dayEnd   = localToUtc(date, "23:59", tz);
+
+      const { data: booked, error } = await supabase
+        .from("appointments")
+        .select("appointment_utc")
+        .gte("appointment_utc", dayStart)
+        .lte("appointment_utc", dayEnd);
+
+      if (error) throw error;
+
+      const bookedHours = new Set((booked || []).map(a => utcToLocalHour(a.appointment_utc, tz)));
+      timeEl.innerHTML = "";
+      let hasAvailable = false;
+
+      for (const slot of ALL_SLOTS) {
+        const hour = parseInt(slot.value.split(":")[0], 10);
+        const opt  = document.createElement("option");
+        opt.value  = slot.value;
+        if (bookedHours.has(hour)) {
+          opt.textContent = `${slot.label} — Unavailable`;
+          opt.disabled    = true;
+        } else {
+          opt.textContent = slot.label;
+          hasAvailable    = true;
+        }
+        timeEl.appendChild(opt);
+      }
+
+      if (!hasAvailable) {
+        timeEl.innerHTML = '<option value="" disabled selected>No availability on this date</option>';
+      } else {
+        const first = [...timeEl.options].find(o => !o.disabled);
+        if (first) first.selected = true;
+      }
+    } catch (err) {
+      console.error("Availability check failed:", err);
+      timeEl.innerHTML = ALL_SLOTS.map(s => `<option value="${s.value}">${s.label}</option>`).join("");
+    } finally {
+      loader.style.display = "none";
+      timeEl.disabled = false;
+    }
+  }
+
+  async function bookAppointment({ name, clientName, phone, email, date, time, tz, notes }) {
+    const appointmentUtc = localToUtc(date, time, tz);
+    const payload = {
+      name,
+      client_name: clientName,
+      phone,
+      email,
+      notes: notes || null,
+      appointment_utc: appointmentUtc,
+      timezone: tz
+    };
+
+    const { data, error } = await supabase.from("appointments").insert([payload]).select();
+    if (error) throw error;
+
+    const apptId = data && data[0] ? data[0].id : null;
+    fetch(WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "created", ...payload, appointment_id: apptId })
+    }).catch(err => console.warn("Webhook failed:", err));
+
+    return data;
+  }
+
+  window.refreshAvailability = refreshAvailability;
+
+  window.handleHeroBook = async function(e) {
+    e.preventDefault();
+    const btn = document.getElementById("hero-btn");
+    btn.disabled = true; btn.textContent = "Booking...";
+    try {
+      await bookAppointment({
+        name: `Discovery Call — ${document.getElementById("h-biz").value.trim()}`,
+        clientName: document.getElementById("h-name").value.trim(),
+        phone: document.getElementById("h-phone").value.trim(),
+        email: document.getElementById("h-email").value.trim(),
+        date: document.getElementById("h-date").value,
+        time: document.getElementById("h-time").value,
+        tz: document.getElementById("h-tz").value,
+        notes: ""
+      });
+      document.getElementById("hero-form-wrap").style.display = "none";
+      document.getElementById("hero-success").style.display = "block";
+      showToast("Booked. Check your email for confirmation.", "success");
+    } catch (err) {
+      console.error(err);
+      showToast("Something went wrong. Please try again.", "error");
+      btn.disabled = false; btn.textContent = "Reserve My Call";
+    }
+  };
+
+  window.handleCtaBook = async function(e) {
+    e.preventDefault();
+    const btn = document.getElementById("cta-btn");
+    btn.disabled = true; btn.textContent = "Booking...";
+    try {
+      await bookAppointment({
+        name: `Discovery Call — ${document.getElementById("c-biz").value.trim()}`,
+        clientName: document.getElementById("c-name").value.trim(),
+        phone: document.getElementById("c-phone").value.trim(),
+        email: document.getElementById("c-email").value.trim(),
+        date: document.getElementById("c-date").value,
+        time: document.getElementById("c-time").value,
+        tz: document.getElementById("c-tz").value,
+        notes: document.getElementById("c-notes").value.trim()
+      });
+      document.getElementById("cta-form-wrap").style.display = "none";
+      document.getElementById("cta-success").style.display = "block";
+      showToast("Booked. We'll be in touch within 2 hours.", "success");
+    } catch (err) {
+      console.error(err);
+      showToast("Something went wrong. Please try again.", "error");
+      btn.disabled = false; btn.textContent = "Book My Free Call";
+    }
+  };
+
+  setDefaultDate("h-date"); setDefaultDate("c-date");
+  setDefaultTz("h-tz");     setDefaultTz("c-tz");
+  refreshAvailability("h"); refreshAvailability("c");
+</script>
+</body>
+</html>

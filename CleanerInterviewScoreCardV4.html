@@ -1,0 +1,2191 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Candidate Scorecard</title>
+
+<style>
+/* ============================
+   BRAND TOKENS
+============================ */
+:root{
+  --navy:#0b1220;
+  --navy-soft:#111827;
+  --ink:#020617;
+  --border:rgba(255,255,255,.12);
+  --muted:#cbd5e1;
+  --white:#ffffff;
+  --orange:#f97316;
+  --green:#22c55e;
+  --radius:14px;
+  --radius-sm:10px;
+}
+
+/* ============================
+   BASE
+============================ */
+*{ box-sizing:border-box; }
+
+body{
+  margin:0;
+  padding:16px;
+  font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+  background:var(--navy);
+  color:var(--white);
+}
+
+/* ============================
+   META BAR
+============================ */
+.meta-bar{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:18px;
+  margin-bottom:20px;
+  padding:18px;
+  background:var(--navy-soft);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+}
+
+.meta-group{
+  display:flex;
+  flex-direction:column;
+  position:relative; /* 🔑 anchor for absolute dropdown */
+}
+
+
+.meta-group label{
+  font-size:12px;
+  font-weight:700;
+  color:var(--muted);
+  margin-bottom:6px;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+
+.meta-group input{
+  padding:12px 14px;
+  font-size:14px;
+  line-height:1.5;
+  background:var(--ink);
+  color:var(--white);
+  border:1px solid var(--border);
+  border-radius:var(--radius-sm);
+}
+
+/* ============================
+   TABLE
+============================ */
+table{
+  width:100%;
+  border-collapse:collapse;
+  table-layout:fixed;
+  background:var(--navy-soft);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  overflow:hidden;
+}
+
+td, th{
+  border:1px solid var(--border);
+  padding:16px 18px;
+  font-size:14px;
+  line-height:1.6;
+  vertical-align:top;
+  color:var(--muted);
+}
+
+/* Section Headers */
+.section{
+  background:linear-gradient(90deg,#16a34a,#22c55e);
+  color:#022c22;
+  font-weight:900;
+  text-align:center;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  padding:18px;
+}
+
+/* Columns */
+.factor{
+  width:18%;
+  font-weight:800;
+  color:var(--white);
+  line-height:1.55;
+}
+
+.level{
+  width:14%;
+  line-height:1.65;
+}
+
+.score{
+  width:6%;
+  text-align:center;
+}
+
+/* Score Inputs */
+input[type="number"]{
+  width:64px;
+  padding:8px;
+  font-weight:900;
+  text-align:center;
+  line-height:1.4;
+  background:var(--ink);
+  color:var(--white);
+  border:1px solid var(--border);
+  border-radius:8px;
+}
+
+/* Totals */
+.total-row{
+  background:#020617;
+  font-weight:900;
+}
+
+.total-cell{
+  text-align:center;
+  font-weight:900;
+  color:var(--orange);
+  font-size:15px;
+}
+
+/* ============================
+   NOTES
+============================ */
+.notes-box{
+  margin-top:20px;
+  padding:18px;
+  background:var(--navy-soft);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+}
+
+.notes-box label{
+  font-size:12px;
+  font-weight:700;
+  color:var(--muted);
+  display:block;
+  margin-bottom:10px;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+
+.notes-box textarea{
+  width:100%;
+  min-height:140px;
+  padding:16px;
+  font-size:14px;
+  line-height:1.6;
+  background:var(--ink);
+  color:var(--white);
+  border:1px solid var(--border);
+  border-radius:var(--radius-sm);
+  resize:vertical;
+}
+
+/* ============================
+   BUTTON
+============================ */
+.create-btn{
+  margin-top:20px;
+  width:100%;
+  padding:18px;
+  font-size:15px;
+  font-weight:900;
+  border:none;
+  border-radius:14px;
+  background:linear-gradient(135deg,var(--orange),#fb923c);
+  color:#020617;
+  cursor:pointer;
+  box-shadow:0 14px 34px rgba(249,115,22,.35);
+}
+
+.create-btn:hover{
+  transform:translateY(-1px);
+}
+
+/* ============================
+   MOBILE
+============================ */
+@media(max-width:900px){
+  td, th{
+    padding:18px;
+    font-size:14px;
+  }
+
+  .level{
+    line-height:1.7;
+  }
+
+  input[type="number"]{
+    width:56px;
+  }
+}
+/* ============================
+   DROPDOWN INTERVIEW QUESTIONS
+============================ */
+.factor{
+  cursor:pointer;
+}
+
+.question-row{
+  display:none;
+  background:#020617;
+}
+
+.question-cell{
+  padding:18px 22px;
+  color:var(--muted);
+  font-size:14px;
+  line-height:1.7;
+}
+
+.question-label{
+  display:block;
+  font-size:12px;
+  font-weight:900;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  color:var(--green);
+  margin-bottom:10px;
+}
+
+.question-cell ul{
+  margin:0;
+  padding-left:18px;
+}
+
+.question-cell li{
+  margin-bottom:10px;
+}
+
+/* ============================
+   QUESTION NOTES INPUT
+============================ */
+.question-notes{
+  width:100%;
+  min-height:80px;
+  margin-top:14px;
+  padding:12px 14px;
+  background:var(--ink);
+  color:var(--white);
+  border:1px solid var(--border);
+  border-radius:10px;
+  font-size:13px;
+  line-height:1.5;
+  resize:vertical;
+}
+
+.question-notes::placeholder{
+  color:#64748b;
+}
+/* =========================================================
+   PRE-INTERVIEW NOTES BOX
+========================================================= */
+.pre-notes-box{
+  background:#020617;
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:14px;
+  padding:18px 20px;
+}
+
+.pre-notes-box label{
+  display:block;
+  font-size:12px;
+  font-weight:900;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  color:#22c55e;
+  margin-bottom:10px;
+}
+
+.pre-notes-box textarea{
+  width:100%;
+  min-height:120px;
+  padding:14px 16px;
+  background:#0b1220;
+  color:#ffffff;
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:10px;
+  font-size:14px;
+  line-height:1.6;
+  resize:vertical;
+}
+
+.pre-notes-box textarea::placeholder{
+  color:#64748b;
+}
+/* =========================================================
+   RIGHT-SIDE SCRIPT PANEL
+========================================================= */
+.script-panel{
+  position:fixed;
+  top:0;
+  right:-420px;
+  width:400px;
+  height:100vh;
+  background:#020617;
+  border-left:1px solid rgba(255,255,255,.12);
+  box-shadow:-20px 0 40px rgba(0,0,0,.6);
+  z-index:9999;
+  transition:right .25s ease;
+  display:flex;
+  flex-direction:column;
+}
+
+.script-panel.open{
+  right:0;
+}
+
+.script-header{
+  padding:18px;
+  font-weight:900;
+  font-size:13px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:#22c55e;
+  border-bottom:1px solid rgba(255,255,255,.12);
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.script-close{
+  cursor:pointer;
+  color:#94a3b8;
+  font-size:18px;
+}
+
+.script-content{
+  padding:20px;
+  overflow-y:auto;
+  flex:1;
+}
+
+.script-content h4{
+  margin:18px 0 8px;
+  color:#f97316;
+  font-size:14px;
+}
+
+.script-content ul{
+  margin:0 0 16px;
+  padding-left:18px;
+}
+
+.script-content li{
+  margin-bottom:10px;
+  color:#cbd5e1;
+  line-height:1.6;
+}
+
+/* =========================================================
+   SCORECARD SLIDE WHEN SCRIPT OPENS
+========================================================= */
+#scorecardWrapper{
+  transition: padding-right .25s ease;
+}
+
+body.script-open #scorecardWrapper{
+  padding-right:420px; /* must match panel width */
+}
+
+/* Mobile: overlay instead of squeeze */
+@media(max-width:900px){
+  body.script-open #scorecardWrapper{
+    padding-right:0;
+  }
+}
+
+/* ============================
+   CANDIDATE SEARCH BUTTON (GREEN)
+============================ */
+.meta-row-inline{
+  display:flex;
+  gap:10px;
+  align-items:flex-end;
+}
+
+.meta-row-inline input{
+  flex:1;
+}
+
+.get-candidates-btn{
+  padding:12px 16px;
+  font-size:13px;
+  font-weight:900;
+  border-radius:10px;
+  border:1px solid rgba(34,197,94,.55);
+  background:linear-gradient(135deg,#16a34a,#22c55e);
+  color:#022c22;
+  cursor:pointer;
+  white-space:nowrap;
+  box-shadow:0 10px 26px rgba(34,197,94,.35);
+}
+
+.get-candidates-btn:hover{
+  transform:translateY(-1px);
+  box-shadow:0 14px 34px rgba(34,197,94,.45);
+}
+
+/* ============================
+   CANDIDATE DROPDOWN
+============================ */
+.candidate-dropdown{
+  display:none;
+  position:absolute;
+  top:100%;
+  left:0;
+  width:100%;
+  margin-top:6px;
+
+  background:#020617;
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:12px;
+  max-height:260px;
+  overflow-y:auto;
+
+  box-shadow:0 24px 60px rgba(0,0,0,.75);
+
+  z-index:100000; /* 🔑 higher than script panel */
+}
+
+.candidate-option{
+  padding:12px 14px;
+  cursor:pointer;
+  font-size:14px;
+  color:#e5e7eb;
+}
+
+.candidate-option:hover{
+  background:#0b1220;
+}
+
+.candidate-empty{
+  padding:12px 14px;
+  color:#64748b;
+  font-size:13px;
+}
+
+.section:hover{
+  filter:brightness(1.05);
+}
+
+/* Motivation jump highlight */
+.highlight-motivation .factor {
+  color: #f97316 !important;
+  font-weight: 900;
+  transition: color 0.3s ease;
+}
+
+   /* Highlight ONLY the word "Motivation" */
+td.factor #motivation-word.motivation-highlight{
+  color:#f97316 !important;
+  font-weight:900 !important;
+}
+
+
+</style>
+
+</head>
+
+<body>
+
+<div id="scorecardWrapper">
+
+<div class="meta-bar">
+  <div class="meta-group">
+  <label>Candidate Name</label>
+
+  <div class="meta-row-inline">
+    <input
+  type="text"
+  id="candidateName"
+  placeholder="Type candidate name"
+  autocomplete="off"
+/>
+
+
+    <button
+  type="button"
+  class="get-candidates-btn"
+  onclick="getCandidates()"
+
+>
+  Get Candidates
+</button>
+
+  </div>
+
+  <!-- 🔽 DROPDOWN GOES HERE -->
+  <div id="candidateDropdown" class="candidate-dropdown"></div>
+</div>
+
+
+  
+  <div class="meta-group">
+    <label>Interviewer</label>
+    <input type="text" id="interviewerName" placeholder="Interviewer full name">
+  </div>
+
+
+  <div class="meta-group">
+    <label>Interview Type</label>
+    <input type="text" id="interviewType">
+  </div>
+
+  <div class="meta-group">
+    <label>Jira Code</label>
+    <input type="text" id="jiraCode" placeholder="RP-####">
+  </div>
+</div>
+
+
+
+<!--BASIC COMPETECIES-->
+
+<table>
+<!-- =========================================================
+     PRE-INTERVIEW / CONTEXT NOTES
+========================================================= -->
+<table>
+
+<tr id="first-impression-notes">
+  <td colspan="7">
+    <div class="pre-notes-box">
+      <label for="preNotes">Interview Context / Initial Observations</label>
+      <textarea
+        id="preNotes"
+        placeholder="Capture first impressions, tone, red flags, strengths etc..."
+      ></textarea>
+    </div>
+  </td>
+</tr>
+
+<tr><td
+  class="section"
+  colspan="7"
+  onclick="openScript()"
+  style="cursor:pointer;"
+>
+  BASIC COMPETENCIES
+</td>
+</tr>
+
+<tr id="primary-skills">
+  <td class="factor" onclick="toggleQuestions('q_primary_skills')">
+    Primary Skills (Cleaning/Attention to Detail)
+  </td>
+  <td class="level">Bare minimum. Struggles with basic cleaning tasks.</td>
+  <td class="level">Knows basics but needs training and oversight.</td>
+  <td class="level">Handles all standard cleaning needs well.</td>
+  <td class="level">Extremely strong in cleaning. Recognized for high quality.</td>
+  <td class="level">Brings far more than expected. Sets cleaning standards.</td>
+  <td class="score">
+    <input type="number"
+           min="0"
+           max="5"
+           step="0.5"
+           class="score-input basic"
+           id="score_primary_skills">
+  </td>
+</tr>
+
+<tr class="question-row" id="q_primary_skills">
+  <td colspan="7" class="question-cell">
+    <span class="question-label">Interview Prompts</span>
+
+    <ul>
+  <li>
+    <strong>What standards were you expected to meet, and how was quality checked?</strong>
+    <ul>
+      <li><strong>Why:</strong> Confirms exposure to real cleaning standards and accountability</li>
+      <li>Separates professional cleaning environments from informal or unchecked work</li>
+      <li><strong>How to score fast:</strong></li>
+      <li><strong>LOW (1–2):</strong> No clear standards, “they trusted me,” no inspections or checks</li>
+      <li><strong>MID (3):</strong> Some standards with occasional spot checks or feedback</li>
+      <li><strong>HIGH (4–5):</strong> Clear standards, checklists, inspections, regular quality reviews</li>
+    </ul>
+  </li>
+
+  <li>
+    <strong>What happened when something was missed or not cleaned properly?</strong>
+    <ul>
+      <li><strong>Why:</strong> Reveals accountability, pride in work, and response to corrections</li>
+      <li>Predicts behavior with re-cleans, callbacks, and client dissatisfaction</li>
+      <li><strong>How to score fast:</strong></li>
+      <li><strong>LOW (1–2):</strong> Blame, excuses, no ownership, or ignored issues</li>
+      <li><strong>MID (3):</strong> Fixed issues when told but inconsistently</li>
+      <li><strong>HIGH (4–5):</strong> Took responsibility, corrected work promptly, learned and improved</li>
+    </ul>
+  </li>
+
+  <li>
+    <strong>How did you make sure your work met expectations every time?</strong>
+    <ul>
+      <li><strong>Why:</strong> Tests consistency, attention to detail, and personal quality standards</li>
+      <li>Separates habit-based execution from one-off effort</li>
+      <li><strong>How to score fast:</strong></li>
+      <li><strong>LOW (1–2):</strong> Relied on memory or “doing my best”</li>
+      <li><strong>MID (3):</strong> Double-checked some areas</li>
+      <li><strong>HIGH (4–5):</strong> Used checklists, systematic checks, and final walkthroughs</li>
+    </ul>
+  </li>
+</ul>
+
+
+    <textarea
+      class="question-notes"
+      id="notes_primary_skills"
+      placeholder="Notes specific to this score..."
+    ></textarea>
+  </td>
+</tr>
+
+
+<tr id="experience">
+  <td class="factor" onclick="toggleQuestions('q_experience')">
+    Experience
+  </td>
+  <td class="level">Minimum threshold. No formal cleaning experience.</td>
+  <td class="level">Meets minimum needs, some informal cleaning experience.</td>
+  <td class="level">Meets most needs. Solid residential/commercial cleaning exposure.</td>
+  <td class="level">Broad cleaning background, multiple settings.</td>
+  <td class="level">Excellent, diverse cleaning background.</td>
+  <td class="score">
+    <input type="number"
+           min="0"
+           max="5"
+           step="0.5"
+           class="score-input basic"
+           id="score_experience">
+  </td>
+</tr>
+
+<tr class="question-row" id="q_experience">
+  <td colspan="7" class="question-cell">
+    <span class="question-label">Interview Prompts</span>
+
+    <ul>
+  <li>
+    <strong>What type of work did you do there day to day?</strong>
+    <ul>
+      <li><strong>Why:</strong> Confirms hands-on experience and task familiarity</li>
+      <li>Separates real execution from job titles</li>
+      <li><strong>How to score fast:</strong></li>
+      <li><strong>LOW (1–2):</strong> Vague duties, “a little of everything,” unclear tasks</li>
+      <li><strong>MID (3):</strong> Clear tasks but limited scope or repetition</li>
+      <li><strong>HIGH (4–5):</strong> Specific tasks performed consistently and independently</li>
+    </ul>
+  </li>
+
+  <li>
+    <strong>What did a typical day look like from start to finish?</strong>
+    <ul>
+      <li><strong>Why:</strong> Reveals workflow understanding and independence</li>
+      <li>Shows structure, routine, and responsibility</li>
+      <li><strong>How to score fast:</strong></li>
+      <li><strong>LOW (1–2):</strong> Disorganized, unclear, reactive day</li>
+      <li><strong>MID (3):</strong> Basic structure with some gaps</li>
+      <li><strong>HIGH (4–5):</strong> Clear start-to-finish flow with ownership of outcomes</li>
+    </ul>
+  </li>
+
+  <li>
+    <strong>How often were you doing this type of work?</strong>
+    <ul>
+      <li><strong>Why:</strong> Measures depth and repeatability of experience</li>
+      <li>Distinguishes core work from occasional exposure</li>
+      <li><strong>How to score fast:</strong></li>
+      <li><strong>LOW (1–2):</strong> Occasional, seasonal, or “helped out”</li>
+      <li><strong>MID (3):</strong> Weekly or periodic work</li>
+      <li><strong>HIGH (4–5):</strong> Daily or near-daily execution</li>
+    </ul>
+  </li>
+</ul>
+
+
+    <textarea
+      class="question-notes"
+      id="notes_experience"
+      placeholder="Notes specific to this score..."
+    ></textarea>
+  </td>
+</tr>
+
+
+<tr id="achiever-pattern">
+  <td class="factor" onclick="toggleQuestions('q_achiever_pattern')">
+    Achiever Pattern & Growth Trend
+  </td>
+  <td class="level">No evidence of growth or improvement.</td>
+  <td class="level">Some growth, not consistent.</td>
+  <td class="level">Evidence of consistent growth trend.</td>
+  <td class="level">Evidence of upward trajectory in performance.</td>
+  <td class="level">Steep upward growth trajectory.</td>
+  <td class="score">
+    <input type="number"
+           min="0"
+           max="5"
+           step="0.5"
+           class="score-input basic"
+           id="score_growth_trend">
+  </td>
+</tr>
+
+<tr class="question-row" id="q_achiever_pattern">
+  <td colspan="7" class="question-cell">
+    <span class="question-label">Interview Prompts</span>
+
+    <ul>
+  <li>
+    <strong>What changed about your responsibilities over time in that role?</strong>
+    <ul>
+      <li><strong>Why:</strong> Identifies Achiever Pattern and growth vs stagnation</li>
+      <li>Shows whether trust and responsibility increased over time</li>
+      <li><strong>How to score fast:</strong></li>
+      <li><strong>LOW (1–2):</strong> No change, same tasks, no added responsibility</li>
+      <li><strong>MID (3):</strong> Minor changes, occasional added tasks</li>
+      <li><strong>HIGH (4–5):</strong> Clear increase in responsibility, ownership, trust</li>
+    </ul>
+  </li>
+
+  <li>
+    <strong>What recognition or feedback did you receive for your work?</strong>
+    <ul>
+      <li><strong>Why:</strong> Confirms performance through external validation</li>
+      <li>Separates effort from results</li>
+      <li><strong>How to score fast:</strong></li>
+      <li><strong>LOW (1–2):</strong> No feedback, “just did my job”</li>
+      <li><strong>MID (3):</strong> Occasional positive comments</li>
+      <li><strong>HIGH (4–5):</strong> Consistent praise, recognition, being requested again</li>
+    </ul>
+  </li>
+
+  <li>
+    <strong>Were you ever asked to train someone or take on more?</strong>
+    <ul>
+      <li><strong>Why:</strong> Signals trust, leadership potential, and reliability</li>
+      <li>Indicates standout performance among peers</li>
+      <li><strong>How to score fast:</strong></li>
+      <li><strong>LOW (1–2):</strong> Never asked, not trusted with more</li>
+      <li><strong>MID (3):</strong> Occasionally helped others</li>
+      <li><strong>HIGH (4–5):</strong> Regularly trained others or took on added responsibility</li>
+    </ul>
+  </li>
+</ul>
+
+
+    <textarea
+      class="question-notes"
+      id="notes_achiever_pattern"
+      placeholder="Notes specific to this score..."
+    ></textarea>
+  </td>
+</tr>
+
+
+<tr class="total-row">
+  <td colspan="6">Basic Competencies Total</td>
+  <td class="total-cell" id="basicTotal">0.0</td>
+</tr>
+
+<tr><td class="section" colspan="7">ESSENTIAL CORE COMPETENCIES</td></tr>
+
+<tr id="talent-technical">
+  <td class="factor" onclick="toggleQuestions('q_talent_technical_ability')">
+    Talent & Technical Ability
+  </td>
+  <td class="level">Needs much training and support.</td>
+  <td class="level">Can perform tasks but needs guidance.</td>
+  <td class="level">Technically strong. Learns quickly.</td>
+  <td class="level">Top performer. Trains others.</td>
+  <td class="level">Brilliant. Recognized leader.</td>
+  <td class="score">
+    <input type="number"
+           min="0"
+           max="5"
+           step="0.5"
+           class="score-input core"
+           id="score_technical_ability">
+  </td>
+</tr>
+
+<tr class="question-row" id="q_talent_technical_ability">
+  <td colspan="7" class="question-cell">
+    <span class="question-label">Interview Prompts</span>
+
+      <ul>
+  <li>
+    <strong>Walk me through exactly how you would clean a bathroom from start to finish.</strong>
+    <ul>
+      <li><strong>Why:</strong> Tests procedural knowledge and technical cleaning ability</li>
+      <li>Separates real execution from vague or theoretical answers</li>
+      <li><strong>How to score fast:</strong></li>
+      <li><strong>LOW (1–2):</strong> Disorganized steps, vague process, skips key areas</li>
+      <li><strong>MID (3):</strong> Logical order but misses details or quality checks</li>
+      <li><strong>HIGH (4–5):</strong> Clear step-by-step process, correct order, attention to detail</li>
+    </ul>
+  </li>
+
+  <li>
+    <strong>How do you check your work before you leave a job to make sure nothing was missed?</strong>
+    <ul>
+      <li><strong>Why:</strong> Reveals internal quality control and pride in work</li>
+      <li>Predicts re-cleans, callbacks, and client satisfaction</li>
+      <li><strong>How to score fast:</strong></li>
+      <li><strong>LOW (1–2):</strong> Relies on memory or others, no formal check</li>
+      <li><strong>MID (3):</strong> Quick visual check without a system</li>
+      <li><strong>HIGH (4–5):</strong> Uses checklist, photos, systematic final walkthrough</li>
+    </ul>
+  </li>
+
+  <li>
+    <strong>What cleaning tasks are you strongest at, and which ones require the most attention to do right?</strong>
+    <ul>
+      <li><strong>Why:</strong> Tests technical self-awareness and understanding of difficulty</li>
+      <li>Separates confident performers from overconfident or unaware candidates</li>
+      <li><strong>How to score fast:</strong></li>
+      <li><strong>LOW (1–2):</strong> Claims all tasks are easy, no differentiation</li>
+      <li><strong>MID (3):</strong> Identifies some strengths but limited depth</li>
+      <li><strong>HIGH (4–5):</strong> Clearly explains difficult tasks, common mistakes, and standards</li>
+    </ul>
+  </li>
+</ul>
+
+
+    <textarea
+      class="question-notes"
+      id="notes_technical_ability"
+      placeholder="Notes specific to this score..."
+    ></textarea>
+  </td>
+</tr>
+
+
+<tr id="management-organizational">
+  <td class="factor" onclick="toggleQuestions('q_management_organizational_ability')">
+    Management & Organizational Ability
+  </td>
+  <td class="level">Misses deadlines, disorganized.</td>
+  <td class="level">Projects comparable but reactive.</td>
+  <td class="level">Planned and executed efficiently.</td>
+  <td class="level">Anticipates needs, communicates proactively.</td>
+  <td class="level">Outstanding organizational results.</td>
+  <td class="score">
+    <input type="number"
+           min="0"
+           max="5"
+           step="0.5"
+           class="score-input core"
+           id="score_management_ability">
+  </td>
+</tr>
+
+<tr class="question-row" id="q_management_organizational_ability">
+  <td colspan="7" class="question-cell">
+    <span class="question-label">Interview Prompts</span>
+
+    <ul>
+  <li>
+    <strong>How did you plan and organize your work to make sure everything got done on time?</strong>
+    <ul>
+      <li><strong>Why:</strong> Tests planning, prioritization, and self-management</li>
+      <li>Separates structured performers from reactive workers</li>
+      <li><strong>How to score fast:</strong></li>
+      <li><strong>LOW (1–2):</strong> No plan, handled things “as they came,” missed deadlines</li>
+      <li><strong>MID (3):</strong> Basic planning, sometimes rushed or inconsistent</li>
+      <li><strong>HIGH (4–5):</strong> Clear system, plans ahead, consistently on time</li>
+    </ul>
+  </li>
+
+  <li>
+    <strong>How did you handle multiple tasks or tight schedules at the same time?</strong>
+    <ul>
+      <li><strong>Why:</strong> Reveals ability to manage workload under pressure</li>
+      <li>Predicts reliability when schedules change or jobs run long</li>
+      <li><strong>How to score fast:</strong></li>
+      <li><strong>LOW (1–2):</strong> Became overwhelmed, dropped tasks</li>
+      <li><strong>MID (3):</strong> Managed but with stress or occasional misses</li>
+      <li><strong>HIGH (4–5):</strong> Prioritized effectively, stayed calm and organized</li>
+    </ul>
+  </li>
+
+  <li>
+    <strong>What systems, checklists, or routines did you use to stay organized?</strong>
+    <ul>
+      <li><strong>Why:</strong> Confirms process discipline and repeatability</li>
+      <li>Separates memory-based work from system-based execution</li>
+      <li><strong>How to score fast:</strong></li>
+      <li><strong>LOW (1–2):</strong> No systems, relied on memory</li>
+      <li><strong>MID (3):</strong> Informal lists or reminders</li>
+      <li><strong>HIGH (4–5):</strong> Consistent use of checklists, routines, or tools</li>
+    </ul>
+  </li>
+</ul>
+
+
+    <textarea
+      class="question-notes"
+      id="notes_management_ability"
+      placeholder="Notes specific to this score..."
+    ></textarea>
+  </td>
+</tr>
+
+
+<tr id="team-skills">
+  <td class="factor" onclick="toggleQuestions('q_team_skills_eq')">
+    Team Skills (EQ), Development, Leadership
+  </td>
+  <td class="level">No teamwork experience, weak EQ.</td>
+  <td class="level">Some teamwork experience.</td>
+  <td class="level">Good EQ. Cooperative with teams.</td>
+  <td class="level">Leads small teams.</td>
+  <td class="level">Leads, motivates, and trains exceptionally.</td>
+  <td class="score">
+    <input type="number"
+           min="0"
+           max="5"
+           step="0.5"
+           class="score-input core"
+           id="score_team_skills">
+  </td>
+</tr>
+
+<tr class="question-row" id="q_team_skills_eq">
+  <td colspan="7" class="question-cell">
+    <span class="question-label">Interview Prompts</span>
+
+    <ul>
+  <li>
+    <strong>Tell me about a time you had to work with someone who was difficult or upset.</strong>
+    <ul>
+      <li><strong>Why:</strong> Tests emotional regulation and interpersonal judgment</li>
+      <li>Predicts how the candidate will handle clients, feedback, and conflict</li>
+      <li><strong>How to score fast:</strong></li>
+      <li><strong>LOW (1–2):</strong> Blames the other person, escalated conflict, avoided responsibility</li>
+      <li><strong>MID (3):</strong> Managed the situation but with tension or avoidance</li>
+      <li><strong>HIGH (4–5):</strong> Stayed calm, resolved the issue professionally, preserved the relationship</li>
+    </ul>
+  </li>
+
+  <li>
+    <strong>How do you usually respond when someone gives you feedback or corrects your work?</strong>
+    <ul>
+      <li><strong>Why:</strong> Reveals coachability and emotional maturity</li>
+      <li>Separates growth-oriented candidates from defensive ones</li>
+      <li><strong>How to score fast:</strong></li>
+      <li><strong>LOW (1–2):</strong> Defensive, dismissive, or resistant</li>
+      <li><strong>MID (3):</strong> Accepts feedback but applies it inconsistently</li>
+      <li><strong>HIGH (4–5):</strong> Welcomes feedback and clearly applies it to improve</li>
+    </ul>
+  </li>
+
+  <li>
+    <strong>Can you give an example of a time someone depended on you and you didn’t let them down?</strong>
+    <ul>
+      <li><strong>Why:</strong> Signals trust, reliability, and empathy in action</li>
+      <li>Shows EQ through behavior, not personality claims</li>
+      <li><strong>How to score fast:</strong></li>
+      <li><strong>LOW (1–2):</strong> No clear example or minimized responsibility</li>
+      <li><strong>MID (3):</strong> Helped when asked</li>
+      <li><strong>HIGH (4–5):</strong> Proactively supported others and followed through</li>
+    </ul>
+  </li>
+</ul>
+
+
+    <textarea
+      class="question-notes"
+      id="notes_team_skills"
+      placeholder="Notes specific to this score..."
+    ></textarea>
+  </td>
+</tr>
+
+
+<tr id="problem-solving">
+  <td class="factor" onclick="toggleQuestions('q_thinking_problem_solving')">
+    Thinking & Job-related Problem-solving
+  </td>
+  <td class="level">Didn’t identify or solve issues.</td>
+  <td class="level">Understood simple issues.</td>
+  <td class="level">Identified issues, provided solutions.</td>
+  <td class="level">Creative solutions, proactive.</td>
+  <td class="level">Provides deep insights. Unique solutions.</td>
+  <td class="score">
+    <input type="number"
+           min="0"
+           max="5"
+           step="0.5"
+           class="score-input core"
+           id="score_problem_solving">
+  </td>
+</tr>
+
+<tr class="question-row" id="q_thinking_problem_solving">
+  <td colspan="7" class="question-cell">
+    <span class="question-label">Interview Prompts</span>
+
+    <ul>
+  <li>
+    <strong>Tell me about a problem that came up during a job and how you solved it.</strong>
+    <ul>
+      <li><strong>Why:</strong> Tests real-world problem identification and resolution</li>
+      <li>Shows how the candidate thinks under pressure</li>
+      <li><strong>How to score fast:</strong></li>
+      <li><strong>LOW (1–2):</strong> Couldn’t clearly identify the problem or relied on others to fix it</li>
+      <li><strong>MID (3):</strong> Identified the problem and applied a basic solution</li>
+      <li><strong>HIGH (4–5):</strong> Proactively identified the issue, chose an effective solution, and improved the outcome</li>
+    </ul>
+  </li>
+
+  <li>
+    <strong>What do you do when something isn’t working the way it’s supposed to?</strong>
+    <ul>
+      <li><strong>Why:</strong> Reveals judgment and adaptability in real situations</li>
+      <li>Separates reactive behavior from thoughtful problem-solving</li>
+      <li><strong>How to score fast:</strong></li>
+      <li><strong>LOW (1–2):</strong> Waits for direction or avoids the issue</li>
+      <li><strong>MID (3):</strong> Tries a single fix without much analysis</li>
+      <li><strong>HIGH (4–5):</strong> Evaluates options, takes initiative, and adjusts as needed</li>
+    </ul>
+  </li>
+
+  <li>
+    <strong>Can you give an example of a time you had to adjust your approach to get the job done?</strong>
+    <ul>
+      <li><strong>Why:</strong> Measures learning ability and flexibility</li>
+      <li>Shows whether the candidate improves through experience</li>
+      <li><strong>How to score fast:</strong></li>
+      <li><strong>LOW (1–2):</strong> No clear example or resisted change</li>
+      <li><strong>MID (3):</strong> Made a small adjustment with mixed results</li>
+      <li><strong>HIGH (4–5):</strong> Made a meaningful change that led to better results</li>
+    </ul>
+  </li>
+</ul>
+
+
+    <textarea
+      class="question-notes"
+      id="notes_problem_solving"
+      placeholder="Notes specific to this score..."
+    ></textarea>
+  </td>
+</tr>
+
+
+<tr class="total-row">
+  <td colspan="6">Essential Core Competencies Total</td>
+  <td class="total-cell" id="coreTotal">0.0</td>
+</tr>
+
+<tr><td class="section" colspan="7">SITUATIONAL FIT FACTORS</td></tr>
+
+<tr id="job-fit">
+  <td class="factor" onclick="toggleQuestions('q_job_fit')">
+    Job Fit with Recent Comparable Results
+  </td>
+
+  <td class="level">No relevant accomplishments.</td>
+  <td class="level">Some accomplishments but inconsistent.</td>
+  <td class="level">Major accomplishments.</td>
+  <td class="level">Achieved strong results in tough conditions.</td>
+  <td class="level">Full match with exceptional results.</td>
+  <td class="score">
+    <input type="number"
+           min="0"
+           max="5"
+           step="0.5"
+           class="score-input fit"
+           id="score_job_fit">
+  </td>
+</tr>
+
+<tr class="question-row" id="q_job_fit">
+  <td colspan="7" class="question-cell">
+    <span class="question-label">Interview Prompts</span>
+
+    <ul>
+  <li>
+    <strong>What standards were you expected to meet, and how was quality checked?</strong>
+    <ul>
+      <li><strong>Why:</strong> Confirms exposure to real standards and accountability</li>
+      <li>Separates professional environments from informal or unchecked work</li>
+      <li><strong>How to score fast:</strong></li>
+      <li><strong>LOW (1–2):</strong> No clear standards, “they trusted me,” no quality checks</li>
+      <li><strong>MID (3):</strong> Some standards, occasional checks or feedback</li>
+      <li><strong>HIGH (4–5):</strong> Clear standards, checklists, inspections, regular quality review</li>
+    </ul>
+  </li>
+
+  <li>
+    <strong>What happened when work wasn’t done right the first time?</strong>
+    <ul>
+      <li><strong>Why:</strong> Reveals consequence tolerance and ownership</li>
+      <li>Predicts response to re-cleans, callbacks, and client dissatisfaction</li>
+      <li><strong>How to score fast:</strong></li>
+      <li><strong>LOW (1–2):</strong> Blame, excuses, no consequences</li>
+      <li><strong>MID (3):</strong> Issues fixed but inconsistently</li>
+      <li><strong>HIGH (4–5):</strong> Took responsibility, corrected work, learned from feedback</li>
+    </ul>
+  </li>
+
+  <li>
+    <strong>What parts of that job are most similar to this role?</strong>
+    <ul>
+      <li><strong>Why:</strong> Tests job fit with recent comparable results</li>
+      <li>Forces direct comparison between past work and this role</li>
+      <li><strong>How to score fast:</strong></li>
+      <li><strong>LOW (1–2):</strong> Vague similarities, unrelated tasks</li>
+      <li><strong>MID (3):</strong> Some overlap but different standards or environment</li>
+      <li><strong>HIGH (4–5):</strong> Direct parallels (homes, checklists, client standards, accountability)</li>
+    </ul>
+  </li>
+</ul>
+
+
+    <textarea
+      class="question-notes"
+      id="notes_job_fit"
+      placeholder="Notes specific to this score..."
+    ></textarea>
+  </td>
+</tr>
+
+
+<tr id="managerial-fit">
+  <td class="factor" onclick="toggleQuestions('q_managerial_fit')">
+    Managerial Fit
+  </td>
+  <td class="level">Mismatch with manager style.</td>
+  <td class="level">Worked under similar supervision.</td>
+  <td class="level">Successful under similar supervisors.</td>
+  <td class="level">Adapts easily to styles.</td>
+  <td class="level">Superb fit, thrives in environments.</td>
+  <td class="score">
+    <input type="number"
+           min="0"
+           max="5"
+           step="0.5"
+           class="score-input fit"
+           id="score_managerial_fit">
+  </td>
+</tr>
+
+<tr class="question-row" id="q_managerial_fit">
+  <td colspan="7" class="question-cell">
+    <span class="question-label">Interview Prompts</span>
+
+    <ul>
+  <li>
+    <strong>Describe the best manager you’ve worked with and why that relationship worked.</strong>
+    <ul>
+      <li><strong>Why:</strong> Reveals alignment with management style and expectations</li>
+      <li>Shows what type of supervision brings out their best performance</li>
+      <li><strong>How to score fast:</strong></li>
+      <li><strong>LOW (1–2):</strong> Complains about managers, blames others, no specifics</li>
+      <li><strong>MID (3):</strong> Describes basic traits but little depth</li>
+      <li><strong>HIGH (4–5):</strong> Clearly explains structure, feedback, accountability, and trust</li>
+    </ul>
+  </li>
+
+  <li>
+    <strong>How do you prefer to receive instructions and feedback from a manager?</strong>
+    <ul>
+      <li><strong>Why:</strong> Tests communication fit and coachability</li>
+      <li>Predicts friction vs alignment with your management approach</li>
+      <li><strong>How to score fast:</strong></li>
+      <li><strong>LOW (1–2):</strong> Resistant to feedback or overly rigid preferences</li>
+      <li><strong>MID (3):</strong> Accepts feedback but with conditions</li>
+      <li><strong>HIGH (4–5):</strong> Open to feedback, values clarity, accountability, and improvement</li>
+    </ul>
+  </li>
+
+  <li>
+    <strong>Tell me about a time a manager corrected your work. How did you respond?</strong>
+    <ul>
+      <li><strong>Why:</strong> Reveals accountability, humility, and adaptability</li>
+      <li>Separates defensive reactions from growth-oriented behavior</li>
+      <li><strong>How to score fast:</strong></li>
+      <li><strong>LOW (1–2):</strong> Defensive, dismissive, or blames circumstances</li>
+      <li><strong>MID (3):</strong> Accepted correction but applied inconsistently</li>
+      <li><strong>HIGH (4–5):</strong> Took ownership, applied feedback, improved performance</li>
+    </ul>
+  </li>
+</ul>
+
+
+    <textarea
+      class="question-notes"
+      id="notes_managerial_fit"
+      placeholder="Notes specific to this score..."
+    ></textarea>
+  </td>
+</tr>
+
+
+<tr id="culture-environment">
+  <td class="factor" onclick="toggleQuestions('q_culture_environment')">
+    Culture & Environment
+  </td>
+  <td class="level">Complete mismatch.</td>
+  <td class="level">Reasonable match.</td>
+  <td class="level">Close match to culture.</td>
+  <td class="level">Excellent match.</td>
+  <td class="level">Thrives in this environment.</td>
+  <td class="score">
+    <input type="number"
+           min="0"
+           max="5"
+           step="0.5"
+           class="score-input fit"
+           id="score_culture_fit">
+  </td>
+</tr>
+
+<tr class="question-row" id="q_culture_environment">
+  <td colspan="7" class="question-cell">
+    <span class="question-label">Interview Prompts</span>
+
+    <ul>
+  <li>
+    <strong>What kind of work environment helps you do your best work?</strong>
+    <ul>
+      <li><strong>Why:</strong> Reveals alignment with pace, standards, and expectations</li>
+      <li>Separates candidates who thrive in structured environments from those who don’t</li>
+      <li><strong>How to score fast:</strong></li>
+      <li><strong>LOW (1–2):</strong> Prefers low accountability, vague structure, or minimal oversight</li>
+      <li><strong>MID (3):</strong> Comfortable with structure but flexible</li>
+      <li><strong>HIGH (4–5):</strong> Thrives with clear standards, accountability, and feedback</li>
+    </ul>
+  </li>
+
+  <li>
+    <strong>How do you handle fast-paced work or high standards?</strong>
+    <ul>
+      <li><strong>Why:</strong> Tests resilience and performance under pressure</li>
+      <li>Predicts response to tight schedules and quality expectations</li>
+      <li><strong>How to score fast:</strong></li>
+      <li><strong>LOW (1–2):</strong> Becomes overwhelmed or cuts corners</li>
+      <li><strong>MID (3):</strong> Manages pace but with occasional stress</li>
+      <li><strong>HIGH (4–5):</strong> Maintains quality, adapts, and stays composed</li>
+    </ul>
+  </li>
+
+  <li>
+    <strong>What values matter most to you at work, and how have you lived them out?</strong>
+    <ul>
+      <li><strong>Why:</strong> Tests values-in-action rather than stated beliefs</li>
+      <li>Reveals integrity, pride in work, and accountability</li>
+      <li><strong>How to score fast:</strong></li>
+      <li><strong>LOW (1–2):</strong> Generic values with no examples</li>
+      <li><strong>MID (3):</strong> Clear values but limited demonstration</li>
+      <li><strong>HIGH (4–5):</strong> Specific examples showing alignment with standards and behavior</li>
+    </ul>
+  </li>
+</ul>
+
+
+    <textarea
+      class="question-notes"
+      id="notes_culture_fit"
+      placeholder="Notes specific to this score..."
+    ></textarea>
+  </td>
+</tr>
+
+
+<tr id="motivation">
+  <td class="factor" onclick="toggleQuestions('q_motivation')">
+    <span id="motivation-word">Motivation</span>
+  </td>
+
+
+  <td class="level">Little evidence of motivation.</td>
+  <td class="level">Will do work but requires pushing.</td>
+  <td class="level">Self-motivated. Works without supervision.</td>
+  <td class="level">Takes initiative, exceeds requirements.</td>
+  <td class="level">Totally committed. Exceeds expectations.</td>
+  <td class="score">
+    <input type="number"
+           min="0"
+           max="5"
+           step="0.5"
+           class="score-input fit"
+           id="score_motivation">
+  </td>
+</tr>
+
+<tr class="question-row" id="q_motivation">
+  <td colspan="7" class="question-cell">
+   <span class="question-label">Interview Prompts</span>
+
+<ul>
+  <li>
+    <strong>What does doing a good job mean to you when no one is watching?</strong>
+    <ul>
+      <li><strong>Why #1:</strong> Predicts quality, reliability, and client trust</li>
+      <li>Exposes internal standards (or lack of them)</li>
+      <li>Separates performers from clock-punchers</li>
+      <li><strong>How to score fast:</strong></li>
+      <li><strong>LOW (1–2):</strong> Circumstantial chaos, blaming, “things just happened”</li>
+      <li><strong>MID (3):</strong> Neutral transition, situational</li>
+      <li><strong>HIGH (4–5):</strong> Intentional change, desire for better standards, growth, alignment</li>
+    </ul>
+  </li>
+
+  <li>
+    <strong>What would make this job worth sticking with for you over the next year?</strong>
+    <ul>
+      <li><strong>Why #2:</strong> Tests retention risk</li>
+      <li>Reveals whether they see this as temporary or serious</li>
+      <li>Filters short-term paycheck seekers</li>
+      <li><strong>How to score fast:</strong></li>
+      <li><strong>LOW (1–2):</strong> Circumstantial chaos, blaming, “things just happened”</li>
+      <li><strong>MID (3):</strong> Neutral transition, situational</li>
+      <li><strong>HIGH (4–5):</strong> Intentional change, desire for better standards, growth, alignment</li>
+    </ul>
+  </li>
+
+  <li>
+    <strong>What made you decide now was the right time to look for something different?</strong>
+    <ul>
+      <li><strong>Why #3:</strong> Shows self-direction vs drift</li>
+      <li>Identifies push (fired, crisis) vs pull (choice, standards)</li>
+      <li><strong>How to score fast:</strong></li>
+      <li><strong>LOW (1–2):</strong> Circumstantial chaos, blaming, “things just happened”</li>
+      <li><strong>MID (3):</strong> Neutral transition, situational</li>
+      <li><strong>HIGH (4–5):</strong> Intentional change, desire for better standards, growth, alignment</li>
+    </ul>
+  </li>
+
+  <li>
+    <strong>What would cause you to leave a job like this?</strong>
+    <ul>
+      <li><strong>Why:</strong> Reveals dealbreakers and accountability tolerance</li>
+      <li><strong>How to score fast:</strong></li>
+      <li><strong>LOW (1–2):</strong> Circumstantial chaos, blaming, “things just happened”</li>
+      <li><strong>MID (3):</strong> Neutral transition, situational</li>
+      <li><strong>HIGH (4–5):</strong> Intentional change, desire for better standards, growth, alignment</li>
+    </ul>
+  </li>
+</ul>
+
+
+
+    <textarea
+      class="question-notes"
+      id="notes_motivation"
+      placeholder="Notes specific to this score..."
+    ></textarea>
+  </td>
+</tr>
+
+
+<tr class="total-row">
+  <td colspan="6">Situational Fit Factors Total</td>
+  <td class="total-cell" id="fitTotal">0.0</td>
+</tr>
+
+<tr class="total-row">
+  <td colspan="6">OVERALL TOTAL</td>
+  <td class="total-cell" id="overallTotal">0.0</td>
+</tr>
+
+</table>
+
+<div class="notes-box">
+  <label>Notes</label>
+  <textarea id="notes"></textarea>
+</div>
+
+<div class="meta-group" style="margin-top:20px;">
+  <label>Interview Outcome</label>
+  <select id="interviewStatus" style="
+    padding:12px 14px;
+    font-size:14px;
+    background:#020617;
+    color:#ffffff;
+    border:1px solid rgba(255,255,255,.12);
+    border-radius:10px;
+    font-weight:700;
+  ">
+    <option value="">Select outcome…</option>
+    <option value="shortlist">Shortlist</option>
+    <option value="decline">Decline</option>
+    <option value="no_show">No Show</option>
+  </select>
+</div>
+
+   
+   
+<button
+  type="button"
+  class="create-btn"
+  onclick="createScorecard()"
+>
+  Create Scorecard
+</button>
+
+
+</div> <!-- END scorecardWrapper -->
+
+
+<script>
+
+/* =========================================================
+   MAKE.COM WEBHOOK CONFIG
+========================================================= */
+const WEBHOOK_URL = "https://hook.us1.make.com/63r64gi6rhhcd6wtko2fgmvehjr9w96i";
+/* =========================================================
+   CANDIDATE SEARCH + DROPDOWN (MAKE → SUPABASE)
+========================================================= */
+const CANDIDATE_LOOKUP_WEBHOOK =
+  "https://hook.us1.make.com/q2rea8blm97vbahiwjvhfwvo5agou3oe";
+
+let candidateResults = [];
+
+function getCandidates(){
+  const input = document.getElementById("candidateName");
+  const query = input.value.trim();
+  const dropdown = document.getElementById("candidateDropdown");
+
+  dropdown.innerHTML = `<div class="candidate-empty">Loading…</div>`;
+  dropdown.style.display = "block";
+
+
+
+  fetch(CANDIDATE_LOOKUP_WEBHOOK, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ search: query })
+})
+
+  .then(res => res.json())
+  .then(data => {
+    candidateResults = Array.isArray(data) ? data : [];
+    renderCandidateDropdown(candidateResults);
+  })
+  .catch(() => {
+    dropdown.innerHTML =
+      `<div class="candidate-empty">Lookup failed</div>`;
+    dropdown.style.display = "block";
+  });
+}
+
+function renderCandidateDropdown(list){
+  const dropdown = document.getElementById("candidateDropdown");
+  dropdown.innerHTML = "";
+
+  if (!list.length){
+    dropdown.innerHTML =
+      `<div class="candidate-empty">No candidates found</div>`;
+    dropdown.style.display = "block";
+    return;
+  }
+
+  list.forEach(candidate => {
+    const div = document.createElement("div");
+    div.className = "candidate-option";
+    div.innerHTML = `
+  <strong>${candidate.name}</strong>
+  <div style="font-size:12px;color:#94a3b8;margin-top:2px;">
+    ${candidate.jira_key || ""}
+  </div>
+`;
+
+div.onclick = () => selectCandidate(candidate);
+
+
+    dropdown.appendChild(div);
+  });
+
+  dropdown.style.display = "block";
+}
+
+function selectCandidate(candidate){
+  document.getElementById("candidateName").value = candidate.name || "";
+  document.getElementById("jiraCode").value =
+    cleanJiraKey(candidate.jira_key || "");
+
+  document.getElementById("candidateDropdown").style.display = "none";
+
+  console.log("Selected candidate:", candidate);
+}
+
+
+
+
+/* =========================================================
+   JIRA KEY NORMALIZATION
+========================================================= */
+function cleanJiraKey(value){
+  return (value || "")
+    .replace(/[\s\u00A0]+/g, "") // Removes all spaces
+    .toUpperCase();             // Force all CAPS
+}
+
+document.getElementById('jiraCode').addEventListener('blur', function(){
+  this.value = cleanJiraKey(this.value);
+});
+
+
+/* =========================================================
+   SCORE TOTAL CALCULATIONS
+========================================================= */
+function sum(cls){
+  let t = 0;
+  document.querySelectorAll('.' + cls).forEach(i=>{
+    t += Number(i.value) || 0;
+  });
+  return t;
+}
+
+document.querySelectorAll('.score-input').forEach(i=>{
+  i.addEventListener('input', ()=>{
+    const b = sum('basic');
+    const c = sum('core');
+    const f = sum('fit');
+
+    document.getElementById('basicTotal').textContent = b.toFixed(1);
+    document.getElementById('coreTotal').textContent  = c.toFixed(1);
+    document.getElementById('fitTotal').textContent   = f.toFixed(1);
+    document.getElementById('overallTotal').textContent = (b + c + f).toFixed(1);
+  });
+});
+
+   
+/* =========================================================
+   HARD VALIDATION — BLOCK SUBMIT IF INCOMPLETE
+========================================================= */
+function validateScorecard() {
+  const errors = [];
+
+  const candidate = document.getElementById('candidateName')?.value.trim();
+  const interviewer = document.getElementById('interviewerName')?.value.trim();
+  const jira = document.getElementById('jiraCode')?.value.trim();
+
+  if (!candidate) errors.push("Candidate name is required.");
+  if (!interviewer) errors.push("Interviewer name is required.");
+  if (!jira) errors.push("Jira code is required.");
+
+  document.querySelectorAll('.score-input').forEach(input => {
+    if (input.value === "" || isNaN(input.value)) {
+      const row = input.closest('tr');
+      const label = row?.querySelector('.factor')?.innerText || "Score";
+      errors.push(`Missing score: ${label}`);
+    }
+  });
+
+  if (errors.length) {
+    alert(
+      "Cannot submit scorecard.\n\n" +
+      errors.join("\n")
+    );
+    return false;
+  }
+
+  return true;
+}
+
+
+/* =========================================================
+   CREATE SCORECARD + SEND TO MAKE WEBHOOK
+========================================================= */
+function createScorecard(){
+
+  const jiraInput = document.getElementById('jiraCode');
+  jiraInput.value = cleanJiraKey(jiraInput.value);
+
+  const candidate = document.getElementById('candidateName')?.value.trim();
+  const interviewer = document.getElementById('interviewerName')?.value.trim();
+  const jira = jiraInput.value.trim();
+
+  const dropdownStatus = document.getElementById('interviewStatus')?.value || "";
+  const interviewStatus = externalInterviewStatus || dropdownStatus;
+
+  // ==========================================
+  // 🚨 NO SHOW — SKIP ALL VALIDATION
+  // ==========================================
+  if (interviewStatus === "no_show") {
+
+    if (!candidate || !interviewer || !jira) {
+      alert("Candidate name, interviewer, and Jira code are required.");
+      return;
+    }
+
+    fetch("https://hook.us1.make.com/vala46m4utmn25v9g32b7n3eqh22n54a", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jira_code: jira,
+        recorded_by: interviewer,
+        notes: "Missed scheduled interview"
+      })
+    })
+    .then(() => alert("No show recorded successfully."))
+    .catch(() => alert("Failed to record no show."));
+
+    return; // 🛑 STOP EVERYTHING HERE
+  }
+
+  // ==========================================
+  // 🔒 ONLY VALIDATE FOR REAL INTERVIEWS
+  // ==========================================
+  if (!validateScorecard()) return;
+
+  const getVal = (id) => Number(document.getElementById(id).value) || 0;
+
+  const payload = {
+    candidate_name: candidate,
+    interview_type: document.getElementById('interviewType').value,
+    interviewer: interviewer,
+    jira_code: jira,
+    interview_status: interviewStatus,
+
+    basic_total: document.getElementById('basicTotal').textContent,
+    core_total: document.getElementById('coreTotal').textContent,
+    fit_total: document.getElementById('fitTotal').textContent,
+    overall_total: document.getElementById('overallTotal').textContent,
+
+    score_primary_skills: getVal('score_primary_skills'),
+    score_experience: getVal('score_experience'),
+    score_growth_trend: getVal('score_growth_trend'),
+    score_technical_ability: getVal('score_technical_ability'),
+    score_management_ability: getVal('score_management_ability'),
+    score_team_skills: getVal('score_team_skills'),
+    score_problem_solving: getVal('score_problem_solving'),
+    score_job_fit: getVal('score_job_fit'),
+    score_managerial_fit: getVal('score_managerial_fit'),
+    score_culture_fit: getVal('score_culture_fit'),
+    score_motivation: getVal('score_motivation'),
+
+    pre_notes: document.getElementById('preNotes')?.value || "",
+    notes_primary_skills: document.getElementById('notes_primary_skills')?.value || "",
+    notes_experience: document.getElementById('notes_experience')?.value || "",
+    notes_achiever_pattern: document.getElementById('notes_achiever_pattern')?.value || "",
+    notes_technical_ability: document.getElementById('notes_technical_ability')?.value || "",
+    notes_management_ability: document.getElementById('notes_management_ability')?.value || "",
+    notes_team_skills: document.getElementById('notes_team_skills')?.value || "",
+    notes_problem_solving: document.getElementById('notes_problem_solving')?.value || "",
+    notes_job_fit: document.getElementById('notes_job_fit')?.value || "",
+    notes_managerial_fit: document.getElementById('notes_managerial_fit')?.value || "",
+    notes_culture_fit: document.getElementById('notes_culture_fit')?.value || "",
+    notes_motivation: document.getElementById('notes_motivation')?.value || "",
+
+    notes: document.getElementById('notes').value,
+    submitted_at: new Date().toISOString()
+  };
+
+  fetch(WEBHOOK_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  })
+  .then(() => alert("Scorecard submitted successfully."))
+  .catch(() => alert("Submission failed."));
+}
+
+
+/* =========================================================
+   DROPDOWN QUESTION TOGGLER
+========================================================= */
+function toggleQuestions(id){
+  const row = document.getElementById(id);
+  row.style.display =
+    row.style.display === "table-row" ? "none" : "table-row";
+}
+
+/* ================= SCRIPT PANEL CONTROLS ================= */
+function openScript(){
+  document.getElementById('scriptPanel').classList.add('open');
+  document.body.classList.add('script-open'); // 🔑 triggers slide
+}
+
+function closeScript(){
+  document.getElementById('scriptPanel').classList.remove('open');
+  document.body.classList.remove('script-open'); // 🔑 reset
+}
+
+/* =========================================================
+   CLOSE CANDIDATE DROPDOWN ON OUTSIDE CLICK
+========================================================= */
+document.addEventListener("click", function (e) {
+  const dropdown = document.getElementById("candidateDropdown");
+  const input = document.getElementById("candidateName");
+  const button = document.querySelector(".get-candidates-btn");
+
+  if (!dropdown) return;
+
+  const clickedInside =
+    dropdown.contains(e.target) ||
+    input.contains(e.target) ||
+    button.contains(e.target);
+
+  if (!clickedInside) {
+    dropdown.style.display = "none";
+  }
+});
+
+   /* =========================================================
+   SCROLL + HIGHLIGHT MOTIVATION
+========================================================= */
+
+document.querySelectorAll('a[href^="#"]').forEach(link => {
+  link.addEventListener("click", function (e) {
+    const targetId = this.getAttribute("href").slice(1);
+    const target = document.getElementById(targetId);
+
+    if (target) {
+      e.preventDefault();
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  });
+});
+
+let externalInterviewStatus = "";
+
+window.addEventListener("message", function (event) {
+  if (!event.data || event.data.type !== "INTERVIEW_STATUS") return;
+  externalInterviewStatus = event.data.value;
+});
+
+
+</script>
+<!-- ================= INTERVIEW SCRIPT PANEL ================= -->
+<div id="scriptPanel" class="script-panel">
+  <div class="script-header">
+    BASIC COMPETENCIES — INTERVIEW SCRIPT
+    <span class="script-close" onclick="closeScript()">✕</span>
+  </div>
+
+  <div class="script-content">
+
+ <h3>Step 1 Welcome &amp; Motivation</h3>
+
+<p>
+  "Hi [Name], thanks for joining me today. I’m going to start by giving you a quick overview of this position so you understand what we’re looking for and can see if it’s a good fit."
+</p>
+
+<p><strong>Job overview</strong></p>
+
+<ul>
+  <li>This is a residential cleaning role.</li>
+  <li>You will be expected to arrive 5 minutes early to every job.</li>
+  <li>Take before and after photos for every clean.</li>
+  <li>Use a checklist to ensure quality.</li>
+  <li>
+    Work is paid per completed job meaning if a client is not satisfied, you will
+    need to go back and finish the job before payment is issued.
+  </li>
+</ul>
+
+<p>
+  <strong>IF THEY ASK QUESTIONS:</strong> Great question please save that for later
+  i will answer all of your questions at the end of the interview ok
+</p>
+
+<p>Given this,</p>
+
+<p>
+  <strong>What are you looking for now in a new job?</strong> (pause) <br>
+  <strong>Why is having ___ and ___ important to you now?</strong>
+</p>
+ <p>
+  <a href="#motivation" class="jump-motivation" style="font-weight:bold; color:#22c55e; text-decoration:none;">
+    Motivation
+  </a>
+</p>
+
+<p>
+  <a href="#culture-environment" style="font-weight:bold; color:#22c55e; text-decoration:none;">
+  Culture & Environment
+</a>
+</p>
+<hr>
+<h3>Step 2 Measure Impact of First Impression</h3>
+
+<p>
+  <strong>Action:</strong> be aware of your biases
+</p>
+
+<p>
+  Write down your immediate emotional reaction to the candidate – relaxed, uptight, or neutral.
+  Write down the cause. At the end of the interview you’ll measure your first impression
+  of the candidate again, when you’re less affected by it.
+</p>
+
+<p><strong>Information &amp; Hot Tips</strong></p>
+
+<ul>
+  <li>Wait 30 minutes</li>
+  <li>Do opposite of normal reaction</li>
+  <li>Like: prove incompetence, be tough</li>
+  <li>Dislike: prove competency, be easy</li>
+  <li>Ask same questions to all</li>
+  <li>Be cynical, get proof, examples, facts</li>
+</ul>
+
+
+<p>
+  <a href="#first-impression-notes" style="font-weight:bold; color:#22c55e; text-decoration:none;">
+  Take Notes
+</a>
+</p>
+
+<hr>
+
+<h3>Step 3 Review Work History and Background</h3>
+
+<p>
+  Please tell me about your most recent job. What was your position, the company, your duties, and any recognition you received?
+</p>
+
+<ul>
+  <li>"What was your job title and who did you work for?"</li>
+  <li>"What type of work did you do there?" (Cleaning, organizing, customer service, etc.)</li>
+  <li>"How did you get that job?" (Referral, application, previous employer)</li>
+  <li>"What was your biggest accomplishment in that role?"</li>
+  <li>"What challenges did you face and how did you handle them?"</li>
+  <li>"Did you ever get promoted, recognized, or receive positive feedback?</li>
+  <li>"Why did you leave that position?"</li>
+</ul>
+
+
+<p>
+  <a href="#experience" style="font-weight:bold; color:#22c55e; text-decoration:none;">
+  Experience
+</a>
+</p>
+     <p>
+  <a href="#job-fit" style="font-weight:bold; color:#22c55e; text-decoration:none;">
+  Job Fit w/ Recent Comparable Results
+</a>
+</p>
+     <p>
+  <a href="#achiever-pattern" style="font-weight:bold; color:#22c55e; text-decoration:none;">
+  Achiever Pattern & Growth Trend
+</a>
+</p>
+     <p>
+  <a href="#management-organizational" style="font-weight:bold; color:#22c55e; text-decoration:none;">
+  Management & Organizational Ability
+</a>
+</p>
+  
+<hr>
+
+<h3>Step 4: Assess Major Accomplishments (THIS IS WHERE YOUR KPOs LIVE)</h3>
+
+<h4>KPO 1: Become the cleaner clients request again</h4>
+<p><strong>PSQ (Future Focused)</strong></p>
+<p>“If you were hired, how would you go about becoming the cleaner clients specifically request again within your first 30–60 days?”</p>
+
+<p><strong>Listen for:</strong></p>
+<ul>
+  <li>Ownership, consistency, communication, pride in work, client awareness.</li>
+</ul>
+
+<p><strong>MSA (Backward Looking – proof)</strong></p>
+<p>“Tell me about a time when clients or customers asked for you again because of the quality or consistency of your work.”</p>
+
+<p><strong>Follow-ups</strong></p>
+<ul>
+  <li>What specifically did you do differently?</li>
+  <li>How did you know they were satisfied?</li>
+  <li>What feedback did you receive?</li>
+</ul>
+
+<p>
+  <a href="#job-fit" style="font-weight:bold; color:#22c55e; text-decoration:none;">
+  Job Fit w/ Recent Comparable Results
+</a>
+
+</p>
+
+<p>
+  <a href="#team-skills" style="font-weight:bold; color:#22c55e; text-decoration:none;">
+  Team Skills (EQ)
+</a>
+</p>
+
+<p>
+  <a href="#primary-skills" style="font-weight:bold; color:#22c55e; text-decoration:none;">
+  Primary Skills (Cleaning)
+</a>
+</p>
+
+<h4>KPO 2: Complete every cleaning using our quality checklist</h4>
+<p><strong>PSQ</strong></p>
+<p>“How would you make sure every cleaning is completed to the same standard using a checklist, even when you’re busy or under time pressure?”</p>
+
+<p><strong>Listen for:</strong></p>
+<ul>
+  <li>Process discipline, personal standards, attention to detail.</li>
+</ul>
+
+<p><strong>MSA</strong></p>
+<p>“Tell me about a time you had to follow a strict process or checklist to deliver consistent results.”</p>
+
+<p><strong>Follow-ups:</strong></p>
+<ul>
+  <li>What happened if you skipped steps?</li>
+  <li>How did you balance speed vs quality?</li>
+  <li>Who checked your work?</li>
+</ul>
+
+<p>
+  <a href="#job-fit" style="font-weight:bold; color:#22c55e; text-decoration:none;">
+  Job Fit w/ Recent Comparable Results
+</a>
+</p>
+
+
+<p>
+  <a href="#problem-solving" style="font-weight:bold; color:#22c55e; text-decoration:none;">
+  Thinking & Job-related Problem-solving
+</a>
+</p>
+
+<p>
+  <a href="#management-organizational" style="font-weight:bold; color:#22c55e; text-decoration:none;">
+  Management & Organizational Ability
+</a>
+</p>
+
+<p>
+  <a href="#primary-skills" style="font-weight:bold; color:#22c55e; text-decoration:none;">
+  Primary Skills (Cleaning)
+</a>
+</p>
+<p>
+  <a href="#talent-technical" style="font-weight:bold; color:#22c55e; text-decoration:none;">
+  Talent & Technical Ability
+</a>
+</p>     
+
+<h4>KPO 3: Maintain 95% reliability</h4>
+<p><strong>PSQ</strong></p>
+<p>“How would you ensure you stay reliable—on time, completing every job, and communicating proactively—when schedules change or issues come up?”</p>
+
+<p><strong>Listen for:</strong></p>
+<ul>
+  <li>Planning, accountability, communication under pressure.</li>
+</ul>
+
+<p><strong>MSA</strong></p>
+<p>“Tell me about a time your reliability was critical to your role and how you made sure you didn’t let people down.”</p>
+
+<p><strong>Follow-ups:</strong></p>
+<ul>
+  <li>What obstacles came up?</li>
+  <li>Did anyone depend on you?</li>
+  <li>What would’ve happened if you failed?</li>
+</ul>
+
+<p>
+  <a href="#job-fit" style="font-weight:bold; color:#22c55e; text-decoration:none;">
+  Job Fit w/ Recent Comparable Results
+</a>
+</p>
+
+<p>
+  <a href="#problem-solving" style="font-weight:bold; color:#22c55e; text-decoration:none;">
+  Thinking & Job-related Problem-solving
+</a>
+</p>
+
+<p>
+  <a href="#management-organizational" style="font-weight:bold; color:#22c55e; text-decoration:none;">
+  Management & Organizational Ability
+</a>
+</p>
+
+<h4>KPO 4: Strengthen our reputation in the field</h4>
+<p><strong>PSQ</strong></p>
+<p>“How would you personally contribute to building our reputation for professionalism and trust while working in clients’ homes?”</p>
+
+<p><strong>Listen for:</strong></p>
+<ul>
+  <li>Judgment, respect for client space, brand awareness.</li>
+</ul>
+
+<p><strong>MSA</strong></p>
+<p>“Tell me about a time your professionalism directly led to positive feedback, referrals, or repeat business.”</p>
+
+<p><strong>Follow-ups:</strong></p>
+<ul>
+  <li>What behavior earned that trust?</li>
+  <li>How did you represent the company?</li>
+  <li>What did you learn from that situation?</li>
+</ul>
+
+<p>
+  <a href="#job-fit" style="font-weight:bold; color:#22c55e; text-decoration:none;">
+  Job Fit w/ Recent Comparable Results
+</a>
+
+</p>
+
+<p>
+  <a href="#team-skills" style="font-weight:bold; color:#22c55e; text-decoration:none;">
+  Team Skills (EQ)
+</a>
+</p>
+
+<hr>
+
+<!-- STEP 4A — TEAM ACCOMPLISHMENTS -->
+<section id="step-4a">
+  <h3>Step 4a – Assess Team Accomplishments</h3>
+
+  <h3>Questions</h3>
+
+  <p>
+    Tell me about a time you worked with a team to complete a clean.
+    What was your role? Did you lead or support?
+  </p>
+
+  <p>
+    How did you influence the outcome?
+  </p>
+
+   <p>
+  <a href="#team-skills" style="font-weight:bold; color:#22c55e; text-decoration:none;">
+  Team Skills (EQ)
+</a>
+</p>
+<p>
+  <a href="#management-organizational" style="font-weight:bold; color:#22c55e; text-decoration:none;">
+  Management & Organizational Ability
+</a>
+</p>
+
+   <p>
+  <a href="#problem-solving" style="font-weight:bold; color:#22c55e; text-decoration:none;">
+  Thinking & Job-related Problem-solving
+</a>
+</p>
+
+<hr>
+
+<h3>Step 5 Discuss Major Job related Problems</h3>
+
+<p>
+One major problem we’re now facing is some clients say cleaners rush and miss small details
+How would you go about addressing this?
+</p>
+<p>
+  <a href="#problem-solving" style="font-weight:bold; color:#22c55e; text-decoration:none;">
+  Thinking & Job-related Problem-solving
+</a>
+</p>
+   <p>
+  <a href="#management-organizational" style="font-weight:bold; color:#22c55e; text-decoration:none;">
+  Management & Organizational Ability
+</a>
+</p>
+      <p>
+  <a href="#job-fit" style="font-weight:bold; color:#22c55e; text-decoration:none;">
+  Job Fit w/ Recent Comparable Results
+</a>
+
+</p>
+   <hr>
+
+<h3>Step 6 Let the Candidate Ask Questions</h3>
+
+<p>
+Based on what we’ve discussed so far, do you have any questions?
+</p>
+<p><strong>Good candidates are curious about:</strong></p>
+<ul>
+  <li>Standards</li>
+  <li>Success metrics</li>
+  <li>Feedback</li>
+  <li>Expectations</li>
+</ul>
+
+<p><strong>Low-motivation candidates ask only about:</strong></p>
+<ul>
+  <li>Pay</li>
+  <li>Schedule</li>
+  <li>Time off</li>
+</ul>
+
+   
+   <p>
+  <a href="#motivation" class="jump-motivation" style="font-weight:bold; color:#22c55e; text-decoration:none;">
+    Motivation
+  </a>
+</p>
+   <hr>
+
+<h3>Step 7 Recruit Using the Win-Win Hiring Opportunity</h3>
+
+<p>
+While I’ve seen a few other very strong candidates, I’m also impressed with<br>
+some of the work you’ve done. Is this role of any interest? Why? Why not?
+</p>
+
+<p>
+Will follow up with you with the next step.
+</p>
+
+   <hr>
+   
+<h3>Step 8 Measure First Impression Again (End of Interview)</h3>
+
+<p>
+Measure first impression again at the end of the interview. Determine how the candidate’s first impression will impact on-the-job performance. Consider the actual impact on you, the actual impact on others (customers, peers, superiors, staff).
+</p>
+
+<p>
+As part of this compare the candidate’s first impression when measured at the end of the interview to your initial reaction to the person. Keep track of this difference for every interview. The pattern will reveal your own personal biases.
+</p>
+
+   
+</section>
+
+
+</div>
+
+</div>
+
+</body>
+
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

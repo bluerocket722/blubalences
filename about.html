@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>About | Blu Balences</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --navy: #0a1628; --navy2: #0f1f3d;
+      --blue: #2563eb; --blue-light: #3b82f6;
+      --text: #e2e8f0; --text-sub: #94a3b8; --text-dim: #64748b;
+      --border: rgba(255,255,255,0.08); --white: #ffffff;
+    }
+    body { font-family: 'Inter', sans-serif; background: var(--navy); color: var(--text); -webkit-font-smoothing: antialiased; }
+
+    nav { position: sticky; top: 0; z-index: 100; background: rgba(10,22,40,0.96); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 0 32px; }
+    .nav-inner { max-width: 1140px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; height: 68px; }
+    .logo { font-size: 20px; font-weight: 800; color: var(--white); text-decoration: none; letter-spacing: -0.5px; }
+    .logo span { color: var(--blue-light); }
+    .nav-links { display: flex; gap: 32px; list-style: none; }
+    .nav-links a { color: var(--text-sub); text-decoration: none; font-size: 14px; font-weight: 500; transition: color 0.2s; }
+    .nav-links a:hover { color: var(--white); }
+    .nav-links a.active { color: var(--white); }
+    .nav-cta { background: var(--blue); color: var(--white) !important; padding: 10px 22px; border-radius: 8px; font-weight: 600 !important; font-size: 14px !important; text-decoration: none; transition: background 0.2s; }
+    .nav-cta:hover { background: var(--blue-light) !important; }
+
+    .page { min-height: calc(100vh - 68px); display: flex; align-items: center; justify-content: center; padding: 60px 32px; }
+    .card { background: var(--navy2); border: 1px solid var(--border); border-radius: 24px; padding: 48px 40px; text-align: center; max-width: 420px; width: 100%; }
+    .photo { width: 200px; height: 200px; border-radius: 50%; object-fit: cover; object-position: center top; border: 4px solid var(--blue); margin-bottom: 28px; }
+    .name { font-size: 24px; font-weight: 800; color: var(--white); letter-spacing: -0.5px; margin-bottom: 4px; }
+    .title { font-size: 13px; font-weight: 600; color: var(--blue-light); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 32px; }
+    .divider { height: 1px; background: var(--border); margin-bottom: 28px; }
+    .address-label { font-size: 11px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 10px; }
+    .address { font-size: 16px; color: var(--text); line-height: 1.7; font-weight: 500; }
+    .phone { display: inline-block; margin-top: 16px; font-size: 15px; color: var(--blue-light); text-decoration: none; font-weight: 600; }
+    .phone:hover { color: var(--white); }
+
+    footer { padding: 28px 32px; text-align: center; color: var(--text-dim); font-size: 13px; border-top: 1px solid var(--border); }
+    footer a { color: var(--text-sub); text-decoration: none; }
+    footer a:hover { color: var(--white); }
+
+    @media (max-width: 600px) {
+      nav { padding: 0 16px; }
+      .nav-links { gap: 16px; }
+      .card { padding: 36px 24px; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a href="index.html" class="logo">Blu <span>Balences</span></a>
+    <ul class="nav-links">
+      <li><a href="index.html#why">Why Us</a></li>
+      <li><a href="index.html#services">Services</a></li>
+      <li><a href="index.html#pricing">Pricing</a></li>
+      <li><a href="about.html" class="active">About</a></li>
+      <li><a href="index.html#book" class="nav-cta">Book a Call</a></li>
+    </ul>
+  </div>
+</nav>
+
+<div class="page">
+  <div class="card">
+    <img src="https://i.imgur.com/BOi0msf.png" class="photo" alt="Aaron Parker">
+    <div class="name">Aaron Parker</div>
+    <div class="title">Founder &amp; Principal</div>
+    <div class="divider"></div>
+    <div class="address-label">Office Address</div>
+    <div class="address">
+      6545 Market Avenue N. STE 100<br>
+      North Canton, OH 44721
+    </div>
+    <a href="tel:+12242063770" class="phone">(224) 206-3770</a>
+  </div>
+</div>
+
+<footer>
+  <p>© 2025 Blu Balence &nbsp;·&nbsp; <a href="mailto:hello@blubalences.com">blubalences.com</a> &nbsp;·&nbsp; <a href="tel:+12242063770">(224) 206-3770</a></p>
+</footer>
+
+</body>
+</html>

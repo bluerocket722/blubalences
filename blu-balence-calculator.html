@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blu Balances Pricing Calculator</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Roboto',sans-serif;background:#202124;color:#e8eaed;min-height:100vh}
+
+.nav{background:#292a2d;border-bottom:1px solid #3c4043;padding:0 24px;height:56px;display:flex;align-items:center;gap:12px}
+.nav-logo{font-size:18px;font-weight:500}<br>.nav-logo span{color:#1a73e8}
+.nav-sub{font-size:13px;color:#9aa0a6;margin-left:4px}
+
+.page{max-width:1100px;margin:0 auto;padding:24px;display:grid;grid-template-columns:1fr 400px;gap:24px}
+
+.card{background:#292a2d;border-radius:16px;border:1px solid #3c4043;padding:24px}
+.card-title{font-size:14px;font-weight:500;color:#9aa0a6;text-transform:uppercase;letter-spacing:.6px;margin-bottom:20px;display:flex;align-items:center;gap:8px}
+
+.client-select-wrap{position:relative;margin-bottom:20px}
+.client-search{width:100%;background:#35363a;border:1px solid #5f6368;border-radius:10px;padding:11px 16px 11px 40px;color:#e8eaed;font-family:'Roboto',sans-serif;font-size:14px;outline:none;transition:border-color .2s}
+.client-search:focus{border-color:#1a73e8}
+.search-icon{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:#9aa0a6;pointer-events:none}
+.client-dropdown{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#292a2d;border:1px solid #5f6368;border-radius:10px;z-index:50;max-height:220px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.5);display:none}
+.client-dropdown.open{display:block}
+.client-opt{padding:10px 16px;cursor:pointer;font-size:13px;border-bottom:1px solid #3c4043}
+.client-opt:last-child{border-bottom:none}
+.client-opt:hover{background:#35363a}
+.client-opt .biz{font-weight:500;color:#e8eaed}
+.client-opt .meta{font-size:11px;color:#9aa0a6;margin-top:2px}
+.selected-client{background:#1a73e820;border:1px solid #1a73e8;border-radius:10px;padding:12px 16px;margin-bottom:20px;display:none}
+.selected-client.show{display:flex;align-items:center;justify-content:space-between}
+.sc-name{font-weight:500;font-size:14px}
+.sc-meta{font-size:12px;color:#9aa0a6;margin-top:2px}
+.sc-clear{background:transparent;border:none;color:#9aa0a6;cursor:pointer;font-size:18px;line-height:1;padding:2px 6px;border-radius:6px}
+.sc-clear:hover{color:#e8eaed;background:#3c4043}
+
+.section-label{font-size:11px;font-weight:500;color:#9aa0a6;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+.input-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px}
+.input-group{display:flex;flex-direction:column;gap:6px}
+.input-group label{font-size:12px;color:#9aa0a6}
+.calc-input{background:#35363a;border:1px solid #5f6368;border-radius:8px;padding:10px 12px;color:#e8eaed;font-family:'Roboto',sans-serif;font-size:15px;font-weight:500;outline:none;transition:border-color .2s;width:100%}
+.calc-input:focus{border-color:#1a73e8}
+.calc-input:disabled{opacity:.4;cursor:not-allowed}
+
+.slider-wrap{margin-bottom:20px}
+.slider-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+.slider-val{font-size:22px;font-weight:300;color:#8ab4f8}
+.slider-unit{font-size:12px;color:#9aa0a6;margin-left:4px}
+input[type=range]{width:100%;-webkit-appearance:none;appearance:none;height:5px;border-radius:3px;background:#3c4043;outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#1a73e8;cursor:pointer;transition:transform .15s}
+input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2)}
+.slider-ticks{display:flex;justify-content:space-between;font-size:10px;color:#5f6368;margin-top:4px}
+
+.addons-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px}
+.addon-chip{background:#35363a;border:2px solid #3c4043;border-radius:10px;padding:10px 14px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:8px;font-size:13px}
+.addon-chip:hover{border-color:#5f6368}
+.addon-chip.active{border-color:#1a73e8;background:#1a73e815}
+.addon-chip .addon-icon{font-size:16px;flex-shrink:0}
+.addon-chip .addon-label{flex:1;font-weight:500;font-size:12px}
+.addon-chip .addon-price{font-size:11px;color:#9aa0a6}
+
+.divider{border:none;border-top:1px solid #3c4043;margin:20px 0}
+
+.notes-area{width:100%;background:#35363a;border:1px solid #5f6368;border-radius:8px;padding:10px 12px;color:#e8eaed;font-family:'Roboto',sans-serif;font-size:13px;outline:none;resize:vertical;min-height:72px;transition:border-color .2s}
+.notes-area:focus{border-color:#1a73e8}
+
+/* RIGHT PANEL */
+.price-display{text-align:center;margin-bottom:24px}
+.price-from{font-size:12px;color:#9aa0a6;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
+.price-big{font-size:58px;font-weight:300;color:#8ab4f8;line-height:1;letter-spacing:-1px}
+.price-per{font-size:14px;color:#9aa0a6;margin-top:4px}
+
+.breakdown{margin-bottom:20px}
+.break-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #3c4043;font-size:13px}
+.break-row:last-child{border-bottom:none}
+.break-label{color:#9aa0a6}
+.break-val{font-weight:500;color:#e8eaed}
+.break-val.plus{color:#0f9d58}
+.break-val.base{color:#8ab4f8}
+.break-total{display:flex;justify-content:space-between;align-items:center;padding:14px 0 0;font-size:16px;font-weight:500;border-top:2px solid #5f6368}
+.break-total-val{font-size:22px;color:#8ab4f8}
+
+.script-box{background:#35363a;border-radius:10px;padding:16px;margin-bottom:20px;font-size:13px;line-height:1.7;color:#c0c4cc;max-height:220px;overflow-y:auto}
+.script-box strong{color:#e8eaed}
+.script-box .highlight{color:#8ab4f8;font-weight:500}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;border-radius:12px;border:none;font-family:'Roboto',sans-serif;font-size:14px;font-weight:500;cursor:pointer;transition:all .2s;margin-bottom:10px}
+.btn-primary{background:#1a73e8;color:#fff}
+.btn-primary:hover{background:#1557b0}
+.btn-outline{background:transparent;color:#8ab4f8;border:1px solid #5f6368}
+.btn-outline:hover{background:#3c4043}
+.btn-green{background:#0f9d58;color:#fff}
+.btn-green:hover{background:#0b8044}
+
+.badge{display:inline-block;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:500;color:#fff;vertical-align:middle;margin-left:6px}
+
+.toast-container{position:fixed;bottom:24px;right:24px;display:flex;flex-direction:column;gap:8px;z-index:999}
+.toast{background:#35363a;border-radius:10px;padding:12px 18px;font-size:13px;box-shadow:0 4px 16px rgba(0,0,0,.4);border-left:3px solid #0f9d58;animation:slideIn .2s ease}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:none;opacity:1}}
+
+@media(max-width:800px){
+  .page{grid-template-columns:1fr;padding:16px}
+}
+  /* ── LOGIN OVERLAY ── */
+#login-overlay{position:fixed;inset:0;background:#0a1628;display:flex;align-items:center;justify-content:center;z-index:300}
+#login-overlay .login-card{background:#111827;border:1px solid rgba(255,255,255,0.12);border-radius:16px;padding:40px 36px;width:100%;max-width:420px}
+#login-overlay h1{color:#fff;font-size:26px;font-weight:700;margin-bottom:8px}
+#login-overlay .login-sub{color:#9ca3af;font-size:15px;margin-bottom:28px}
+#login-overlay .lo-label{color:#d1d5db;font-size:14px;font-weight:500;margin-bottom:6px;display:block;margin-top:14px}
+#login-overlay .lo-input{background:#1f2937;border:1px solid rgba(255,255,255,0.12);color:#fff;border-radius:8px;padding:12px 14px;font-size:15px;width:100%;outline:none;transition:border-color .2s}
+#login-overlay .lo-input:focus{border-color:#22c55e}
+#login-overlay .login-btn{width:100%;background:#22c55e;color:#fff;border:none;border-radius:10px;padding:13px;font-size:16px;font-weight:600;cursor:pointer;transition:background .2s;margin-top:18px}
+#login-overlay .login-btn:hover{background:#16a34a}
+#login-overlay .login-err{color:#f87171;font-size:13px;margin-top:12px;text-align:center;min-height:20px}
+</style>
+</head>
+<body>
+  <div id="login-overlay">
+  <div class="login-card">
+    <h1>Welcome Back</h1>
+    <p class="login-sub">Please sign in to your account.</p>
+    <label class="lo-label">Email</label>
+    <input class="lo-input" id="lo-email" type="email" placeholder="you@example.com" onkeydown="if(event.key==='Enter')doLogin()">
+    <label class="lo-label">Password</label>
+    <input class="lo-input" id="lo-pass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="login-btn" onclick="doLogin()">Sign In</button>
+    <div class="login-err" id="lo-err"></div>
+  </div>
+</div>
+
+<nav class="nav">
+  <div class="nav-logo"><span>Blu</span> Balances</div>
+  <div class="nav-sub">Pricing Calculator</div>
+</nav>
+
+<div class="page">
+
+  <!-- LEFT: INPUTS -->
+  <div>
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-title">👤 Client</div>
+
+      <div class="client-select-wrap">
+        <span class="search-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </span>
+        <input class="client-search" id="client-search" placeholder="Search CRM leads…" autocomplete="off"
+          oninput="searchClients(this.value)" onfocus="searchClients(this.value)"
+          onblur="setTimeout(()=>closeDD(),200)">
+        <div class="client-dropdown" id="client-dd"></div>
+      </div>
+
+      <div class="selected-client" id="selected-client">
+        <div>
+          <div class="sc-name" id="sc-name">—</div>
+          <div class="sc-meta" id="sc-meta"></div>
+        </div>
+        <button class="sc-clear" onclick="clearClient()">✕</button>
+      </div>
+
+      <div class="input-row">
+        <div class="input-group">
+          <label>Contact Name</label>
+          <input class="calc-input" id="f-contact" placeholder="First Last">
+        </div>
+        <div class="input-group">
+          <label>Phone</label>
+          <input class="calc-input" id="f-phone" placeholder="(513) 000-0000" type="tel">
+        </div>
+      </div>
+      <div class="input-row" style="grid-template-columns:1fr">
+        <div class="input-group">
+          <label>Email</label>
+          <input class="calc-input" id="f-email" placeholder="client@email.com" type="email">
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-title">📊 Volume</div>
+
+      <div class="slider-wrap">
+        <div class="slider-header">
+          <div class="section-label">Monthly Transactions</div>
+          <div><span class="slider-val" id="txn-val">50</span><span class="slider-unit">txns/mo</span></div>
+        </div>
+        <input type="range" id="txn-slider" min="1" max="500" value="50" oninput="updateSlider('txn',this.value);calc()">
+        <div class="slider-ticks"><span>1</span><span>100</span><span>200</span><span>300</span><span>400</span><span>500+</span></div>
+      </div>
+
+      <div class="slider-wrap">
+        <div class="slider-header">
+          <div class="section-label">Reconcilable Accounts</div>
+          <div><span class="slider-val" id="acct-val">3</span><span class="slider-unit">accounts</span></div>
+        </div>
+        <input type="range" id="acct-slider" min="1" max="15" value="3" oninput="updateSlider('acct',this.value);calc()">
+        <div class="slider-ticks"><span>1</span><span>3</span><span>5</span><span>8</span><span>12</span><span>15</span></div>
+      </div>
+
+      <div class="input-row">
+        <div class="input-group">
+          <label>Manual Transactions Override</label>
+          <input class="calc-input" id="txn-manual" type="number" min="1" placeholder="—"
+            oninput="overrideSlider('txn',this.value);calc()">
+        </div>
+        <div class="input-group">
+          <label>Manual Accounts Override</label>
+          <input class="calc-input" id="acct-manual" type="number" min="1" max="50" placeholder="—"
+            oninput="overrideSlider('acct',this.value);calc()">
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-title">➕ Add-On Services</div>
+      <div class="addons-grid" id="addons-grid"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📝 Notes</div>
+      <textarea class="notes-area" id="f-notes" placeholder="Notes about this quote…"></textarea>
+    </div>
+  </div>
+
+  <!-- RIGHT: QUOTE PANEL -->
+  <div>
+    <div class="card" style="position:sticky;top:20px">
+      <div class="card-title">💵 Monthly Quote</div>
+
+      <div class="price-display">
+        <div class="price-from">Starting at</div>
+        <div class="price-big" id="price-big">$250</div>
+        <div class="price-per">per month</div>
+      </div>
+
+      <div class="breakdown" id="breakdown"></div>
+
+      <hr class="divider">
+
+      <div class="card-title" style="margin-bottom:12px">💬 Script</div>
+      <div class="script-box" id="script-box"></div>
+
+      <button class="btn btn-green" onclick="copyScript()">📋 Copy Script</button>
+      <button class="btn btn-primary" onclick="copyQuote()">📄 Copy Full Quote</button>
+      <button class="btn btn-outline" onclick="resetAll()">↺ Reset</button>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+const SUPABASE_URL = "https://rfdvogakvyodixgpvqvz.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJmZHZvZ2FrdnlvZGl4Z3B2cXZ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcwMzU4MDMsImV4cCI6MjA4MjYxMTgwM30.UumTuz6AaKL8uYmmNxFj1ec5CInHVNQowt6LRo4cu-E";
+  const AUTH_URL = SUPABASE_URL + "/auth/v1";
+
+async function doLogin() {
+  const email = document.getElementById('lo-email').value.trim();
+  const pass  = document.getElementById('lo-pass').value;
+  document.getElementById('lo-err').textContent = '';
+  try {
+    const res = await fetch(`${AUTH_URL}/token?grant_type=password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY },
+      body: JSON.stringify({ email, password: pass })
+    });
+    const data = await res.json();
+    if (!res.ok) { document.getElementById('lo-err').textContent = data.error_description || data.msg || 'Login failed'; return; }
+    localStorage.setItem('calc_token', data.access_token);
+    document.getElementById('login-overlay').style.display = 'none';
+  } catch(e) { document.getElementById('lo-err').textContent = 'Network error'; }
+}
+
+async function checkSession() {
+  const token = localStorage.getItem('calc_token');
+  if (!token) return false;
+  try {
+    const res = await fetch(`${AUTH_URL}/user`, {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${token}` }
+    });
+    return res.ok;
+  } catch(e) { return false; }
+}
+
+const ADDONS = [
+  { id:'payroll',   icon:'💼', label:'Payroll',           price:75,  desc:'Per pay period' },
+  { id:'tax_prep',  icon:'🧾', label:'Tax Prep',          price:200, desc:'Annual filing' },
+  { id:'quarterly', icon:'📈', label:'Quarterly Reports', price:50,  desc:'Per quarter' },
+  { id:'catchup',   icon:'⏪', label:'Catch-Up Books',    price:150, desc:'Per month behind' },
+  { id:'invoicing', icon:'📤', label:'Invoicing',         price:50,  desc:'Monthly' },
+  { id:'consult',   icon:'📞', label:'Monthly Consult',   price:75,  desc:'1 hr/month' },
+];
+
+// PRICING RULES
+const BASE_PRICE   = 250;
+const BASE_TXN     = 50;
+const BASE_ACCT    = 3;
+const TXN_TIER     = [
+  { limit: 100,  ratePerExtra: 1.50 },
+  { limit: 200,  ratePerExtra: 1.25 },
+  { limit: 300,  ratePerExtra: 1.00 },
+  { limit: 500,  ratePerExtra: 0.75 },
+  { limit: 9999, ratePerExtra: 0.50 },
+];
+const ACCT_RATE    = 30;  // per extra account over base
+
+let allLeads = [];
+let selectedLead = null;
+let activeAddons = new Set();
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+async function init() {
+  renderAddons();
+  calc();
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/crm_leads?select=id,business_name,contact_name,phone,email,dispo&order=business_name.asc`, {
+      headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
+    });
+    if (res.ok) allLeads = await res.json();
+  } catch(e) { /* offline ok */ }
+}
+
+function renderAddons() {
+  document.getElementById('addons-grid').innerHTML = ADDONS.map(a => `
+    <div class="addon-chip ${activeAddons.has(a.id)?'active':''}" onclick="toggleAddon('${a.id}')">
+      <span class="addon-icon">${a.icon}</span>
+      <div>
+        <div class="addon-label">${a.label}</div>
+        <div class="addon-price">+$${a.price} ${a.desc}</div>
+      </div>
+    </div>`).join('');
+}
+
+function toggleAddon(id) {
+  if (activeAddons.has(id)) activeAddons.delete(id);
+  else activeAddons.add(id);
+  renderAddons();
+  calc();
+}
+
+// ─── CLIENT SEARCH ───────────────────────────────────────────────────────────
+function searchClients(q) {
+  const dd = document.getElementById('client-dd');
+  q = q.trim().toLowerCase();
+  const matches = allLeads.filter(l =>
+    !q || [l.business_name, l.contact_name, l.phone, l.email].join(' ').toLowerCase().includes(q)
+  ).slice(0, 20);
+
+  if (!matches.length) { dd.classList.remove('open'); return; }
+
+  dd.innerHTML = matches.map(l => `
+    <div class="client-opt" onmousedown="selectClient('${l.id}')">
+      <div class="biz">${esc(l.business_name)}</div>
+      <div class="meta">${[l.contact_name, l.phone, l.email].filter(Boolean).join(' · ')}</div>
+    </div>`).join('');
+  dd.classList.add('open');
+}
+
+function selectClient(id) {
+  const lead = allLeads.find(l => l.id === id);
+  if (!lead) return;
+  selectedLead = lead;
+  document.getElementById('client-search').value = lead.business_name;
+  document.getElementById('selected-client').classList.add('show');
+  document.getElementById('sc-name').textContent = lead.business_name;
+  document.getElementById('sc-meta').textContent = [lead.contact_name, lead.phone, lead.email].filter(Boolean).join(' · ');
+  if (lead.contact_name) document.getElementById('f-contact').value = lead.contact_name;
+  if (lead.phone)        document.getElementById('f-phone').value   = lead.phone;
+  if (lead.email)        document.getElementById('f-email').value   = lead.email;
+  closeDD();
+  calc();
+}
+
+function clearClient() {
+  selectedLead = null;
+  document.getElementById('client-search').value = '';
+  document.getElementById('selected-client').classList.remove('show');
+  document.getElementById('f-contact').value = '';
+  document.getElementById('f-phone').value   = '';
+  document.getElementById('f-email').value   = '';
+  calc();
+}
+
+function closeDD() {
+  document.getElementById('client-dd').classList.remove('open');
+}
+
+// ─── SLIDERS ─────────────────────────────────────────────────────────────────
+function updateSlider(type, val) {
+  val = parseInt(val);
+  document.getElementById(`${type}-val`).textContent = val;
+  document.getElementById(`${type}-manual`).value = '';
+}
+
+function overrideSlider(type, val) {
+  val = parseInt(val);
+  if (!val || val < 1) return;
+  const max = type === 'txn' ? 500 : 15;
+  const clamped = Math.min(val, max);
+  document.getElementById(`${type}-slider`).value = clamped;
+  document.getElementById(`${type}-val`).textContent = val;
+}
+
+function getTxn() {
+  const manual = parseInt(document.getElementById('txn-manual').value);
+  return manual > 0 ? manual : parseInt(document.getElementById('txn-slider').value);
+}
+
+function getAcct() {
+  const manual = parseInt(document.getElementById('acct-manual').value);
+  return manual > 0 ? manual : parseInt(document.getElementById('acct-slider').value);
+}
+
+// ─── CALCULATION ─────────────────────────────────────────────────────────────
+function calcTxnCharge(txn) {
+  if (txn <= BASE_TXN) return 0;
+  let extra = txn - BASE_TXN;
+  let charge = 0;
+  let prev = BASE_TXN;
+  for (const tier of TXN_TIER) {
+    const inTier = Math.min(extra, tier.limit - prev);
+    if (inTier <= 0) break;
+    charge += inTier * tier.ratePerExtra;
+    extra  -= inTier;
+    prev    = tier.limit;
+    if (extra <= 0) break;
+  }
+  return Math.round(charge);
+}
+
+function calc() {
+  const txn  = getTxn();
+  const acct = getAcct();
+
+  const txnCharge  = calcTxnCharge(txn);
+  const acctCharge = Math.max(0, acct - BASE_ACCT) * ACCT_RATE;
+
+  let addonTotal = 0;
+  const addonLines = [];
+  ADDONS.forEach(a => {
+    if (activeAddons.has(a.id)) {
+      addonTotal += a.price;
+      addonLines.push({ label: a.label, price: a.price });
+    }
+  });
+
+  const total = BASE_PRICE + txnCharge + acctCharge + addonTotal;
+
+  // update big price
+  document.getElementById('price-big').textContent = '$' + total.toLocaleString();
+
+  // breakdown
+  let html = `
+    <div class="break-row"><span class="break-label">Base (up to ${BASE_TXN} txns, ${BASE_ACCT} accts)</span><span class="break-val base">$${BASE_PRICE}</span></div>`;
+
+  if (txnCharge > 0) {
+    html += `<div class="break-row"><span class="break-label">+${txn - BASE_TXN} extra transactions</span><span class="break-val plus">+$${txnCharge}</span></div>`;
+  }
+  if (acctCharge > 0) {
+    html += `<div class="break-row"><span class="break-label">+${acct - BASE_ACCT} extra account${acct-BASE_ACCT>1?'s':''}</span><span class="break-val plus">+$${acctCharge}</span></div>`;
+  }
+  addonLines.forEach(a => {
+    html += `<div class="break-row"><span class="break-label">${a.label}</span><span class="break-val plus">+$${a.price}</span></div>`;
+  });
+
+  html += `<div class="break-total"><span>Monthly Total</span><span class="break-total-val">$${total.toLocaleString()}</span></div>`;
+  document.getElementById('breakdown').innerHTML = html;
+
+  // script
+  renderScript(txn, acct, txnCharge, acctCharge, addonLines, total);
+}
+
+function renderScript(txn, acct, txnCharge, acctCharge, addonLines, total) {
+  const name = document.getElementById('f-contact').value.trim() ||
+               (selectedLead ? selectedLead.business_name : 'there');
+  const firstName = name.split(' ')[0];
+
+  let script = `<strong>Aaron:</strong> Awesome news! `;
+
+  script += `So based on what you've shared, here's what your investment looks like with Blu Balances:\n\n`;
+
+  script += `<strong>Base package</strong> is <span class="highlight">$${BASE_PRICE}/month</span> — that covers up to ${BASE_TXN} transactions, up to ${BASE_ACCT} reconcilable accounts (bank, credit card, or loan), and your monthly reports.\n\n`;
+
+  if (txn <= BASE_TXN && acct <= BASE_ACCT) {
+    script += `With you only having <strong>${txn} transaction${txn!==1?'s':''}</strong> and <strong>${acct} account${acct!==1?'s':''}</strong>, you're well within the base — so you're looking at just <span class="highlight">$${BASE_PRICE}/month</span>.\n\n`;
+  } else {
+    if (txnCharge > 0) {
+      script += `You've got <strong>${txn} transactions</strong> per month — that's <strong>${txn - BASE_TXN} over the base</strong>, which adds <span class="highlight">$${txnCharge}/month</span>.\n\n`;
+    }
+    if (acctCharge > 0) {
+      script += `With <strong>${acct} accounts</strong> — that's <strong>${acct - BASE_ACCT} extra</strong>, adding <span class="highlight">$${acctCharge}/month</span>.\n\n`;
+    }
+  }
+
+  if (addonLines.length) {
+    script += `We also talked about: `;
+    script += addonLines.map(a => `<strong>${a.label}</strong> (+$${a.price})`).join(', ') + '.\n\n';
+  }
+
+  script += `So all in, you're looking at <span class="highlight">$${total.toLocaleString()}/month</span>. `;
+  script += `The way I structure it, you get everything handled — books stay clean, reports are ready when you need them, and you're not chasing numbers at tax time.\n\n`;
+  script += `Does that investment make sense for where your business is right now?`;
+
+  document.getElementById('script-box').innerHTML = script.replace(/\n/g,'<br>');
+}
+
+// ─── COPY ────────────────────────────────────────────────────────────────────
+function copyScript() {
+  const el = document.getElementById('script-box');
+  const text = el.innerText;
+  navigator.clipboard.writeText(text).then(() => toast('Script copied!'));
+}
+
+function copyQuote() {
+  const txn  = getTxn();
+  const acct = getAcct();
+  const contact = document.getElementById('f-contact').value.trim();
+  const email   = document.getElementById('f-email').value.trim();
+  const phone   = document.getElementById('f-phone').value.trim();
+  const biz     = selectedLead?.business_name || '';
+  const notes   = document.getElementById('f-notes').value.trim();
+
+  const txnCharge  = calcTxnCharge(txn);
+  const acctCharge = Math.max(0, acct - BASE_ACCT) * ACCT_RATE;
+  let addonTotal = 0, addonText = '';
+  ADDONS.forEach(a => {
+    if (activeAddons.has(a.id)) {
+      addonTotal += a.price;
+      addonText += `  • ${a.label}: +$${a.price}\n`;
+    }
+  });
+  const total = BASE_PRICE + txnCharge + acctCharge + addonTotal;
+
+  let text = `BLU BALANCES — PRICING QUOTE\n`;
+  text += `${'─'.repeat(40)}\n`;
+  if (biz)     text += `Business:  ${biz}\n`;
+  if (contact) text += `Contact:   ${contact}\n`;
+  if (phone)   text += `Phone:     ${phone}\n`;
+  if (email)   text += `Email:     ${email}\n`;
+  text += `Date:      ${new Date().toLocaleDateString()}\n\n`;
+  text += `SERVICES\n${'─'.repeat(40)}\n`;
+  text += `Base Package (up to ${BASE_TXN} txns, ${BASE_ACCT} accts):   $${BASE_PRICE}/mo\n`;
+  if (txnCharge > 0)  text += `Extra Transactions (${txn - BASE_TXN} over base):  +$${txnCharge}/mo\n`;
+  if (acctCharge > 0) text += `Extra Accounts (${acct - BASE_ACCT} over base):       +$${acctCharge}/mo\n`;
+  if (addonText) text += addonText;
+  text += `${'─'.repeat(40)}\n`;
+  text += `MONTHLY TOTAL:  $${total.toLocaleString()}\n`;
+  if (notes) text += `\nNotes: ${notes}\n`;
+
+  navigator.clipboard.writeText(text).then(() => toast('Quote copied!'));
+}
+
+function resetAll() {
+  clearClient();
+  document.getElementById('txn-slider').value = 50;
+  document.getElementById('acct-slider').value = 3;
+  document.getElementById('txn-val').textContent = '50';
+  document.getElementById('acct-val').textContent = '3';
+  document.getElementById('txn-manual').value = '';
+  document.getElementById('acct-manual').value = '';
+  document.getElementById('f-notes').value = '';
+  activeAddons.clear();
+  renderAddons();
+  calc();
+  toast('Reset!');
+}
+
+function toast(msg) {
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 2500);
+}
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+(async function() {
+  const authed = await checkSession();
+  if (authed) document.getElementById('login-overlay').style.display = 'none';
+  init();
+})();
+</script>
+</body>
+</html>
