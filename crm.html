@@ -364,7 +364,15 @@ select.field-input:focus{border-color:#1a73e8;outline:none}
       </div>
       <div class="field-group"><label class="field-label">Industry</label><input class="field-input" id="m-industry" placeholder="Car detailing service" value="Car detailing service"></div>
       <div class="field-group"><label class="field-label">Dispo</label><select class="field-input" id="m-dispo"><option value="new">New Lead</option></select></div>
-      <div class="field-group"><label class="field-label">Notes</label><textarea class="field-input" id="m-notes" placeholder="Initial notes..."></textarea></div>
+            <div class="field-group"><label class="field-label">Notes</label><textarea class="field-input" id="m-notes" placeholder="Initial notes..."></textarea></div>
+      <div class="field-group">
+        <label class="field-label">Tags</label>
+        <div id="m-tag-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;min-height:22px"></div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input id="m-new-tag-input" class="field-input" placeholder="New tag name..." style="flex:1;padding:6px 2px;" onkeydown="if(event.key==='Enter'){event.preventDefault();createModalTag();}">
+          <button class="btn btn-outline btn-sm" onclick="createModalTag()">+ New Tag</button>
+        </div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeAddModal()">Cancel</button>
@@ -583,7 +591,7 @@ const EMAIL_TEMPLATES = {
 let allLeads = [], filteredLeads = [], currentLead = null, currentTab = "info", activeDispo = null, editingLead = null;
 
 const TAG_COLORS = ['#1a73e8','#0f9d58','#d93025','#d97706','#7c3aed','#0891b2','#be185d','#0f766e','#92400e','#374151','#16a34a','#ea580c'];
-let allTags = [], leadTagsMap = {}, selectedNewTagColor = TAG_COLORS[0], importTagIds = [];
+let allTags = [], leadTagsMap = {}, selectedNewTagColor = TAG_COLORS[0], importTagIds = [], newLeadTagIds = [];
 let todayActivity = { dials:0, talk_time_secs:0, connected:0, voicemail:0, no_answer:0, appointments:0 };
 let activityDbId = null, actSaveTimer = null;
 
@@ -866,9 +874,31 @@ function openAddModal() {
   ["business_name","contact_name","phone","email","address","city","state","county","website","rating","reviews","google_maps_link","notes","follow_up_date","appointment_date"].forEach(f=>{const el=document.getElementById("m-"+f);if(el)el.value="";});
   document.getElementById("m-industry").value="Car detailing service";
   const sel=document.getElementById("m-dispo"); sel.innerHTML=Object.entries(DISPOS).map(([k,d])=>`<option value="${k}">${d.label}</option>`).join(""); sel.value="new";
+  newLeadTagIds=[]; renderModalTagPicker();
   document.getElementById("add-modal").classList.add("open");
 }
 function closeAddModal(){document.getElementById("add-modal").classList.remove("open");}
+
+function renderModalTagPicker() {
+  const el=document.getElementById('m-tag-chips'); if(!el)return;
+  el.innerHTML=allTags.length?allTags.map(t=>{const on=newLeadTagIds.includes(t.id);return`<span class="tag-chip" style="background:${on?t.color:'#35363a'};border:2px solid ${t.color};cursor:pointer;color:${on?'#fff':'#9aa0a6'}" onclick="toggleModalTag('${t.id}')">${esc(t.name)}</span>`;}).join(''):'<span style="font-size:12px;color:#5f6368">No tags yet — type a name below to create one</span>';
+}
+function toggleModalTag(tagId) {
+  if(newLeadTagIds.includes(tagId))newLeadTagIds=newLeadTagIds.filter(t=>t!==tagId);
+  else newLeadTagIds.push(tagId);
+  renderModalTagPicker();
+}
+async function createModalTag() {
+  const input=document.getElementById('m-new-tag-input'); const name=input?.value?.trim(); if(!name)return;
+  const color=TAG_COLORS[allTags.length%TAG_COLORS.length];
+  try {
+    const res=await fetch(db("crm_tags"),{method:"POST",headers:hdr(),body:JSON.stringify({name,color})});
+    if(!res.ok)throw new Error(await res.text());
+    const[tag]=await res.json(); allTags.push(tag); allTags.sort((a,b)=>a.name.localeCompare(b.name));
+    newLeadTagIds.push(tag.id); if(input)input.value='';
+    buildTagFilter(); renderModalTagPicker(); showToast("Tag created","success");
+  } catch(e){showToast("Failed to create tag: "+e.message,"error");}
+}
 
 async function saveLeadModal() {
   const g=id=>document.getElementById(id)?.value?.trim()||null;
@@ -877,7 +907,12 @@ async function saveLeadModal() {
   try {
     const res=await fetch(db("crm_leads"),{method:"POST",headers:hdr(),body:JSON.stringify(payload)});
     if(!res.ok)throw new Error(await res.text());
-    const [newLead]=await res.json(); allLeads.unshift(newLead); closeAddModal(); buildStats(); applyFilter(); showToast("Lead added","success"); openLead(newLead.id);
+        const [newLead]=await res.json(); allLeads.unshift(newLead);
+    if(newLeadTagIds.length){
+      const rows=newLeadTagIds.map(tid=>({lead_id:newLead.id,tag_id:tid}));
+      try{await fetch(db("crm_lead_tags"),{method:"POST",headers:{...hdr(),"Prefer":"return=minimal"},body:JSON.stringify(rows)});if(!leadTagsMap[newLead.id])leadTagsMap[newLead.id]=[];newLeadTagIds.forEach(tid=>{if(!leadTagsMap[newLead.id].includes(tid))leadTagsMap[newLead.id].push(tid);});}catch(e){}
+    }
+    closeAddModal(); buildStats(); applyFilter(); showToast("Lead added","success"); openLead(newLead.id);
   } catch(e){showToast("Failed to add lead: "+e.message,"error");}
 }
 
