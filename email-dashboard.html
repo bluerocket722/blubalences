@@ -822,8 +822,10 @@ async function renderSequences() {
         <td>${s.is_warmup ? '<span class="badge" style="background:#fef3c7;color:#92400e">🔥 Warmup</span>' : '<span style="font-size:12px;color:var(--gray)">—</span>'}</td>
         <td><label class="toggle"><input type="checkbox" ${s.active?'checked':''} onchange="toggleSeq('${s.id}',this.checked)"><span class="toggle-slider"></span></label></td>
         <td><div class="actions">
-                    <button class="btn btn-secondary btn-sm" onclick="openStepsModal('${s.id}','${esc(s.name)}')">Steps</button>
-          <button class="btn btn-secondary btn-sm" onclick="openSeqInboxModal('${s.id}','${esc(s.name)}')">Inboxes</button><button class="btn btn-secondary btn-sm" onclick="openSeqModal('${s.id}','${esc(s.name)}','${esc(s.description||'')}','${esc(s.send_time||'')}','${esc(s.send_days||'')}',${!!s.same_thread},${!!s.is_warmup},${s.warmup_min_minutes||5},${s.warmup_max_minutes||15})">Edit</button>
+          <button class="btn btn-secondary btn-sm" onclick="openStepsModal('${s.id}','${esc(s.name)}')">Steps</button>
+          <button class="btn btn-secondary btn-sm" onclick="openSeqInboxModal('${s.id}','${esc(s.name)}')">Inboxes</button>
+          <button class="btn btn-secondary btn-sm" onclick="openSeqSubscribersModal('${s.id}','${esc(s.name)}')">Subscribers</button>
+          <button class="btn btn-secondary btn-sm" onclick="openSeqModal('${s.id}','${esc(s.name)}','${esc(s.description||'')}','${esc(s.send_time||'')}','${esc(s.send_days||'')}',${!!s.same_thread},${!!s.is_warmup},${s.warmup_min_minutes||5},${s.warmup_max_minutes||15})">Edit</button>
           <button class="btn btn-danger btn-sm" onclick="deleteSeq('${s.id}')">Delete</button>
         </div></td>
       </tr>`).join('')}</tbody></table>`}
@@ -913,6 +915,103 @@ async function saveSeqInboxes(seqId) {
   closeModal();
 }
 
+async function openSeqSubscribersModal(seqId, seqName) {
+  const [{ data: enrs }, { data: lists }, { data: allMembers }] = await Promise.all([
+    sb.from('enrollments').select('id,email,name,company,status,current_step,enrolled_at').eq('sequence_id', seqId).order('enrolled_at', { ascending: false }),
+    sb.from('lists').select('id,name').order('name'),
+    sb.from('list_members').select('list_id,email,name,company'),
+  ]);
+
+  const rows = (enrs || []).map(e => `
+    <tr>
+      <td>${e.email}</td>
+      <td>${e.name || '—'}</td>
+      <td>${e.company || '—'}</td>
+      <td>Step ${e.current_step}</td>
+      <td><span class="badge ${e.status==='active'?'badge-green':e.status==='completed'?'badge-blue':'badge-gray'}">${e.status}</span></td>
+      <td><div class="actions">
+        ${e.status==='active' ? `<button class="btn btn-secondary btn-sm" onclick="seqSubStatus('${e.id}','paused','${seqId}','${esc(seqName)}')">Pause</button>` : ''}
+        ${e.status==='paused' ? `<button class="btn btn-secondary btn-sm" onclick="seqSubStatus('${e.id}','active','${seqId}','${esc(seqName)}')">Resume</button>` : ''}
+        <button class="btn btn-danger btn-sm" onclick="seqSubRemove('${e.id}','${seqId}','${esc(seqName)}')">Remove</button>
+      </div></td>
+    </tr>`).join('');
+
+  const listOpts = (lists || []).map(l => `<option value="${l.id}">${esc(l.name)}</option>`).join('');
+
+  showModal(`
+    <h2>Subscribers — ${seqName}</h2>
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+      <button class="btn btn-primary btn-sm" onclick="openSeqEnrollOne('${seqId}','${esc(seqName)}')">+ Add Subscriber</button>
+      <button class="btn btn-secondary btn-sm" onclick="openSeqEnrollList('${seqId}','${esc(seqName)}')">+ Enroll from List</button>
+    </div>
+    ${!enrs||!enrs.length
+      ? '<div class="empty">No subscribers yet.</div>'
+      : `<div style="overflow-x:auto"><table>
+          <thead><tr><th>Email</th><th>Name</th><th>Company</th><th>Step</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody>${rows}</tbody>
+         </table></div>`}
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Close</button></div>
+  `, true);
+}
+
+async function seqSubStatus(enrollId, status, seqId, seqName) {
+  await sb.from('enrollments').update({ status }).eq('id', enrollId);
+  openSeqSubscribersModal(seqId, seqName);
+}
+
+async function seqSubRemove(enrollId, seqId, seqName) {
+  if (!confirm('Remove this subscriber from the sequence?')) return;
+  await sb.from('enrollments').delete().eq('id', enrollId);
+  openSeqSubscribersModal(seqId, seqName);
+}
+
+async function openSeqEnrollOne(seqId, seqName) {
+  showModal(`
+    <h2>Add Subscriber — ${seqName}</h2>
+    <div class="form-group"><label>Email</label><input id="sse-email" type="email" placeholder="prospect@example.com"></div>
+    <div class="form-group"><label>Name</label><input id="sse-name" placeholder="First Last"></div>
+    <div class="form-group"><label>Company</label><input id="sse-company" placeholder="Acme Inc."></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="openSeqSubscribersModal('${seqId}','${esc(seqName)}')">Back</button>
+      <button class="btn btn-primary" onclick="seqEnrollOne('${seqId}','${esc(seqName)}')">Enroll</button>
+    </div>`);
+}
+
+async function seqEnrollOne(seqId, seqName) {
+  const email = document.getElementById('sse-email').value.trim();
+  const name = document.getElementById('sse-name').value.trim() || null;
+  const company = document.getElementById('sse-company').value.trim() || null;
+  if (!email) { alert('Email required'); return; }
+  const { error } = await sb.from('enrollments').insert({ email, name, company, sequence_id: seqId, current_step: 0, status: 'active' });
+  if (error) { alert(error.message); return; }
+  openSeqSubscribersModal(seqId, seqName);
+}
+
+async function openSeqEnrollList(seqId, seqName) {
+  const { data: lists } = await sb.from('lists').select('id,name').order('name');
+  showModal(`
+    <h2>Enroll from List — ${seqName}</h2>
+    <p class="hint" style="margin-bottom:14px">Everyone in the selected list will be enrolled. Duplicates are skipped automatically.</p>
+    <div class="form-group"><label>List</label>
+      <select id="sel-list"><option value="">Select a list…</option>${(lists||[]).map(l=>`<option value="${l.id}">${esc(l.name)}</option>`).join('')}</select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="openSeqSubscribersModal('${seqId}','${esc(seqName)}')">Back</button>
+      <button class="btn btn-primary" onclick="seqEnrollFromList('${seqId}','${esc(seqName)}')">Enroll All</button>
+    </div>`);
+}
+
+async function seqEnrollFromList(seqId, seqName) {
+  const listId = document.getElementById('sel-list').value;
+  if (!listId) { alert('Select a list'); return; }
+  const { data: members } = await sb.from('list_members').select('*').eq('list_id', listId);
+  if (!members||!members.length) { alert('This list has no members'); return; }
+  const rows = members.map(m => ({ email: m.email, name: m.name||null, company: m.company||null, sequence_id: seqId, current_step: 0, status: 'active' }));
+  const { error } = await sb.from('enrollments').upsert(rows, { onConflict: 'email,sequence_id', ignoreDuplicates: true });
+  if (error) { alert(error.message); return; }
+  openSeqSubscribersModal(seqId, seqName);
+}
+  
 async function openSeqInboxModal(seqId, seqName) {
   const { data: allInboxes } = await sb.from('inboxes').select('*').eq('active', true).order('created_at');
   const { data: assigned }   = await sb.from('sequence_inboxes').select('*').eq('sequence_id', seqId);
