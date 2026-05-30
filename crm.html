@@ -618,14 +618,22 @@ function mergeLeads(group) {
 async function loadLeads() {
   try {
     const today = new Date().toISOString().split('T')[0];
-    const [leadsRes, tagsRes, leadTagsRes, actRes] = await Promise.all([
-      fetch(db("crm_leads?select=*&order=created_at.desc"), { headers: hdr() }),
+    const PAGE = 1000;
+    let allLeadsArr = [], page = 0;
+    while (true) {
+      const res = await fetch(db(`crm_leads?select=*&order=created_at.desc&limit=${PAGE}&offset=${page * PAGE}`), { headers: hdr() });
+      if (!res.ok) throw new Error(await res.text());
+      const batch = await res.json();
+      allLeadsArr = allLeadsArr.concat(batch);
+      if (batch.length < PAGE) break;
+      page++;
+    }
+    allLeads = allLeadsArr;
+    const [tagsRes, leadTagsRes, actRes] = await Promise.all([
       fetch(db("crm_tags?order=name.asc"), { headers: hdr() }),
       fetch(db("crm_lead_tags?select=lead_id,tag_id"), { headers: hdr() }),
       fetch(db(`crm_daily_activity?date=eq.${today}`), { headers: hdr() }),
     ]);
-    if (!leadsRes.ok) throw new Error(await leadsRes.text());
-    allLeads = await leadsRes.json();
     allTags = tagsRes.ok ? await tagsRes.json() : [];
     const ltRows = leadTagsRes.ok ? await leadTagsRes.json() : [];
     leadTagsMap = {};
