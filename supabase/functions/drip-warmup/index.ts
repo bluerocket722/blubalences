@@ -74,15 +74,15 @@ serve(async () => {
   // Find active warm-up sequences
   const { data: sequences } = await sb
     .from("sequences")
-    .select("id,name,same_thread,warmup_min_minutes,warmup_max_minutes")
+    .select("id,name,same_thread,min_interval_minutes,max_interval_minutes")
     .eq("active", true)
     .eq("is_warmup", true);
 
   const results: string[] = [];
 
   for (const seq of sequences || []) {
-    const minM = seq.warmup_min_minutes ?? 5;
-    const maxM = seq.warmup_max_minutes ?? 15;
+    const minM = seq.min_interval_minutes ?? 5;
+    const maxM = seq.max_interval_minutes ?? 15;
 
     // Get steps for this sequence
     const { data: steps } = await sb
