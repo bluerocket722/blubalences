@@ -823,7 +823,10 @@ async function renderSequences() {
         <td style="font-size:12px;color:var(--gray)">${s.min_interval_minutes||5}–${s.max_interval_minutes||15} min</td>
         <td><label class="toggle"><input type="checkbox" ${s.active?'checked':''} onchange="toggleSeq('${s.id}',this.checked)"><span class="toggle-slider"></span></label></td>
         <td><div class="actions">
-          ${s.is_warmup ? `<button class="btn btn-primary btn-sm" onclick="startWarmupDrip('${s.id}','${esc(s.name)}')">▶ Start Drip</button>` : ''}
+          ${s.is_warmup ? `
+  <button class="btn btn-primary btn-sm" onclick="startWarmupDrip('${s.id}','${esc(s.name)}')">▶ Start Drip</button>
+  <button class="btn btn-secondary btn-sm" onclick="openWarmupLog('${s.id}','${esc(s.name)}')">📋 Log</button>
+` : ''}
           <button class="btn btn-secondary btn-sm" onclick="openStepsModal('${s.id}','${esc(s.name)}')">Steps</button>
           <button class="btn btn-secondary btn-sm" onclick="openSeqInboxModal('${s.id}','${esc(s.name)}')">Inboxes</button>
           <button class="btn btn-secondary btn-sm" onclick="openSeqSubscribersModal('${s.id}','${esc(s.name)}')">Subscribers</button>
@@ -1262,6 +1265,55 @@ async function saveSeq(id) {
     btn.disabled = false;
     btn.textContent = '▶ Start Drip';
   }
+}
+
+  async function openWarmupLog(seqId, seqName) {
+  const { data: logs } = await sb
+    .from('send_log')
+    .select('sent_at,step_number,brevo_message_id,status,enrollments(email,name,current_step,status)')
+    .eq('enrollments.sequence_id', seqId)
+    .order('sent_at', { ascending: false })
+    .limit(200);
+
+  // filter client-side since supabase filters on joined tables don't exclude nulls automatically
+  const rows = (logs || []).filter(l => l.enrollments);
+
+  // Build per-contact summary
+  const contacts = {};
+  for (const l of rows) {
+    const email = l.enrollments?.email || '—';
+    if (!contacts[email]) contacts[email] = { name: l.enrollments?.name || '—', sends: [] };
+    contacts[email].sends.push(l);
+  }
+
+  const tableRows = Object.entries(contacts).map(([email, c]) => {
+    const lastSend = c.sends[0];
+    const lastDate = lastSend ? new Date(lastSend.sent_at).toLocaleString() : '—';
+    const stepsSent = [...new Set(c.sends.map(s => s.step_number))].sort((a,b)=>a-b).join(', ');
+    return `<tr>
+      <td>${email}</td>
+      <td>${c.name}</td>
+      <td style="font-size:12px">${stepsSent || '—'}</td>
+      <td style="font-size:12px;color:var(--gray)">${lastDate}</td>
+      <td><span class="badge ${c.sends.length > 0 ? 'badge-green' : 'badge-gray'}">${c.sends.length} send${c.sends.length!==1?'s':''}</span></td>
+    </tr>`;
+  }).join('');
+
+  showModal(`
+    <h2>📋 Warm-up Log — ${seqName}</h2>
+    <p class="hint" style="margin-bottom:14px">Showing last 200 sends. Each row is a contact — click their email to see all steps sent.</p>
+    ${!tableRows
+      ? '<div class="empty">No sends logged yet. Start the drip and check back.</div>'
+      : `<div style="overflow-x:auto"><table>
+          <thead><tr><th>Email</th><th>Name</th><th>Steps Sent</th><th>Last Send</th><th>Total</th></tr></thead>
+          <tbody>${tableRows}</tbody>
+        </table></div>`}
+    <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);display:flex;gap:16px;font-size:13px;color:var(--gray)">
+      <span>Total contacts: <strong>${Object.keys(contacts).length}</strong></span>
+      <span>Total sends: <strong>${rows.length}</strong></span>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Close</button></div>
+  `, true);
 }
 
 async function openStepsModal(seqId, seqName) {
