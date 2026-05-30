@@ -812,20 +812,22 @@ async function renderSequences() {
   document.getElementById('content').innerHTML = `
     <div class="panel">
       <div class="panel-header"><h2>Sequences</h2></div>
-      ${!seqs||!seqs.length ? '<div class="empty">No sequences yet. Create one to get started.</div>' :
-            `<table><thead><tr><th>Name</th><th>Description</th><th>Schedule</th><th>Thread</th><th>Warm Up</th><th>Active</th><th>Actions</th></tr></thead><tbody>
+            ${!seqs||!seqs.length ? '<div class="empty">No sequences yet. Create one to get started.</div>' :
+        `<table><thead><tr><th>Name</th><th>Description</th><th>Schedule</th><th>Thread</th><th>Type</th><th>Interval</th><th>Active</th><th>Actions</th></tr></thead><tbody>
       ${seqs.map(s=>`<tr>
         <td><strong>${s.name}</strong></td>
         <td style="color:var(--gray)">${s.description||'—'}</td>
         <td>${s.send_time ? `<span class="seq-sched">⏰ ${s.send_time} · ${(s.send_days||'global').replace(',','/')}</span>` : '<span style="font-size:12px;color:var(--gray)">Global schedule</span>'}</td>
         <td>${s.same_thread ? '<span class="badge badge-blue">On</span>' : '<span style="font-size:12px;color:var(--gray)">Off</span>'}</td>
-        <td>${s.is_warmup ? '<span class="badge" style="background:#fef3c7;color:#92400e">🔥 Warmup</span>' : '<span style="font-size:12px;color:var(--gray)">—</span>'}</td>
+        <td>${s.is_warmup ? '<span class="badge" style="background:#fef3c7;color:#92400e">🔥 Warm-up</span>' : '<span class="badge badge-gray">Campaign</span>'}</td>
+        <td style="font-size:12px;color:var(--gray)">${s.min_interval_minutes||5}–${s.max_interval_minutes||15} min</td>
         <td><label class="toggle"><input type="checkbox" ${s.active?'checked':''} onchange="toggleSeq('${s.id}',this.checked)"><span class="toggle-slider"></span></label></td>
         <td><div class="actions">
+          ${s.is_warmup ? `<button class="btn btn-primary btn-sm" onclick="startWarmupDrip('${s.id}','${esc(s.name)}')">▶ Start Drip</button>` : ''}
           <button class="btn btn-secondary btn-sm" onclick="openStepsModal('${s.id}','${esc(s.name)}')">Steps</button>
           <button class="btn btn-secondary btn-sm" onclick="openSeqInboxModal('${s.id}','${esc(s.name)}')">Inboxes</button>
           <button class="btn btn-secondary btn-sm" onclick="openSeqSubscribersModal('${s.id}','${esc(s.name)}')">Subscribers</button>
-          <button class="btn btn-secondary btn-sm" onclick="openSeqModal('${s.id}','${esc(s.name)}','${esc(s.description||'')}','${esc(s.send_time||'')}','${esc(s.send_days||'')}',${!!s.same_thread},${!!s.is_warmup},${s.warmup_min_minutes||5},${s.warmup_max_minutes||15})">Edit</button>
+          <button class="btn btn-secondary btn-sm" onclick="openSeqModal('${s.id}','${esc(s.name)}','${esc(s.description||'')}','${esc(s.send_time||'')}','${esc(s.send_days||'')}',${!!s.same_thread},${!!s.is_warmup},${s.min_interval_minutes||5},${s.max_interval_minutes||15})">Edit</button>
           <button class="btn btn-danger btn-sm" onclick="deleteSeq('${s.id}')">Delete</button>
         </div></td>
       </tr>`).join('')}</tbody></table>`}
@@ -1158,14 +1160,14 @@ async function saveSeqInboxes(seqId) {
   closeModal();
 }
 
-function openSeqModal(id, name, desc, seqTime, seqDays, sameThread, isWarmup, warmupMin, warmupMax) {
+function openSeqModal(id, name, desc, seqTime, seqDays, sameThread, isWarmup, minInt, maxInt) {
   const activeDays = (seqDays || '').split(',').map(d => d.trim()).filter(Boolean);
   const days = [{v:'mon',l:'Mon'},{v:'tue',l:'Tue'},{v:'wed',l:'Wed'},{v:'thu',l:'Thu'},{v:'fri',l:'Fri'},{v:'sat',l:'Sat'},{v:'sun',l:'Sun'}];
   showModal(`
     <h2>${id ? 'Edit' : 'New'} Sequence</h2>
     <div class="form-group"><label>Name</label><input id="sq-name" value="${name||''}"></div>
     <div class="form-group"><label>Description</label><textarea id="sq-desc">${desc||''}</textarea></div>
-    <div class="section-title">Send Schedule Override <span style="color:var(--gray);font-weight:400;text-transform:none;font-size:12px">(optional — overrides global schedule for this sequence)</span></div>
+    <div class="section-title">Send Schedule Override <span style="color:var(--gray);font-weight:400;text-transform:none;font-size:12px">(optional — overrides global schedule)</span></div>
     <div class="form-row-2">
       <div class="form-group">
         <label>Send Time</label>
@@ -1179,34 +1181,52 @@ function openSeqModal(id, name, desc, seqTime, seqDays, sameThread, isWarmup, wa
         </div>
       </div>
     </div>
+    <div class="section-title">Bell Curve Send Interval</div>
+    <p class="hint" style="margin-bottom:10px">Emails are spaced randomly on a bell curve between your min and max — most sends cluster near the middle, fewer at the edges. Applies to all sequences.</p>
+    <div class="form-row-2">
+      <div class="form-group">
+        <label>Min interval (minutes)</label>
+        <input id="sq-minint" type="number" min="1" max="120" value="${minInt||5}">
+      </div>
+      <div class="form-group">
+        <label>Max interval (minutes)</label>
+        <input id="sq-maxint" type="number" min="1" max="240" value="${maxInt||15}">
+      </div>
+    </div>
     <div class="section-title">Threading</div>
     <div class="form-group" style="display:flex;align-items:center;gap:12px">
       <label class="toggle" style="margin:0"><input type="checkbox" id="sq-thread" ${sameThread?'checked':''}><span class="toggle-slider"></span></label>
       <span style="font-size:14px">Send sequence emails on the same thread (reply chain)</span>
     </div>
     <p class="hint">When on, steps 2+ appear as replies to the first email in each contact's inbox.</p>
-    <div class="section-title">Warm Up</div>
-    <div class="form-group" style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
-      <label class="toggle" style="margin:0"><input type="checkbox" id="sq-warmup" ${isWarmup?'checked':''} onchange="document.getElementById('warmup-intervals').style.display=this.checked?'block':'none'"><span class="toggle-slider"></span></label>
-      <span style="font-size:14px">This is a warm-up sequence (runs via Edge Function with human-like timing)</span>
+    <div class="section-title">Warm-Up Sequence</div>
+    <div class="form-group" style="display:flex;align-items:center;gap:12px">
+      <label class="toggle" style="margin:0"><input type="checkbox" id="sq-warmup" ${isWarmup?'checked':''}><span class="toggle-slider"></span></label>
+      <span style="font-size:14px">This is a warm-up sequence (runs via Supabase Edge Function, not Railway)</span>
     </div>
-    <div id="warmup-intervals" style="display:${isWarmup?'block':'none'}">
-      <p class="hint" style="margin-bottom:10px">Emails are sent on a bell curve — most around the midpoint, fewer at the edges. Set your min and max gap below.</p>
-      <div class="form-row-2">
-        <div class="form-group">
-          <label>Min interval (minutes)</label>
-          <input id="sq-wmin" type="number" min="1" max="60" value="${warmupMin||5}">
-        </div>
-        <div class="form-group">
-          <label>Max interval (minutes)</label>
-          <input id="sq-wmax" type="number" min="1" max="120" value="${warmupMax||15}">
-        </div>
-      </div>
-    </div>
+    <p class="hint">Warm-up sequences use the Edge Function + pg_cron for per-minute scheduling. Campaign sequences use the Railway drip script.</p>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
       <button class="btn btn-primary" onclick="saveSeq('${id||''}')">Save</button>
     </div>`);
+}
+
+async function saveSeq(id) {
+  const name = document.getElementById('sq-name').value.trim();
+  const description = document.getElementById('sq-desc').value.trim();
+  if (!name) { alert('Name required'); return; }
+  const send_time = document.getElementById('sq-time').value || null;
+  const checkedDays = Array.from(document.querySelectorAll('.sq-day.on')).map(el => el.dataset.day);
+  const send_days = checkedDays.length ? checkedDays.join(',') : null;
+  const same_thread = document.getElementById('sq-thread').checked;
+  const is_warmup = document.getElementById('sq-warmup').checked;
+  const min_interval_minutes = parseInt(document.getElementById('sq-minint').value) || 5;
+  const max_interval_minutes = parseInt(document.getElementById('sq-maxint').value) || 15;
+  const payload = { name, description, send_time, send_days, same_thread, is_warmup, min_interval_minutes, max_interval_minutes };
+  if (id) await sb.from('sequences').update(payload).eq('id', id);
+  else await sb.from('sequences').insert({ ...payload, active: true });
+  closeModal();
+  renderSequences();
 }
 
 async function saveSeq(id) {
@@ -1225,6 +1245,23 @@ async function saveSeq(id) {
   else await sb.from('sequences').insert({ ...payload, active: true });
   closeModal();
   renderSequences();
+}
+
+  async function startWarmupDrip(seqId, seqName) {
+  const btn = event.target;
+  btn.disabled = true;
+  btn.textContent = '⏳ Running…';
+  try {
+    const { data, error } = await sb.functions.invoke('drip-warmup');
+    if (error) throw error;
+    const sent = data?.sent ?? 0;
+    btn.textContent = `✓ Sent ${sent}`;
+    setTimeout(() => { btn.disabled = false; btn.textContent = '▶ Start Drip'; }, 3000);
+  } catch (e) {
+    alert('Error: ' + (e.message || e));
+    btn.disabled = false;
+    btn.textContent = '▶ Start Drip';
+  }
 }
 
 async function openStepsModal(seqId, seqName) {
