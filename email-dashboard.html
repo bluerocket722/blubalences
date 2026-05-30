@@ -449,8 +449,8 @@ async function renderDashboard() {
 async function refreshLog() {
   const el = document.getElementById('recent-log');
   if (!el) return;
-  const { data: recent } = await sb.from('send_log')
-    .select('sent_at,step_number,inbox_id,enrollments(email,sequences(name)),inboxes(name,email)')
+    const { data: recent } = await sb.from('send_log')
+    .select('sent_at,step_number,inbox_id,enrollments(email,sequences(name))')
     .order('sent_at', { ascending: false }).limit(30);
   if (!recent || !recent.length) {
     el.innerHTML = '<div class="empty">No sends yet. Create a sequence and enroll subscribers.</div>';
