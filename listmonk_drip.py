@@ -176,10 +176,16 @@ def main():
         log.info("Today (%s) not in send_days (%s) — skipping", today_abbr, send_days)
         return 0
 
-    global_rate     = float(cfg.get("emails_per_minute", "2"))
-    global_interval = 60.0 / global_rate
+        import random as _random
+    def bell_seconds(min_m, max_m):
+        """Irwin-Hall bell curve scaled to [min_m, max_m] minutes, returned as seconds."""
+        t = sum(_random.random() for _ in range(6)) / 6.0
+        return (min_m + t * (max_m - min_m)) * 60.0
 
-    sequences = get("sequences", "?active=eq.true&select=id,name,same_thread")
+    global_min_interval = float(cfg.get("min_interval_minutes", "5"))
+    global_max_interval = float(cfg.get("max_interval_minutes", "15"))
+
+    sequences = get("sequences", "?active=eq.true&is_warmup=eq.false&select=id,name,same_thread,min_interval_minutes,max_interval_minutes")
     log.info("%d active sequence(s)", len(sequences))
 
     for seq in sequences:
@@ -211,7 +217,9 @@ def main():
             delay_mins  = step["delay_days"]*1440 + step["delay_hours"]*60 + step["delay_minutes"]
             batch_limit = int(step.get("batch_limit") or 0)
             batch_iv    = int(step.get("batch_interval_minutes") or 0)
-            interval    = batch_iv * 60 if batch_iv > 0 else global_interval
+                        seq_min = float(seq.get("min_interval_minutes") or global_min_interval)
+            seq_max = float(seq.get("max_interval_minutes") or global_max_interval)
+            interval    = batch_iv * 60 if batch_iv > 0 else None  # None = use bell curve per send
             step_body   = step.get("body") or ""
             step_tags   = [t.strip() for t in (step.get("tags") or "").split(",") if t.strip()]
 
@@ -288,9 +296,10 @@ def main():
                 except Exception:
                     log.exception("  [%d/%d] failed for %s", i+1, len(due), enr["email"])
 
-                if i < len(due) - 1:
-                    log.info("  Waiting %.0fs…", interval)
-                    time.sleep(interval)
+                                if i < len(due) - 1:
+                    wait = interval if interval is not None else bell_seconds(seq_min, seq_max)
+                    log.info("  Waiting %.0fs… (%.1f–%.1f min range)", wait, seq_min, seq_max)
+                    time.sleep(wait)
 
     return 0
 
