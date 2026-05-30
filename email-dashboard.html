@@ -1268,12 +1268,24 @@ async function saveSeq(id) {
 }
 
   async function openWarmupLog(seqId, seqName) {
+    // First get enrollment IDs for this sequence
+  const { data: enrIds } = await sb
+    .from('enrollments')
+    .select('id')
+    .eq('sequence_id', seqId);
+
+  const ids = (enrIds || []).map(e => e.id);
+  if (!ids.length) {
+    showModal(`<h2>📋 Warm-up Log — ${seqName}</h2><div class="empty">No enrollments in this sequence yet.</div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Close</button></div>`, true);
+    return;
+  }
+
   const { data: logs } = await sb
     .from('send_log')
-    .select('sent_at,step_number,brevo_message_id,status,enrollments(email,name,current_step,status)')
-    .eq('enrollments.sequence_id', seqId)
+    .select('sent_at,step_number,brevo_message_id,status,enrollment_id,enrollments(email,name)')
+    .in('enrollment_id', ids)
     .order('sent_at', { ascending: false })
-    .limit(200);
+    .limit(500);
 
   // filter client-side since supabase filters on joined tables don't exclude nulls automatically
   const rows = (logs || []).filter(l => l.enrollments);
