@@ -91,7 +91,7 @@
     .success-state h3 { font-size: 20px; font-weight: 700; color: var(--white); margin-bottom: 10px; }
     .success-state p { font-size: 14px; color: var(--text-sub); line-height: 1.65; }
     .success-icon-box { width: 52px; height: 52px; background: rgba(22,163,74,0.12); border: 1px solid rgba(22,163,74,0.25); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 18px; font-size: 20px; color: var(--green); }
-    .tz-row { margin-top: 10px; }
+    .tz-row { margin-top: 10px; margin-bottom: 16px; }
 
     .section { padding: 88px 32px; }
     .section-inner { max-width: 1140px; margin: 0 auto; }
@@ -241,6 +241,10 @@
               <div class="cal-head"><div class="cal-month" id="h-cal-month"></div></div>
               <div class="cal-grid" id="h-cal-grid"></div>
             </div>
+          </div>
+
+          <div class="step-panel" id="h-panel-2">
+            <div class="selected-summary" id="h-sum-date"></div>
             <div class="form-field tz-row">
               <label>Timezone</label>
               <select id="h-tz" onchange="HFLOW.tzChange()">
@@ -252,10 +256,6 @@
                 <option value="Pacific/Honolulu">Hawaii (HT)</option>
               </select>
             </div>
-          </div>
-
-          <div class="step-panel" id="h-panel-2">
-            <div class="selected-summary" id="h-sum-date"></div>
             <div class="step-title">Select a time</div>
             <div class="time-grid" id="h-time-grid"></div>
             <button class="btn-back" onclick="HFLOW.goto(1)">&larr; Back to dates</button>
@@ -514,6 +514,10 @@
             <div class="cal-head"><div class="cal-month" id="c-cal-month"></div></div>
             <div class="cal-grid" id="c-cal-grid"></div>
           </div>
+        </div>
+
+        <div class="step-panel" id="c-panel-2">
+          <div class="selected-summary" id="c-sum-date"></div>
           <div class="form-field tz-row">
             <label>Timezone</label>
             <select id="c-tz" onchange="CFLOW.tzChange()">
@@ -525,10 +529,6 @@
               <option value="Pacific/Honolulu">Hawaii (HT)</option>
             </select>
           </div>
-        </div>
-
-        <div class="step-panel" id="c-panel-2">
-          <div class="selected-summary" id="c-sum-date"></div>
           <div class="step-title">Select a time</div>
           <div class="time-grid" id="c-time-grid"></div>
           <button class="btn-back" onclick="CFLOW.goto(1)">&larr; Back to dates</button>
@@ -630,6 +630,15 @@
     const mm = parts.find(p => p.type === "minute").value;
     return `${hh.padStart(2,"0")}:${mm}`;
   }
+  // Given an "HH:MM" slot, return that slot plus the one 15 minutes later (a 30-min appointment covers two 15-min slots)
+  function slotsCovered(hhmm) {
+    const [h, m] = hhmm.split(":").map(Number);
+    const out = [hhmm];
+    let nm = m + 15, nh = h;
+    if (nm >= 60) { nm -= 60; nh += 1; }
+    out.push(String(nh).padStart(2,"0") + ":" + String(nm).padStart(2,"0"));
+    return out;
+  }
   function detectTz() { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return "America/New_York"; } }
   function fmtDate(d) {
     return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
@@ -640,15 +649,14 @@
     setTimeout(() => { t.className = "toast"; }, 4500);
   }
 
-  // Available days = today + next 3 business days (Saturday yes, Sunday no)
+  // Available days = the next 3 business days AFTER today (Saturday yes, Sunday no). Today is excluded.
   function availableDays() {
     const days = [];
     const today = new Date(); today.setHours(0,0,0,0);
-    if (today.getDay() !== 0) days.push(new Date(today));
     let d = new Date(today);
-    while (days.length < 4) {
+    while (days.length < 3) {
       d.setDate(d.getDate() + 1);
-      if (d.getDay() !== 0) days.push(new Date(d));
+      if (d.getDay() !== 0) days.push(new Date(d)); // skip Sunday
     }
     return days;
   }
@@ -733,13 +741,17 @@
       const tz = el("tz").value;
       const grid = el("time-grid");
       grid.innerHTML = '<div class="time-empty">Checking availability...</div>';
-      let bookedSlots = new Set();
+      let blocked = new Set();
       try {
         const dayStart = localToUtc(ds, "00:00", tz);
         const dayEnd   = localToUtc(ds, "23:59", tz);
         const { data: booked, error } = await supabase.from("appointments").select("appointment_utc").gte("appointment_utc", dayStart).lte("appointment_utc", dayEnd);
         if (error) throw error;
-        bookedSlots = new Set((booked || []).map(a => utcToLocalSlot(a.appointment_utc, tz)));
+        // Each 30-min appointment blocks its slot + the next 15-min slot
+        for (const a of (booked || [])) {
+          const start = utcToLocalSlot(a.appointment_utc, tz);
+          for (const s of slotsCovered(start)) blocked.add(s);
+        }
       } catch (err) { console.error("Availability failed:", err); }
       grid.innerHTML = "";
       let any = false;
@@ -747,7 +759,7 @@
         const b = document.createElement("div");
         b.className = "time-slot";
         b.textContent = slot.label;
-        if (bookedSlots.has(slot.value)) {
+        if (blocked.has(slot.value)) {
           b.classList.add("taken");
         } else {
           any = true;
