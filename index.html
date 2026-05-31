@@ -20,11 +20,16 @@
     .nav-inner { max-width: 1140px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; height: 68px; }
     .logo { font-size: 20px; font-weight: 800; color: var(--white); text-decoration: none; letter-spacing: -0.5px; }
     .logo span { color: var(--blue-light); }
-    .nav-links { display: flex; gap: 32px; list-style: none; }
+    .nav-links { display: flex; gap: 32px; list-style: none; align-items: center; }
     .nav-links a { color: var(--text-sub); text-decoration: none; font-size: 14px; font-weight: 500; transition: color 0.2s; }
     .nav-links a:hover { color: var(--white); }
     .nav-cta { background: var(--blue); color: var(--white) !important; padding: 10px 22px; border-radius: 8px; font-weight: 600 !important; font-size: 14px !important; text-decoration: none; transition: background 0.2s; }
     .nav-cta:hover { background: var(--blue-light) !important; }
+    .hamburger { display: none; background: none; border: none; cursor: pointer; padding: 8px; flex-direction: column; gap: 5px; }
+    .hamburger span { display: block; width: 24px; height: 2px; background: var(--white); border-radius: 2px; transition: all 0.3s; }
+    .hamburger.active span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+    .hamburger.active span:nth-child(2) { opacity: 0; }
+    .hamburger.active span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
 
     .hero { padding: 80px 32px 100px; max-width: 1140px; margin: 0 auto; display: grid; grid-template-columns: 1fr 420px; gap: 72px; align-items: center; }
     .hero-label { font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--blue-light); margin-bottom: 20px; }
@@ -136,12 +141,19 @@
       .stats-row { grid-template-columns: repeat(2, 1fr); }
       .services-grid { grid-template-columns: 1fr; }
       .pricing-grid { grid-template-columns: 1fr; }
-      .nav-links { display: none; }
+      .hamburger { display: flex; }
+      .nav-links { display: none; position: absolute; top: 68px; left: 0; right: 0; flex-direction: column; align-items: stretch; gap: 0; background: rgba(10,22,40,0.98); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 8px 0; }
+      .nav-links.open { display: flex; }
+      .nav-links li { width: 100%; }
+      .nav-links a { display: block; padding: 14px 32px; font-size: 15px; }
+      .nav-links .nav-cta { margin: 8px 32px; text-align: center; }
       .form-row { grid-template-columns: 1fr; }
     }
     @media (max-width: 600px) {
       .section { padding: 60px 20px; }
       nav { padding: 0 20px; }
+      .nav-links a { padding: 14px 20px; }
+      .nav-links .nav-cta { margin: 8px 20px; }
       .hero { padding: 48px 20px 60px; }
       .cta-form { padding: 24px 20px; }
       .steps-grid { grid-template-columns: 1fr; }
@@ -154,13 +166,16 @@
 <nav>
   <div class="nav-inner">
     <a href="#" class="logo">Blu <span>Balence</span></a>
-    <ul class="nav-links">
-      <li><a href="#why">Why Us</a></li>
-      <li><a href="#services">Services</a></li>
-      <li><a href="#pricing">Pricing</a></li>
+    <button class="hamburger" id="hamburger" aria-label="Menu" onclick="toggleMenu()">
+      <span></span><span></span><span></span>
+    </button>
+    <ul class="nav-links" id="nav-links">
+      <li><a href="#why" onclick="closeMenu()">Why Us</a></li>
+      <li><a href="#services" onclick="closeMenu()">Services</a></li>
+      <li><a href="#pricing" onclick="closeMenu()">Pricing</a></li>
       <li><a href="about.html">About</a></li>
       <li><a href="https://blubalences.com/staff">login</a></li>
-      <li><a href="#book" class="nav-cta">Book a Call</a></li>
+      <li><a href="#book" class="nav-cta" onclick="closeMenu()">Book a Call</a></li>
     </ul>
   </div>
 </nav>
@@ -243,7 +258,7 @@
 
 <section class="section" id="why">
   <div class="section-inner">
-    <div class="section-label">The Problem</div>
+    <div class="section-label">Have You Experienced?</div>
     <h2>What messy books<br><em>cost a contractor</em></h2>
     <p class="section-desc">It's not just the tax bill at year-end. It's every decision you made without knowing your real numbers.</p>
     <div class="pain-grid">
@@ -512,6 +527,17 @@
 
 <div class="toast" id="toast"></div>
 
+<script>
+  function toggleMenu() {
+    document.getElementById("nav-links").classList.toggle("open");
+    document.getElementById("hamburger").classList.toggle("active");
+  }
+  function closeMenu() {
+    document.getElementById("nav-links").classList.remove("open");
+    document.getElementById("hamburger").classList.remove("active");
+  }
+</script>
+
 <script type="module">
   import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
@@ -523,15 +549,39 @@
   const WEBHOOK_URL = "https://hook.us1.make.com/e3av1w86ovv5w89fs3hwq50aln33oq3c";
 
   const ALL_SLOTS = [
-    { label: "9:00 AM",  value: "09:00" },
-    { label: "10:00 AM", value: "10:00" },
-    { label: "11:00 AM", value: "11:00" },
-    { label: "12:00 PM", value: "12:00" },
-    { label: "1:00 PM",  value: "13:00" },
-    { label: "2:00 PM",  value: "14:00" },
-    { label: "3:00 PM",  value: "15:00" },
-    { label: "4:00 PM",  value: "16:00" },
-    { label: "5:00 PM",  value: "17:00" },
+    { label: "9:00 AM",   value: "09:00" },
+    { label: "9:15 AM",   value: "09:15" },
+    { label: "9:30 AM",   value: "09:30" },
+    { label: "9:45 AM",   value: "09:45" },
+    { label: "10:00 AM",  value: "10:00" },
+    { label: "10:15 AM",  value: "10:15" },
+    { label: "10:30 AM",  value: "10:30" },
+    { label: "10:45 AM",  value: "10:45" },
+    { label: "11:00 AM",  value: "11:00" },
+    { label: "11:15 AM",  value: "11:15" },
+    { label: "11:30 AM",  value: "11:30" },
+    { label: "11:45 AM",  value: "11:45" },
+    { label: "12:00 PM",  value: "12:00" },
+    { label: "12:15 PM",  value: "12:15" },
+    { label: "12:30 PM",  value: "12:30" },
+    { label: "12:45 PM",  value: "12:45" },
+    { label: "1:00 PM",   value: "13:00" },
+    { label: "1:15 PM",   value: "13:15" },
+    { label: "1:30 PM",   value: "13:30" },
+    { label: "1:45 PM",   value: "13:45" },
+    { label: "2:00 PM",   value: "14:00" },
+    { label: "2:15 PM",   value: "14:15" },
+    { label: "2:30 PM",   value: "14:30" },
+    { label: "2:45 PM",   value: "14:45" },
+    { label: "3:00 PM",   value: "15:00" },
+    { label: "3:15 PM",   value: "15:15" },
+    { label: "3:30 PM",   value: "15:30" },
+    { label: "3:45 PM",   value: "15:45" },
+    { label: "4:00 PM",   value: "16:00" },
+    { label: "4:15 PM",   value: "16:15" },
+    { label: "4:30 PM",   value: "16:30" },
+    { label: "4:45 PM",   value: "16:45" },
+    { label: "5:00 PM",   value: "17:00" },
   ];
 
   function localToUtc(dateStr, timeStr, tz) {
@@ -540,22 +590,45 @@
     return new Date(localDt.getTime() + (localDt - tzDate)).toISOString();
   }
 
-  function utcToLocalHour(utcStr, tz) {
+  function utcToLocalSlot(utcStr, tz) {
     const d = new Date(utcStr);
     const parts = new Intl.DateTimeFormat("en-US", {
-      timeZone: tz, hour: "numeric", hour12: false
+      timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false
     }).formatToParts(d);
-    return parseInt(parts.find(p => p.type === "hour").value, 10);
+    const hh = parts.find(p => p.type === "hour").value;
+    const mm = parts.find(p => p.type === "minute").value;
+    return `${hh.padStart(2,"0")}:${mm}`;
   }
 
   function detectTz() {
     try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return "America/New_York"; }
   }
 
-  function setDefaultDate(id) {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    document.getElementById(id).value = d.toISOString().split("T")[0];
+  // Add the next N business days (Mon-Sat, exclude Sunday) starting tomorrow.
+  function addBusinessDays(start, count) {
+    const result = [];
+    let d = new Date(start);
+    while (result.length < count) {
+      d.setDate(d.getDate() + 1);
+      if (d.getDay() !== 0) { // 0 = Sunday
+        result.push(new Date(d));
+      }
+    }
+    return result;
+  }
+
+  function fmtDate(d) {
+    return d.toISOString().split("T")[0];
+  }
+
+  function setDateBounds(id) {
+    const el = document.getElementById(id);
+    const allowed = addBusinessDays(new Date(), 3); // next 3 business days
+    const min = allowed[0];
+    const max = allowed[allowed.length - 1];
+    el.min = fmtDate(min);
+    el.max = fmtDate(max);
+    el.value = fmtDate(min);
   }
 
   function setDefaultTz(id) {
@@ -572,12 +645,20 @@
   }
 
   async function refreshAvailability(prefix) {
-    const date   = document.getElementById(`${prefix}-date`).value;
+    const dateEl = document.getElementById(`${prefix}-date`);
+    const date   = dateEl.value;
     const tz     = document.getElementById(`${prefix}-tz`).value;
     const timeEl = document.getElementById(`${prefix}-time`);
     const loader = document.getElementById(`${prefix}-avail-loading`);
 
     if (!date) { timeEl.innerHTML = '<option value="">Select a date first</option>'; return; }
+
+    // Block Sundays even if somehow selected
+    const dow = new Date(`${date}T12:00:00`).getDay();
+    if (dow === 0) {
+      timeEl.innerHTML = '<option value="" disabled selected>We\'re closed Sundays</option>';
+      return;
+    }
 
     loader.style.display = "block";
     timeEl.disabled = true;
@@ -594,15 +675,14 @@
 
       if (error) throw error;
 
-      const bookedHours = new Set((booked || []).map(a => utcToLocalHour(a.appointment_utc, tz)));
+      const bookedSlots = new Set((booked || []).map(a => utcToLocalSlot(a.appointment_utc, tz)));
       timeEl.innerHTML = "";
       let hasAvailable = false;
 
       for (const slot of ALL_SLOTS) {
-        const hour = parseInt(slot.value.split(":")[0], 10);
         const opt  = document.createElement("option");
         opt.value  = slot.value;
-        if (bookedHours.has(hour)) {
+        if (bookedSlots.has(slot.value)) {
           opt.textContent = `${slot.label} — Unavailable`;
           opt.disabled    = true;
         } else {
@@ -704,8 +784,8 @@
     }
   };
 
-  setDefaultDate("h-date"); setDefaultDate("c-date");
-  setDefaultTz("h-tz");     setDefaultTz("c-tz");
+  setDateBounds("h-date"); setDateBounds("c-date");
+  setDefaultTz("h-tz");    setDefaultTz("c-tz");
   refreshAvailability("h"); refreshAvailability("c");
 </script>
 </body>
