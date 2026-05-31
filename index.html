@@ -10,6 +10,7 @@
     :root {
       --navy: #0a1628; --navy2: #0f1f3d; --navy3: #162444;
       --blue: #2563eb; --blue-light: #3b82f6; --blue-glow: rgba(37,99,235,0.2);
+      --blue-circle: rgba(59,130,246,0.18); --blue-circle-border: rgba(59,130,246,0.55);
       --green: #16a34a; --text: #e2e8f0; --text-sub: #94a3b8; --text-dim: #64748b;
       --border: rgba(255,255,255,0.08); --white: #ffffff;
     }
@@ -40,27 +41,57 @@
     .trust-item { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--text-sub); font-weight: 500; }
     .trust-check { width: 18px; height: 18px; background: rgba(22,163,74,0.15); border: 1px solid rgba(22,163,74,0.3); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--green); flex-shrink: 0; }
 
-    .booking-card { background: var(--navy2); border: 1px solid rgba(59,130,246,0.2); border-radius: 16px; padding: 36px 32px; box-shadow: 0 0 60px rgba(37,99,235,0.12), 0 24px 48px rgba(0,0,0,0.4); }
+    .booking-card { background: var(--navy2); border: 1px solid rgba(59,130,246,0.2); border-radius: 16px; padding: 32px 28px; box-shadow: 0 0 60px rgba(37,99,235,0.12), 0 24px 48px rgba(0,0,0,0.4); }
     .card-headline { font-size: 18px; font-weight: 700; color: var(--white); margin-bottom: 6px; letter-spacing: -0.3px; }
-    .card-sub { font-size: 14px; color: var(--text-sub); margin-bottom: 24px; }
+    .card-sub { font-size: 14px; color: var(--text-sub); margin-bottom: 22px; }
+
+    .step-indicator { display: flex; align-items: center; gap: 6px; margin-bottom: 22px; }
+    .step-dot { flex: 1; height: 4px; border-radius: 4px; background: rgba(255,255,255,0.08); transition: background 0.3s; }
+    .step-dot.active { background: var(--blue); }
+    .step-dot.done { background: var(--green); }
+
+    .step-panel { display: none; }
+    .step-panel.active { display: block; }
+    .step-title { font-size: 13px; font-weight: 600; color: var(--text-sub); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 14px; }
+
+    .cal { }
+    .cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .cal-month { font-size: 15px; font-weight: 700; color: var(--white); }
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+    .cal-dow { text-align: center; font-size: 10px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; padding: 4px 0; }
+    .cal-day { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--text-dim); border-radius: 50%; border: 1px solid transparent; cursor: default; transition: all 0.15s; }
+    .cal-day.available { color: var(--white); background: var(--blue-circle); border-color: var(--blue-circle-border); cursor: pointer; font-weight: 600; }
+    .cal-day.available:hover { background: var(--blue); }
+    .cal-day.selected { background: var(--blue); color: var(--white); border-color: var(--blue); }
+    .cal-day.empty { cursor: default; }
+
+    .time-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; max-height: 240px; overflow-y: auto; padding-right: 4px; }
+    .time-slot { padding: 10px 6px; border-radius: 8px; border: 1px solid var(--border); background: rgba(255,255,255,0.04); color: var(--text); font-size: 13px; font-weight: 500; cursor: pointer; text-align: center; transition: all 0.15s; }
+    .time-slot:hover { border-color: var(--blue-light); }
+    .time-slot.selected { background: var(--blue); border-color: var(--blue); color: var(--white); }
+    .time-slot.taken { opacity: 0.35; cursor: not-allowed; text-decoration: line-through; }
+    .time-empty { font-size: 13px; color: var(--text-dim); padding: 14px 0; text-align: center; }
+
     .form-field { margin-bottom: 14px; }
     .form-field label { display: block; font-size: 11px; font-weight: 600; color: var(--text-sub); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
     .form-field input, .form-field select, .form-field textarea { width: 100%; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 8px; padding: 11px 13px; color: var(--white); font-family: 'Inter', sans-serif; font-size: 14px; outline: none; transition: border-color 0.2s, box-shadow 0.2s; }
     .form-field input:focus, .form-field select:focus, .form-field textarea:focus { border-color: var(--blue-light); box-shadow: 0 0 0 3px var(--blue-glow); }
     .form-field select option { background: #0f1f3d; }
-    .form-field select option:disabled { color: #4b5563; }
     .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     .btn-primary { width: 100%; background: var(--blue); color: var(--white); border: none; border-radius: 8px; padding: 14px; font-size: 15px; font-weight: 600; cursor: pointer; transition: background 0.2s, transform 0.1s; margin-top: 8px; }
     .btn-primary:hover { background: var(--blue-light); }
     .btn-primary:active { transform: scale(0.99); }
     .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
+    .btn-back { background: none; border: none; color: var(--text-sub); font-size: 13px; font-weight: 600; cursor: pointer; padding: 8px 0; margin-top: 6px; }
+    .btn-back:hover { color: var(--white); }
+    .selected-summary { font-size: 13px; color: var(--blue-light); font-weight: 600; margin-bottom: 14px; }
     .card-note { text-align: center; font-size: 12px; color: var(--text-dim); margin-top: 12px; }
     .card-note span { color: var(--green); }
     .success-state { display: none; text-align: center; padding: 24px 0; }
     .success-state h3 { font-size: 20px; font-weight: 700; color: var(--white); margin-bottom: 10px; }
     .success-state p { font-size: 14px; color: var(--text-sub); line-height: 1.65; }
     .success-icon-box { width: 52px; height: 52px; background: rgba(22,163,74,0.12); border: 1px solid rgba(22,163,74,0.25); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 18px; font-size: 20px; color: var(--green); }
-    .avail-loading { font-size: 12px; color: var(--blue-light); margin-top: 5px; display: none; }
+    .tz-row { margin-top: 10px; }
 
     .section { padding: 88px 32px; }
     .section-inner { max-width: 1140px; margin: 0 auto; }
@@ -118,10 +149,10 @@
     .btn-solid:hover { background: var(--blue-light); }
 
     .cta-section { background: var(--navy2); padding: 88px 32px; }
-    .cta-inner { max-width: 680px; margin: 0 auto; text-align: center; }
+    .cta-inner { max-width: 540px; margin: 0 auto; text-align: center; }
     .cta-inner h2 { margin-bottom: 14px; }
     .cta-inner > p { font-size: 17px; color: var(--text-sub); margin-bottom: 44px; line-height: 1.75; }
-    .cta-form { background: var(--navy); border: 1px solid rgba(59,130,246,0.15); border-radius: 16px; padding: 40px; text-align: left; }
+    .cta-form { background: var(--navy); border: 1px solid rgba(59,130,246,0.15); border-radius: 16px; padding: 32px 28px; text-align: left; }
 
     footer { padding: 32px; text-align: center; color: var(--text-dim); font-size: 13px; border-top: 1px solid var(--border); }
     footer a { color: var(--text-sub); text-decoration: none; }
@@ -158,6 +189,7 @@
       .cta-form { padding: 24px 20px; }
       .steps-grid { grid-template-columns: 1fr; }
       .stats-row { grid-template-columns: 1fr 1fr; }
+      .time-grid { grid-template-columns: repeat(2, 1fr); }
     }
   </style>
 </head>
@@ -194,44 +226,24 @@
     </div>
     <div>
       <div class="booking-card">
-        <div id="hero-form-wrap">
+        <div id="h-flow">
           <div class="card-headline">Book Your Free 30-Minute Call</div>
-          <div class="card-sub">We'll look at where your books stand and show you exactly what we'd fix.</div>
-          <form id="hero-form" onsubmit="handleHeroBook(event)">
-            <div class="form-field">
-              <label>Full Name <span style="color:#ef4444">*</span></label>
-              <input type="text" id="h-name" placeholder="Mike Johnson" required>
+          <div class="card-sub">Pick a time that works — we'll do the rest.</div>
+          <div class="step-indicator">
+            <div class="step-dot active" id="h-dot-1"></div>
+            <div class="step-dot" id="h-dot-2"></div>
+            <div class="step-dot" id="h-dot-3"></div>
+          </div>
+
+          <div class="step-panel active" id="h-panel-1">
+            <div class="step-title">Select a date</div>
+            <div class="cal">
+              <div class="cal-head"><div class="cal-month" id="h-cal-month"></div></div>
+              <div class="cal-grid" id="h-cal-grid"></div>
             </div>
-            <div class="form-field">
-              <label>Business Name <span style="color:#ef4444">*</span></label>
-              <input type="text" id="h-biz" placeholder="Johnson Roofing LLC" required>
-            </div>
-            <div class="form-row">
-              <div class="form-field">
-                <label>Phone <span style="color:#ef4444">*</span></label>
-                <input type="tel" id="h-phone" placeholder="(555) 000-0000" required>
-              </div>
-              <div class="form-field">
-                <label>Email <span style="color:#ef4444">*</span></label>
-                <input type="email" id="h-email" placeholder="mike@example.com" required>
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-field">
-                <label>Preferred Date <span style="color:#ef4444">*</span></label>
-                <input type="date" id="h-date" required onchange="refreshAvailability('h')">
-              </div>
-              <div class="form-field">
-                <label>Time <span style="color:#ef4444">*</span></label>
-                <select id="h-time" required>
-                  <option value="">Select a date first</option>
-                </select>
-                <div class="avail-loading" id="h-avail-loading">Checking availability...</div>
-              </div>
-            </div>
-            <div class="form-field">
-              <label>Timezone <span style="color:#ef4444">*</span></label>
-              <select id="h-tz" onchange="refreshAvailability('h')">
+            <div class="form-field tz-row">
+              <label>Timezone</label>
+              <select id="h-tz" onchange="HFLOW.tzChange()">
                 <option value="America/New_York">Eastern (ET)</option>
                 <option value="America/Chicago">Central (CT)</option>
                 <option value="America/Denver">Mountain (MT)</option>
@@ -240,11 +252,44 @@
                 <option value="Pacific/Honolulu">Hawaii (HT)</option>
               </select>
             </div>
-            <button type="submit" class="btn-primary" id="hero-btn">Book My Free Call</button>
-          </form>
+          </div>
+
+          <div class="step-panel" id="h-panel-2">
+            <div class="selected-summary" id="h-sum-date"></div>
+            <div class="step-title">Select a time</div>
+            <div class="time-grid" id="h-time-grid"></div>
+            <button class="btn-back" onclick="HFLOW.goto(1)">&larr; Back to dates</button>
+          </div>
+
+          <div class="step-panel" id="h-panel-3">
+            <div class="selected-summary" id="h-sum-full"></div>
+            <form id="h-form" onsubmit="HFLOW.submit(event)">
+              <div class="form-field">
+                <label>Full Name <span style="color:#ef4444">*</span></label>
+                <input type="text" id="h-name" placeholder="Mike Johnson" required>
+              </div>
+              <div class="form-field">
+                <label>Business Name <span style="color:#ef4444">*</span></label>
+                <input type="text" id="h-biz" placeholder="Johnson Roofing LLC" required>
+              </div>
+              <div class="form-row">
+                <div class="form-field">
+                  <label>Phone <span style="color:#ef4444">*</span></label>
+                  <input type="tel" id="h-phone" placeholder="(555) 000-0000" required>
+                </div>
+                <div class="form-field">
+                  <label>Email <span style="color:#ef4444">*</span></label>
+                  <input type="email" id="h-email" placeholder="mike@example.com" required>
+                </div>
+              </div>
+              <button type="submit" class="btn-primary" id="h-btn">Book My Free Call</button>
+            </form>
+            <button class="btn-back" onclick="HFLOW.goto(2)">&larr; Back to times</button>
+          </div>
+
           <p class="card-note"><span>&#10003;</span> No credit card required</p>
         </div>
-        <div class="success-state" id="hero-success">
+        <div class="success-state" id="h-success">
           <div class="success-icon-box">&#10003;</div>
           <h3>You're on the calendar</h3>
           <p>We'll send a confirmation to your email shortly.</p>
@@ -454,46 +499,24 @@
   <div class="cta-inner">
     <div class="section-label">Get Started</div>
     <h2>Book your<br><em>free discovery call</em></h2>
-    <p>30 minutes. We'll look at where your books stand, tell you exactly what's costing you, and show you what working together looks like. No obligation.</p>
+    <p>30 minutes. We'll look at where your books stand, tell you exactly what's costing you, and show you what working together looks like.</p>
     <div class="cta-form">
-      <div id="cta-form-wrap">
-        <form id="cta-form" onsubmit="handleCtaBook(event)">
-          <div class="form-row">
-            <div class="form-field">
-              <label>Full Name <span style="color:#ef4444">*</span></label>
-              <input type="text" id="c-name" placeholder="Mike Johnson" required>
-            </div>
-            <div class="form-field">
-              <label>Business Name <span style="color:#ef4444">*</span></label>
-              <input type="text" id="c-biz" placeholder="Johnson Roofing LLC" required>
-            </div>
+      <div id="c-flow">
+        <div class="step-indicator">
+          <div class="step-dot active" id="c-dot-1"></div>
+          <div class="step-dot" id="c-dot-2"></div>
+          <div class="step-dot" id="c-dot-3"></div>
+        </div>
+
+        <div class="step-panel active" id="c-panel-1">
+          <div class="step-title">Select a date</div>
+          <div class="cal">
+            <div class="cal-head"><div class="cal-month" id="c-cal-month"></div></div>
+            <div class="cal-grid" id="c-cal-grid"></div>
           </div>
-          <div class="form-row">
-            <div class="form-field">
-              <label>Phone <span style="color:#ef4444">*</span></label>
-              <input type="tel" id="c-phone" placeholder="(555) 000-0000" required>
-            </div>
-            <div class="form-field">
-              <label>Email <span style="color:#ef4444">*</span></label>
-              <input type="email" id="c-email" placeholder="mike@example.com" required>
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-field">
-              <label>Preferred Date <span style="color:#ef4444">*</span></label>
-              <input type="date" id="c-date" required onchange="refreshAvailability('c')">
-            </div>
-            <div class="form-field">
-              <label>Time <span style="color:#ef4444">*</span></label>
-              <select id="c-time" required>
-                <option value="">Select a date first</option>
-              </select>
-              <div class="avail-loading" id="c-avail-loading">Checking availability...</div>
-            </div>
-          </div>
-          <div class="form-field">
-            <label>Timezone <span style="color:#ef4444">*</span></label>
-            <select id="c-tz" onchange="refreshAvailability('c')">
+          <div class="form-field tz-row">
+            <label>Timezone</label>
+            <select id="c-tz" onchange="CFLOW.tzChange()">
               <option value="America/New_York">Eastern (ET)</option>
               <option value="America/Chicago">Central (CT)</option>
               <option value="America/Denver">Mountain (MT)</option>
@@ -502,17 +525,50 @@
               <option value="Pacific/Honolulu">Hawaii (HT)</option>
             </select>
           </div>
-          <div class="form-field">
-            <label>Anything we should know? (optional)</label>
-            <textarea id="c-notes" rows="3" placeholder="Current bookkeeping setup, revenue range, biggest pain point..."></textarea>
-          </div>
-          <button type="submit" class="btn-primary" id="cta-btn" style="padding:16px;font-size:15px;">
-            Book My Free Call
-          </button>
-        </form>
+        </div>
+
+        <div class="step-panel" id="c-panel-2">
+          <div class="selected-summary" id="c-sum-date"></div>
+          <div class="step-title">Select a time</div>
+          <div class="time-grid" id="c-time-grid"></div>
+          <button class="btn-back" onclick="CFLOW.goto(1)">&larr; Back to dates</button>
+        </div>
+
+        <div class="step-panel" id="c-panel-3">
+          <div class="selected-summary" id="c-sum-full"></div>
+          <form id="c-form" onsubmit="CFLOW.submit(event)">
+            <div class="form-row">
+              <div class="form-field">
+                <label>Full Name <span style="color:#ef4444">*</span></label>
+                <input type="text" id="c-name" placeholder="Mike Johnson" required>
+              </div>
+              <div class="form-field">
+                <label>Business Name <span style="color:#ef4444">*</span></label>
+                <input type="text" id="c-biz" placeholder="Johnson Roofing LLC" required>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-field">
+                <label>Phone <span style="color:#ef4444">*</span></label>
+                <input type="tel" id="c-phone" placeholder="(555) 000-0000" required>
+              </div>
+              <div class="form-field">
+                <label>Email <span style="color:#ef4444">*</span></label>
+                <input type="email" id="c-email" placeholder="mike@example.com" required>
+              </div>
+            </div>
+            <div class="form-field">
+              <label>Anything we should know? (optional)</label>
+              <textarea id="c-notes" rows="3" placeholder="Current bookkeeping setup, revenue range, biggest pain point..."></textarea>
+            </div>
+            <button type="submit" class="btn-primary" id="c-btn" style="padding:16px;font-size:15px;">Book My Free Call</button>
+          </form>
+          <button class="btn-back" onclick="CFLOW.goto(2)">&larr; Back to times</button>
+        </div>
+
         <p class="card-note" style="margin-top:14px;"><span>&#10003;</span> No credit card required. We'll confirm within 2 hours.</p>
       </div>
-      <div class="success-state" id="cta-success">
+      <div class="success-state" id="c-success">
         <div class="success-icon-box">&#10003;</div>
         <h3>You're on the calendar</h3>
         <p>Check your email for a confirmation. We'll be in touch within 2 hours to confirm your slot.</p>
@@ -548,245 +604,214 @@
 
   const WEBHOOK_URL = "https://hook.us1.make.com/e3av1w86ovv5w89fs3hwq50aln33oq3c";
 
-  const ALL_SLOTS = [
-    { label: "9:00 AM",   value: "09:00" },
-    { label: "9:15 AM",   value: "09:15" },
-    { label: "9:30 AM",   value: "09:30" },
-    { label: "9:45 AM",   value: "09:45" },
-    { label: "10:00 AM",  value: "10:00" },
-    { label: "10:15 AM",  value: "10:15" },
-    { label: "10:30 AM",  value: "10:30" },
-    { label: "10:45 AM",  value: "10:45" },
-    { label: "11:00 AM",  value: "11:00" },
-    { label: "11:15 AM",  value: "11:15" },
-    { label: "11:30 AM",  value: "11:30" },
-    { label: "11:45 AM",  value: "11:45" },
-    { label: "12:00 PM",  value: "12:00" },
-    { label: "12:15 PM",  value: "12:15" },
-    { label: "12:30 PM",  value: "12:30" },
-    { label: "12:45 PM",  value: "12:45" },
-    { label: "1:00 PM",   value: "13:00" },
-    { label: "1:15 PM",   value: "13:15" },
-    { label: "1:30 PM",   value: "13:30" },
-    { label: "1:45 PM",   value: "13:45" },
-    { label: "2:00 PM",   value: "14:00" },
-    { label: "2:15 PM",   value: "14:15" },
-    { label: "2:30 PM",   value: "14:30" },
-    { label: "2:45 PM",   value: "14:45" },
-    { label: "3:00 PM",   value: "15:00" },
-    { label: "3:15 PM",   value: "15:15" },
-    { label: "3:30 PM",   value: "15:30" },
-    { label: "3:45 PM",   value: "15:45" },
-    { label: "4:00 PM",   value: "16:00" },
-    { label: "4:15 PM",   value: "16:15" },
-    { label: "4:30 PM",   value: "16:30" },
-    { label: "4:45 PM",   value: "16:45" },
-    { label: "5:00 PM",   value: "17:00" },
-  ];
+  const ALL_SLOTS = [];
+  for (let h = 9; h <= 17; h++) {
+    for (let m = 0; m < 60; m += 15) {
+      if (h === 17 && m > 0) break;
+      const hh = String(h).padStart(2, "0");
+      const mm = String(m).padStart(2, "0");
+      const disp = ((h % 12) || 12) + ":" + mm + " " + (h < 12 ? "AM" : "PM");
+      ALL_SLOTS.push({ label: disp, value: `${hh}:${mm}` });
+    }
+  }
+
+  const DOW = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
   function localToUtc(dateStr, timeStr, tz) {
     const localDt = new Date(`${dateStr}T${timeStr}:00`);
     const tzDate  = new Date(localDt.toLocaleString("en-US", { timeZone: tz }));
     return new Date(localDt.getTime() + (localDt - tzDate)).toISOString();
   }
-
   function utcToLocalSlot(utcStr, tz) {
     const d = new Date(utcStr);
-    const parts = new Intl.DateTimeFormat("en-US", {
-      timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false
-    }).formatToParts(d);
+    const parts = new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(d);
     const hh = parts.find(p => p.type === "hour").value;
     const mm = parts.find(p => p.type === "minute").value;
     return `${hh.padStart(2,"0")}:${mm}`;
   }
-
-  function detectTz() {
-    try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return "America/New_York"; }
-  }
-
-  // Add the next N business days (Mon-Sat, exclude Sunday) starting tomorrow.
-  function addBusinessDays(start, count) {
-    const result = [];
-    let d = new Date(start);
-    while (result.length < count) {
-      d.setDate(d.getDate() + 1);
-      if (d.getDay() !== 0) { // 0 = Sunday
-        result.push(new Date(d));
-      }
-    }
-    return result;
-  }
-
+  function detectTz() { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return "America/New_York"; } }
   function fmtDate(d) {
-    return d.toISOString().split("T")[0];
+    return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
   }
-
-  function setDateBounds(id) {
-    const el = document.getElementById(id);
-    const allowed = addBusinessDays(new Date(), 3); // next 3 business days
-    const min = allowed[0];
-    const max = allowed[allowed.length - 1];
-    el.min = fmtDate(min);
-    el.max = fmtDate(max);
-    el.value = fmtDate(min);
-  }
-
-  function setDefaultTz(id) {
-    const tz  = detectTz();
-    const sel = document.getElementById(id);
-    for (const opt of sel.options) { if (opt.value === tz) { sel.value = tz; return; } }
-  }
-
   function showToast(msg, type = "success") {
     const t = document.getElementById("toast");
-    t.textContent = msg;
-    t.className = `toast ${type} show`;
+    t.textContent = msg; t.className = `toast ${type} show`;
     setTimeout(() => { t.className = "toast"; }, 4500);
   }
 
-  async function refreshAvailability(prefix) {
-    const dateEl = document.getElementById(`${prefix}-date`);
-    const date   = dateEl.value;
-    const tz     = document.getElementById(`${prefix}-tz`).value;
-    const timeEl = document.getElementById(`${prefix}-time`);
-    const loader = document.getElementById(`${prefix}-avail-loading`);
-
-    if (!date) { timeEl.innerHTML = '<option value="">Select a date first</option>'; return; }
-
-    // Block Sundays even if somehow selected
-    const dow = new Date(`${date}T12:00:00`).getDay();
-    if (dow === 0) {
-      timeEl.innerHTML = '<option value="" disabled selected>We\'re closed Sundays</option>';
-      return;
+  // Available days = today + next 3 business days (Saturday yes, Sunday no)
+  function availableDays() {
+    const days = [];
+    const today = new Date(); today.setHours(0,0,0,0);
+    if (today.getDay() !== 0) days.push(new Date(today));
+    let d = new Date(today);
+    while (days.length < 4) {
+      d.setDate(d.getDate() + 1);
+      if (d.getDay() !== 0) days.push(new Date(d));
     }
-
-    loader.style.display = "block";
-    timeEl.disabled = true;
-
-    try {
-      const dayStart = localToUtc(date, "00:00", tz);
-      const dayEnd   = localToUtc(date, "23:59", tz);
-
-      const { data: booked, error } = await supabase
-        .from("appointments")
-        .select("appointment_utc")
-        .gte("appointment_utc", dayStart)
-        .lte("appointment_utc", dayEnd);
-
-      if (error) throw error;
-
-      const bookedSlots = new Set((booked || []).map(a => utcToLocalSlot(a.appointment_utc, tz)));
-      timeEl.innerHTML = "";
-      let hasAvailable = false;
-
-      for (const slot of ALL_SLOTS) {
-        const opt  = document.createElement("option");
-        opt.value  = slot.value;
-        if (bookedSlots.has(slot.value)) {
-          opt.textContent = `${slot.label} — Unavailable`;
-          opt.disabled    = true;
-        } else {
-          opt.textContent = slot.label;
-          hasAvailable    = true;
-        }
-        timeEl.appendChild(opt);
-      }
-
-      if (!hasAvailable) {
-        timeEl.innerHTML = '<option value="" disabled selected>No availability on this date</option>';
-      } else {
-        const first = [...timeEl.options].find(o => !o.disabled);
-        if (first) first.selected = true;
-      }
-    } catch (err) {
-      console.error("Availability check failed:", err);
-      timeEl.innerHTML = ALL_SLOTS.map(s => `<option value="${s.value}">${s.label}</option>`).join("");
-    } finally {
-      loader.style.display = "none";
-      timeEl.disabled = false;
-    }
+    return days;
   }
 
   async function bookAppointment({ name, clientName, phone, email, date, time, tz, notes }) {
     const appointmentUtc = localToUtc(date, time, tz);
-    const payload = {
-      name,
-      client_name: clientName,
-      phone,
-      email,
-      notes: notes || null,
-      appointment_utc: appointmentUtc,
-      timezone: tz
-    };
-
+    const payload = { name, client_name: clientName, phone, email, notes: notes || null, appointment_utc: appointmentUtc, timezone: tz };
     const { data, error } = await supabase.from("appointments").insert([payload]).select();
     if (error) throw error;
-
     const apptId = data && data[0] ? data[0].id : null;
-    fetch(WEBHOOK_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "created", ...payload, appointment_id: apptId })
-    }).catch(err => console.warn("Webhook failed:", err));
-
+    fetch(WEBHOOK_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "created", ...payload, appointment_id: apptId }) }).catch(err => console.warn("Webhook failed:", err));
     return data;
   }
 
-  window.refreshAvailability = refreshAvailability;
+  function makeFlow(prefix) {
+    const allowed = availableDays();
+    const allowedSet = new Set(allowed.map(fmtDate));
+    const state = { date: null, time: null };
 
-  window.handleHeroBook = async function(e) {
-    e.preventDefault();
-    const btn = document.getElementById("hero-btn");
-    btn.disabled = true; btn.textContent = "Booking...";
-    try {
-      await bookAppointment({
-        name: `Discovery Call — ${document.getElementById("h-biz").value.trim()}`,
-        clientName: document.getElementById("h-name").value.trim(),
-        phone: document.getElementById("h-phone").value.trim(),
-        email: document.getElementById("h-email").value.trim(),
-        date: document.getElementById("h-date").value,
-        time: document.getElementById("h-time").value,
-        tz: document.getElementById("h-tz").value,
-        notes: ""
-      });
-      document.getElementById("hero-form-wrap").style.display = "none";
-      document.getElementById("hero-success").style.display = "block";
-      showToast("Booked. Check your email for confirmation.", "success");
-    } catch (err) {
-      console.error(err);
-      showToast("Something went wrong. Please try again.", "error");
-      btn.disabled = false; btn.textContent = "Book My Free Call";
+    function el(id) { return document.getElementById(`${prefix}-${id}`); }
+
+    function renderCal() {
+      const first = allowed[0];
+      el("cal-month").textContent = MONTHS[first.getMonth()] + " " + first.getFullYear();
+      const grid = el("cal-grid");
+      grid.innerHTML = "";
+      for (const d of DOW) {
+        const h = document.createElement("div"); h.className = "cal-dow"; h.textContent = d; grid.appendChild(h);
+      }
+      const monthStart = new Date(first.getFullYear(), first.getMonth(), 1);
+      const startPad = monthStart.getDay();
+      const daysInMonth = new Date(first.getFullYear(), first.getMonth()+1, 0).getDate();
+      for (let i = 0; i < startPad; i++) { const e = document.createElement("div"); e.className = "cal-day empty"; grid.appendChild(e); }
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dObj = new Date(first.getFullYear(), first.getMonth(), day);
+        const ds = fmtDate(dObj);
+        const cell = document.createElement("div");
+        cell.className = "cal-day";
+        cell.textContent = day;
+        if (allowedSet.has(ds)) {
+          cell.classList.add("available");
+          if (state.date === ds) cell.classList.add("selected");
+          cell.onclick = () => selectDate(ds, dObj);
+        }
+        grid.appendChild(cell);
+      }
+      // Some allowed days may spill into next month
+      const nextMonthDays = allowed.filter(a => a.getMonth() !== first.getMonth());
+      if (nextMonthDays.length) {
+        const nm = nextMonthDays[0];
+        for (let day = 1; day <= 31; day++) {
+          const dObj = new Date(nm.getFullYear(), nm.getMonth(), day);
+          if (dObj.getMonth() !== nm.getMonth()) break;
+          const ds = fmtDate(dObj);
+          if (allowedSet.has(ds)) {
+            const cell = document.createElement("div");
+            cell.className = "cal-day available";
+            cell.textContent = day + " (" + MONTHS[nm.getMonth()].slice(0,3) + ")";
+            cell.style.fontSize = "10px";
+            if (state.date === ds) cell.classList.add("selected");
+            cell.onclick = () => selectDate(ds, dObj);
+            grid.appendChild(cell);
+          }
+        }
+      }
     }
-  };
 
-  window.handleCtaBook = async function(e) {
-    e.preventDefault();
-    const btn = document.getElementById("cta-btn");
-    btn.disabled = true; btn.textContent = "Booking...";
-    try {
-      await bookAppointment({
-        name: `Discovery Call — ${document.getElementById("c-biz").value.trim()}`,
-        clientName: document.getElementById("c-name").value.trim(),
-        phone: document.getElementById("c-phone").value.trim(),
-        email: document.getElementById("c-email").value.trim(),
-        date: document.getElementById("c-date").value,
-        time: document.getElementById("c-time").value,
-        tz: document.getElementById("c-tz").value,
-        notes: document.getElementById("c-notes").value.trim()
-      });
-      document.getElementById("cta-form-wrap").style.display = "none";
-      document.getElementById("cta-success").style.display = "block";
-      showToast("Booked. We'll be in touch within 2 hours.", "success");
-    } catch (err) {
-      console.error(err);
-      showToast("Something went wrong. Please try again.", "error");
-      btn.disabled = false; btn.textContent = "Book My Free Call";
+    function prettyDate(ds) {
+      const d = new Date(`${ds}T12:00:00`);
+      return DOW[d.getDay()] + ", " + MONTHS[d.getMonth()] + " " + d.getDate();
     }
-  };
 
-  setDateBounds("h-date"); setDateBounds("c-date");
-  setDefaultTz("h-tz");    setDefaultTz("c-tz");
-  refreshAvailability("h"); refreshAvailability("c");
+    async function selectDate(ds, dObj) {
+      state.date = ds; state.time = null;
+      renderCal();
+      el("sum-date").textContent = prettyDate(ds);
+      goto(2);
+      await loadTimes(ds);
+    }
+
+    async function loadTimes(ds) {
+      const tz = el("tz").value;
+      const grid = el("time-grid");
+      grid.innerHTML = '<div class="time-empty">Checking availability...</div>';
+      let bookedSlots = new Set();
+      try {
+        const dayStart = localToUtc(ds, "00:00", tz);
+        const dayEnd   = localToUtc(ds, "23:59", tz);
+        const { data: booked, error } = await supabase.from("appointments").select("appointment_utc").gte("appointment_utc", dayStart).lte("appointment_utc", dayEnd);
+        if (error) throw error;
+        bookedSlots = new Set((booked || []).map(a => utcToLocalSlot(a.appointment_utc, tz)));
+      } catch (err) { console.error("Availability failed:", err); }
+      grid.innerHTML = "";
+      let any = false;
+      for (const slot of ALL_SLOTS) {
+        const b = document.createElement("div");
+        b.className = "time-slot";
+        b.textContent = slot.label;
+        if (bookedSlots.has(slot.value)) {
+          b.classList.add("taken");
+        } else {
+          any = true;
+          b.onclick = () => selectTime(slot);
+          if (state.time === slot.value) b.classList.add("selected");
+        }
+        grid.appendChild(b);
+      }
+      if (!any) grid.innerHTML = '<div class="time-empty">No availability on this date.</div>';
+    }
+
+    function selectTime(slot) {
+      state.time = slot.value;
+      el("sum-full").textContent = prettyDate(state.date) + " at " + slot.label + " (" + el("tz").value.split("/")[1].replace("_"," ") + ")";
+      goto(3);
+    }
+
+    function goto(step) {
+      for (let i = 1; i <= 3; i++) {
+        el("panel-"+i).classList.toggle("active", i === step);
+        const dot = el("dot-"+i);
+        dot.classList.toggle("active", i === step);
+        dot.classList.toggle("done", i < step);
+      }
+    }
+
+    function tzChange() { if (state.date) loadTimes(state.date); }
+
+    async function submit(e) {
+      e.preventDefault();
+      const btn = el("btn");
+      btn.disabled = true; btn.textContent = "Booking...";
+      try {
+        const notes = prefix === "c" ? (el("notes").value.trim()) : "";
+        await bookAppointment({
+          name: `Discovery Call — ${el("biz").value.trim()}`,
+          clientName: el("name").value.trim(),
+          phone: el("phone").value.trim(),
+          email: el("email").value.trim(),
+          date: state.date, time: state.time, tz: el("tz").value, notes
+        });
+        el("flow").style.display = "none";
+        el("success").style.display = "block";
+        showToast("Booked. Check your email for confirmation.", "success");
+      } catch (err) {
+        console.error(err);
+        showToast("Something went wrong. Please try again.", "error");
+        btn.disabled = false; btn.textContent = "Book My Free Call";
+      }
+    }
+
+    // set default tz
+    (function() {
+      const tz = detectTz();
+      const sel = el("tz");
+      for (const opt of sel.options) { if (opt.value === tz) { sel.value = tz; break; } }
+    })();
+
+    renderCal();
+    return { goto, tzChange, submit };
+  }
+
+  window.HFLOW = makeFlow("h");
+  window.CFLOW = makeFlow("c");
 </script>
 </body>
 </html>
