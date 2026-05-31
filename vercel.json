@@ -1,5 +1,3 @@
-
-
 {
   "rewrites": [
     { "source": "/document-creation", "destination": "/document-creation.html" },
@@ -15,4 +13,18 @@
     { "source": "/find-work", "destination": "/find-work.html" },
     { "source": "/crm", "destination": "/crm.html" },
     { "source": "/email-cleaner", "destination": "/email-cleaner.html" },
-    { "source": "
+    { "source": "/formatter", "destination": "/formatter.html" },
+    { "source": "/scraper-dashboard", "destination": "/scraper-dashboard.html" },
+    { "source": "/pricing", "destination": "/pricing.html" },
+    { "source": "/requisition", "destination": "/requisition.html" },
+    { "source": "/form-builder", "destination": "/form-builder.html" },
+    { "source": "/careers-template", "destination": "/careers-template.html" },
+    { "source": "/applications-template", "destination": "/applications-template.html" },
+    { "source": "/login", "destination": "/Login.html" },
+    { "source": "/email-dashboard", "destination": "/email-dashboard.html" },
+    { "source": "/about", "destination": "/about.html" },
+    { "source": "/terms", "destination": "/terms.html" },
+    { "source": "/privacy", "destination": "/privacy.html" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
