@@ -893,6 +893,27 @@ async function openSeqInboxModal(seqId, seqName) {
     </div>`, true);
 }
 
+
+async function saveSeq(id) {
+  const name = document.getElementById('sq-name').value.trim();
+  const description = document.getElementById('sq-desc').value.trim();
+  if (!name) { alert('Name required'); return; }
+  const send_time = document.getElementById('sq-time').value || null;
+  const checkedDays = Array.from(document.querySelectorAll('.sq-day.on')).map(el => el.dataset.day);
+  const send_days = checkedDays.length ? checkedDays.join(',') : null;
+  const same_thread = document.getElementById('sq-thread').checked;
+  const is_warmup = document.getElementById('sq-warmup').checked;
+  const min_interval_minutes = parseInt(document.getElementById('sq-minint').value) || 5;
+  const max_interval_minutes = parseInt(document.getElementById('sq-maxint').value) || 15;
+  const payload = { name, description, send_time, send_days, same_thread, is_warmup, min_interval_minutes, max_interval_minutes };
+  const { error } = id
+    ? await sb.from('sequences').update(payload).eq('id', id)
+    : await sb.from('sequences').insert({ ...payload, active: true });
+  if (error) { alert('Save failed: ' + error.message); console.error(error); return; }
+  closeModal();
+  renderSequences();
+}
+  
 function toggleSeqInboxRow(inboxId) {
   const checked = document.getElementById(`sqi-chk-${inboxId}`).checked;
   document.getElementById(`sqi-opts-${inboxId}`).style.display = checked ? '' : 'none';
