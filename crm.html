@@ -429,11 +429,14 @@ select.field-input:focus{border-color:#1a73e8;outline:none}
       </div>
       <div id="import-status" style="margin-top:12px;font-size:13px;color:#9aa0a6;line-height:1.6"></div>
     </div>
-    <div class="modal-footer">
+        <div class="modal-footer">
       <button class="btn btn-ghost" onclick="document.getElementById('import-modal').classList.remove('open')">Close</button>
+      <button class="btn btn-primary" id="import-submit-btn" onclick="submitImportedLeads()" style="display:none">📤 Submit Leads</button>
     </div>
   </div>
 </div>
+
+<!-- TAGS MANAGER MODAL -->
 
 <!-- TAGS MANAGER MODAL -->
 <div class="modal-backdrop" id="tags-modal">
@@ -593,6 +596,7 @@ let allLeads = [], filteredLeads = [], currentLead = null, currentTab = "info", 
 
 const TAG_COLORS = ['#1a73e8','#0f9d58','#d93025','#d97706','#7c3aed','#0891b2','#be185d','#0f766e','#92400e','#374151','#16a34a','#ea580c'];
 let allTags = [], leadTagsMap = {}, selectedNewTagColor = TAG_COLORS[0], importTagIds = [], newLeadTagIds = [];
+let parsedImportData = [];
 let todayActivity = { dials:0, talk_time_secs:0, connected:0, voicemail:0, no_answer:0, appointments:0 };
 let activityDbId = null, actSaveTimer = null;
 
@@ -982,11 +986,46 @@ async function submitLeads() {
   }
   showToast(`Submitted ${sent} lead${sent!==1?'s':''}${errors?` · ${errors} failed`:''}`, errors ? "error" : "success");
 }
+
+async function submitImportedLeads() {
+  if (!parsedImportData.length) { showToast("No parsed data — upload a CSV first", "error"); return; }
+  const btn = document.getElementById("import-submit-btn");
+  if (btn) { btn.disabled = true; btn.textContent = "Importing..."; }
+  await importCSV(null, parsedImportData);
+  parsedImportData = [];
+  if (btn) { btn.style.display = "none"; btn.disabled = false; btn.textContent = "📤 Submit Leads"; }
+}
     
 function openImportModal() { importTagIds=[]; document.getElementById("import-modal").classList.add("open"); document.getElementById("import-status").textContent=""; document.getElementById("csv-file-input").value=""; document.getElementById("import-tags-section").style.display="block"; renderImportTagPicker(); }
 function handleDrop(e) { e.preventDefault(); document.getElementById("drop-zone").classList.remove("drag-over"); const file=e.dataTransfer?.files?.[0]; if(file)processCSVFile(file); }
 function handleCSVFile(e) { const file=e.target.files?.[0]; if(file)processCSVFile(file); }
-function processCSVFile(file) { const reader=new FileReader(); reader.onload=e=>importCSV(e.target.result); reader.readAsText(file); }
+function processCSVFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => previewCSV(e.target.result);
+  reader.readAsText(file);
+}
+
+function previewCSV(text) {
+  const status = document.getElementById("import-status");
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  if (!lines.length) { status.textContent = "Empty file."; return; }
+  const firstCols = parseCSVLine(lines[0]);
+  const firstLower = firstCols[0].toLowerCase();
+  const hasHeader = firstLower==="title"||firstLower==="business"||firstLower==="business_name"||firstLower==="name";
+  const format = hasHeader ? detectColumns(firstCols) : "new";
+  const dataLines = hasHeader ? lines.slice(1) : lines;
+  parsedImportData = [];
+  for (const line of dataLines) {
+    if (!line.trim()) continue;
+    const cols = parseCSVLine(line);
+    const row = parseRow(cols, format);
+    if (!row.business_name) continue;
+    parsedImportData.push(row);
+  }
+  if (!parsedImportData.length) { status.textContent = "No valid rows found."; return; }
+  status.innerHTML = `✅ Parsed <strong style="color:#e8eaed">${parsedImportData.length} rows</strong>. Select tags above then click <strong style="color:#1a73e8">Submit Leads</strong>.`;
+  document.getElementById("import-submit-btn").style.display = "inline-flex";
+}
 
 function parseCSVLine(line) {
   const result=[]; let cur="", inQ=false;
@@ -1010,20 +1049,21 @@ function parseRow(cols, format) {
   return{business_name:cols[0]||null,rating:parseFloat(cols[1])||null,reviews:parseInt(cols[2])||null,industry:cols[3]||"Car detailing service",phone:cols[4]||null,notes:cols[5]||null,dispo:validDispo||"new",follow_up_date:parseDate(cols[7]),contact_name:cols[8]||null,email:cols[9]||null,last_called_date:parseDate(cols[10]),appointment_date:parseDate(cols[11]),address:cols[12]||null,website:cols[13]||null,city:cols[14]||null,state:cols[15]||null,county:cols[16]||null};
 }
 
-async function importCSV(text) {
-  const importStartTime=new Date().toISOString();
+async function importCSV(text, preparsed) {
   const status=document.getElementById("import-status");
-  status.innerHTML="Parsing CSV...";
-  const lines=text.split(/\r?\n/).filter(l=>l.trim());
-  if(!lines.length){status.textContent="Empty file.";return;}
-  const firstCols=parseCSVLine(lines[0]);
-  const firstLower=firstCols[0].toLowerCase();
-  const hasHeader=firstLower==="title"||firstLower==="business"||firstLower==="business_name"||firstLower==="name";
-  const format=hasHeader?detectColumns(firstCols):"new";
-  const dataLines=hasHeader?lines.slice(1):lines;
-  const parsed=[];
-  for(const line of dataLines){if(!line.trim())continue;const cols=parseCSVLine(line);const row=parseRow(cols,format);if(!row.business_name)continue;parsed.push(row);}
-  if(!parsed.length){status.textContent="No valid rows found.";return;}
+  status.innerHTML="Importing...";
+  const parsed = preparsed || [];
+  if (!preparsed) {
+    const lines=text.split(/\r?\n/).filter(l=>l.trim());
+    if(!lines.length){status.textContent="Empty file.";return;}
+    const firstCols=parseCSVLine(lines[0]);
+    const firstLower=firstCols[0].toLowerCase();
+    const hasHeader=firstLower==="title"||firstLower==="business"||firstLower==="business_name"||firstLower==="name";
+    const format=hasHeader?detectColumns(firstCols):"new";
+    const dataLines=hasHeader?lines.slice(1):lines;
+    for(const line of dataLines){if(!line.trim())continue;const cols=parseCSVLine(line);const row=parseRow(cols,format);if(!row.business_name)continue;parsed.push(row);}
+    if(!parsed.length){status.textContent="No valid rows found.";return;}
+  }
   status.innerHTML=`Found ${parsed.length} rows. Checking for existing records...`;
   const existingByPhone={};let page=0;const PAGE_SIZE=1000;
   while(true){const res=await fetch(db(`crm_leads?select=id,phone&limit=${PAGE_SIZE}&offset=${page*PAGE_SIZE}`),{headers:hdr()});if(!res.ok)break;const batch=await res.json();if(!batch.length)break;batch.forEach(l=>{const n=normalizePhone(l.phone);if(n.length>=7)existingByPhone[n]=l.id;});if(batch.length<PAGE_SIZE)break;page++;}
