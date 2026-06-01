@@ -1,0 +1,148 @@
+<style>
+.full-photo-hero {
+  position: relative;
+  width: 100%;
+}
+
+.full-photo-hero img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+  .full-photo-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    75deg,
+    rgba(2, 6, 23, 0.9) 0%,
+    rgba(2, 6, 23, 0.6) 40%,
+    rgba(2, 6, 23, 0) 100%
+  );
+  z-index: 1;
+}
+
+/* CONTENT BOX — shifted left */
+.hero-content {
+  position: absolute;
+  z-index: 2; /* stays above overlay */
+  top: 50%;
+  left: 7%;
+  transform: translate(0, -50%);
+  text-align: left;
+  color: #fff;
+  font-family: Inter, sans-serif;
+  width: 70vw;
+}
+
+/* TITLE */
+.hero-title {
+  font-size: 3vw;
+  font-weight: 200;
+  line-height: 1.1;
+  margin-bottom: 2vw;
+}
+
+/* BUTTONS — smaller */
+.hero-buttons {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1.2vw;
+  margin-bottom: 2vw;
+}
+
+.hero-buttons a {
+  display: inline-block;
+
+  padding: 0.7vw 1.2vw;
+  font-size: 1.7vw;
+
+  border-radius: 0.6vw;
+  font-weight: 200;
+  text-decoration: none;
+  text-align: center;
+  color: #fff;
+
+  width: max-content;
+  min-width: 22vw; /* ⬅️ key: keeps fluid scaling */
+}
+
+  /* PRIMARY (BLUE) */
+.btn-primary {
+  background: #2563eb;
+  color: #fff;
+  box-shadow: 0 10px 25px rgba(37, 99, 235, 0.25);
+}
+
+.btn-primary:hover {
+  background: #1d4ed8;
+  transform: translateY(-3px) scale(1.02);
+}
+
+/* SECONDARY (GLASS) */
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.08);
+  border: 0.12vw solid rgba(255, 255, 255, 0.15);
+  color: #fff;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-3px) scale(1.02);
+}
+
+/* SUBTEXT — FIXED SPACING */
+.hero-subtext {
+  font-size: 1.8vw;
+  opacity: 0.9;
+  margin-top: 2.3vw;      /* ⬆️ increased to add space */
+  line-height: 1.45;      /* ⬆️ prevents overlap between the 2 lines */
+}
+
+  .c2-hero-label {
+  font-size: clamp(10px, 0.8vw, 13px);
+  font-weight: 200;
+  text-transform: uppercase;
+  letter-spacing: 0.5em;
+  color: #3b82f6;
+  margin-bottom: 12px;
+  display: block;
+}
+</style>
+
+
+<div class="full-photo-hero">
+
+  <img src="https://rfdvogakvyodixgpvqvz.supabase.co/storage/v1/object/public/ai-images/Connexion%20Two%20Staffing%20Picture.jpg">
+
+  <div class="hero-content">
+
+
+    
+    <div class="hero-title">
+      Need A Job?
+    </div>
+
+    <div class="hero-buttons">
+      <a href="/find-work" class="btn-primary">Click Me!</a>
+
+      <div class="hero-title">
+      Hiring Someone?
+    </div>
+
+      <a href="/for-employers"
+         class="btn-secondary"
+         target="_blank">
+        Click Here!
+      </a>
+    </div>
+
+   
+
+  </div>
+
+</div>
