@@ -1214,23 +1214,7 @@ function openSeqModal(id, name, desc, seqTime, seqDays, sameThread, isWarmup, mi
     </div>`);
 }
 
-async function saveSeq(id) {
-  const name = document.getElementById('sq-name').value.trim();
-  const description = document.getElementById('sq-desc').value.trim();
-  if (!name) { alert('Name required'); return; }
-  const send_time = document.getElementById('sq-time').value || null;
-  const checkedDays = Array.from(document.querySelectorAll('.sq-day.on')).map(el => el.dataset.day);
-  const send_days = checkedDays.length ? checkedDays.join(',') : null;
-  const same_thread = document.getElementById('sq-thread').checked;
-  const is_warmup = document.getElementById('sq-warmup').checked;
-  const min_interval_minutes = parseInt(document.getElementById('sq-minint').value) || 5;
-  const max_interval_minutes = parseInt(document.getElementById('sq-maxint').value) || 15;
-  const payload = { name, description, send_time, send_days, same_thread, is_warmup, min_interval_minutes, max_interval_minutes };
-  if (id) await sb.from('sequences').update(payload).eq('id', id);
-  else await sb.from('sequences').insert({ ...payload, active: true });
-  closeModal();
-  renderSequences();
-}
+
 
 async function saveSeq(id) {
   const name = document.getElementById('sq-name').value.trim();
@@ -1844,8 +1828,91 @@ async function deleteCopy(id) {
   await sb.from('templates').delete().eq('id', id);
   renderCopy();
 }
+
+  // ── SMTP Valid Import ────────────────────────────────────────────────────────
+const LM_IMPORT_URL = 'https://xbwuvaxtnylqvagdvpxp.supabase.co';
+const LM_IMPORT_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhid3V2YXh0bnlscXZhZ2R2cHhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3Njk1NjMsImV4cCI6MjA5NDM0NTU2M30.WnCOew6w9HtQ2eAM1vpSJCb_AjAvv9x7Mev-k2IxSpc';
+
+async function openImportValidModal() {
+  const { data: lists } = await sb.from('lists').select('id,name').order('name');
+  showModal(`
+    <h2>Import SMTP Valid Contacts</h2>
+    <p style="font-size:14px;color:var(--gray);margin-bottom:16px">Pulls all contacts where <strong>smtp_valid = true</strong> from the SMTP checker and adds them to a list as subscribers. Duplicates are skipped.</p>
+    <div class="form-group">
+      <label>Add to List</label>
+      <select id="imp-list">
+        <option value="">Select a list…</option>
+        <option value="__new__">+ Create new list…</option>
+        ${(lists||[]).map(l=>`<option value="${l.id}">${esc(l.name)}</option>`).join('')}
+      </select>
+    </div>
+    <div id="imp-newlist-wrap" style="display:none">
+      <div class="form-group"><label>New List Name</label><input id="imp-newlist-name" placeholder="e.g. SMTP Verified June 2026"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="imp-btn" onclick="doImportValid()">Import</button>
+    </div>`);
+  document.getElementById('imp-list').addEventListener('change', function() {
+    document.getElementById('imp-newlist-wrap').style.display = this.value === '__new__' ? '' : 'none';
+  });
+}
+
+async function doImportValid() {
+  const listSel = document.getElementById('imp-list').value;
+  if (!listSel) { alert('Select a list'); return; }
+  const btn = document.getElementById('imp-btn');
+  btn.disabled = true; btn.textContent = 'Importing…';
+
+  try {
+    let listId = listSel;
+    if (listSel === '__new__') {
+      const newName = (document.getElementById('imp-newlist-name').value || '').trim();
+      if (!newName) { alert('Enter a name for the new list'); btn.disabled=false; btn.textContent='Import'; return; }
+      const { data: nl, error: nle } = await sb.from('lists').insert({ name: newName, description: 'Auto-imported from SMTP checker' }).select('id').single();
+      if (nle) throw nle;
+      listId = nl.id;
+    }
+
+    let allContacts = [], from = 0, pageSize = 1000, done = false;
+    while (!done) {
+      const res = await fetch(
+        `${LM_IMPORT_URL}/rest/v1/email_contacts?smtp_valid=eq.true&smtp_checked=eq.true&select=email,first_name,last_name&order=id.asc&offset=${from}&limit=${pageSize}`,
+        { headers: { apikey: LM_IMPORT_KEY, Authorization: 'Bearer ' + LM_IMPORT_KEY } }
+      );
+      if (!res.ok) throw new Error('Fetch failed: ' + res.status);
+      const page = await res.json();
+      allContacts = allContacts.concat(page);
+      if (page.length < pageSize) done = true;
+      else from += pageSize;
+    }
+
+    if (!allContacts.length) { alert('No SMTP-valid contacts found yet. Run the checker first.'); btn.disabled=false; btn.textContent='Import'; return; }
+
+    const rows = allContacts.map(c => ({
+      list_id: listId,
+      email: c.email,
+      name: [c.first_name, c.last_name].filter(Boolean).join(' ') || null,
+      company: null,
+    }));
+
+    for (let i = 0; i < rows.length; i += 500) {
+      const { error } = await sb.from('list_members').upsert(rows.slice(i, i+500), { onConflict: 'list_id,email', ignoreDuplicates: true });
+      if (error) throw error;
+    }
+
+    closeModal();
+    alert(`Imported ${rows.length} SMTP-valid contacts into the list.`);
+    renderLists();
+  } catch(e) {
+    alert('Error: ' + (e.message || e));
+    btn.disabled = false; btn.textContent = 'Import';
+  }
+}
+// ────────────────────────────────────────────────────────────────────────────
+  
   async function renderLists() {
-  document.getElementById('topbar-actions').innerHTML = `<button class="btn btn-primary" onclick="openListModal()">+ New List</button>`;
+  document.getElementById('topbar-actions').innerHTML = `     <button class="btn btn-secondary" style="margin-right:8px" onclick="openImportValidModal()">⬇ Import SMTP Valid</button>     <button class="btn btn-primary" onclick="openListModal()">+ New List</button>`;
   const [{ data: lists }, { data: allMembers }] = await Promise.all([
     sb.from('lists').select('*').order('created_at', { ascending: false }),
     sb.from('list_members').select('list_id'),
