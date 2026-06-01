@@ -248,8 +248,9 @@ select.field-input:focus{border-color:#1a73e8;outline:none}
     </button>
     <button class="btn btn-outline btn-sm" onclick="openImportModal()">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-      Import CSV
+       Import CSV
     </button>
+    <button class="btn btn-outline btn-sm" onclick="submitLeads()">📤 Submit Leads</button>
     <button class="btn btn-primary btn-sm" onclick="openAddModal()">+ Add Lead</button>
   </div>
 </nav>
@@ -964,6 +965,24 @@ async function sendEmail() {
   } catch(e){showToast("Email send failed","error");}
 }
 
+async function submitLeads() {
+  const leads = filteredLeads;
+  if (!leads.length) { showToast("No leads in current filter", "error"); return; }
+  if (!confirm(`Submit ${leads.length} lead${leads.length!==1?'s':''} to GoHighLevel?`)) return;
+  let sent = 0, errors = 0;
+  for (const lead of leads) {
+    try {
+      const res = await fetch(GHL_WEBHOOK, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: lead.phone, business_name: lead.business_name, contact_name: lead.contact_name, email: lead.email, city: lead.city, state: lead.state, dispo: lead.dispo })
+      });
+      if (!res.ok) throw new Error();
+      sent++;
+    } catch { errors++; }
+  }
+  showToast(`Submitted ${sent} lead${sent!==1?'s':''}${errors?` · ${errors} failed`:''}`, errors ? "error" : "success");
+}
+    
 function openImportModal() { importTagIds=[]; document.getElementById("import-modal").classList.add("open"); document.getElementById("import-status").textContent=""; document.getElementById("csv-file-input").value=""; document.getElementById("import-tags-section").style.display="block"; renderImportTagPicker(); }
 function handleDrop(e) { e.preventDefault(); document.getElementById("drop-zone").classList.remove("drag-over"); const file=e.dataTransfer?.files?.[0]; if(file)processCSVFile(file); }
 function handleCSVFile(e) { const file=e.target.files?.[0]; if(file)processCSVFile(file); }
@@ -1012,11 +1031,12 @@ async function importCSV(text) {
   let inserted=0,updated=0,skipped=0,errors=0;const toInsert=[],toUpdate=[];
   for(const row of parsed){const nPhone=normalizePhone(row.phone);const existingId=nPhone.length>=7?existingByPhone[nPhone]:null;if(existingId){const patch={};let changed=false;for(const f of fillable){if(row[f]!=null&&row[f]!==""){patch[f]=row[f];changed=true;}}if(changed)toUpdate.push({id:existingId,patch});else skipped++;}else{toInsert.push({...row,source:"csv_import"});}}
   status.innerHTML=`${toInsert.length} new · ${toUpdate.length} to update · ${skipped} skipped<br>Inserting...`;
-  const BATCH=50;
-  for(let i=0;i<toInsert.length;i+=BATCH){const batch=toInsert.slice(i,i+BATCH);try{const res=await fetch(db("crm_leads"),{method:"POST",headers:{...hdr(),"Prefer":"return=minimal"},body:JSON.stringify(batch)});if(!res.ok){const errText=await res.text().catch(()=>'');console.error('Insert error:',res.status,errText);errors+=batch.length;}else{inserted+=batch.length;}}catch(e){console.error('Insert exception:',e);errors+=batch.length;}status.innerHTML=`Inserted ${inserted}/${toInsert.length} new · ${toUpdate.length} to update...`;}
+    const BATCH=50;
+  const insertedIds=[];
+  for(let i=0;i<toInsert.length;i+=BATCH){const batch=toInsert.slice(i,i+BATCH);try{const res=await fetch(db("crm_leads"),{method:"POST",headers:{...hdr(),"Prefer":"return=representation"},body:JSON.stringify(batch)});if(!res.ok){const errText=await res.text().catch(()=>'');console.error('Insert error:',res.status,errText);errors+=batch.length;}else{const saved=await res.json();saved.forEach(l=>insertedIds.push(l.id));inserted+=batch.length;}}catch(e){console.error('Insert exception:',e);errors+=batch.length;}status.innerHTML=`Inserted ${inserted}/${toInsert.length} new · ${toUpdate.length} to update...`;}
   const PARALLEL=15;
   for(let i=0;i<toUpdate.length;i+=PARALLEL){const chunk=toUpdate.slice(i,i+PARALLEL);const results=await Promise.allSettled(chunk.map(({id,patch})=>fetch(db(`crm_leads?id=eq.${id}`),{method:"PATCH",headers:{...hdr(),"Prefer":"return=minimal"},body:JSON.stringify(patch)})));results.forEach(r=>{if(r.status==="fulfilled"&&r.value.ok)updated++;else errors++;});status.innerHTML=`Inserted ${inserted} new · Updated ${updated}/${toUpdate.length}...`;}
-  if(importTagIds.length&&inserted>0){try{const newLeadsRes=await fetch(db(`crm_leads?created_at=gte.${encodeURIComponent(importStartTime)}&source=eq.csv_import&select=id`),{headers:hdr()});if(newLeadsRes.ok){const newLeads=await newLeadsRes.json();const ltRows=[];newLeads.forEach(nl=>importTagIds.forEach(tid=>ltRows.push({lead_id:nl.id,tag_id:tid})));if(ltRows.length){await fetch(db("crm_lead_tags"),{method:"POST",headers:{...hdr(),"Prefer":"return=minimal","on-conflict":"lead_id,tag_id"},body:JSON.stringify(ltRows)});}}}catch(e){console.error('Tag apply error:',e);}}
+  if(importTagIds.length&&insertedIds.length){try{const ltRows=[];insertedIds.forEach(lid=>importTagIds.forEach(tid=>ltRows.push({lead_id:lid,tag_id:tid})));if(ltRows.length){const tagRes=await fetch(db("crm_lead_tags"),{method:"POST",headers:{...hdr(),"Prefer":"return=minimal"},body:JSON.stringify(ltRows)});if(!tagRes.ok){console.error('Tag apply error:',await tagRes.text());}else{insertedIds.forEach(lid=>{if(!leadTagsMap[lid])leadTagsMap[lid]=[];importTagIds.forEach(tid=>{if(!leadTagsMap[lid].includes(tid))leadTagsMap[lid].push(tid);});});}}}catch(e){console.error('Tag apply error:',e);}}
   const parts=[];if(inserted)parts.push(`✅ ${inserted} inserted`);if(updated)parts.push(`🔄 ${updated} updated`);if(skipped)parts.push(`⏭ ${skipped} skipped`);if(errors)parts.push(`❌ ${errors} errors`);
   status.innerHTML=parts.join(" &nbsp;·&nbsp; "); await loadLeads();
 }
