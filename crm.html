@@ -712,9 +712,9 @@ function renderTable() {
     const loc=[l.city,l.state].filter(Boolean).join(", ")||"—";
     const sel=currentLead?.id===l.id?"selected":"";
     const tagChips=(leadTagsMap[l.id]||[]).map(tid=>{const tag=allTags.find(t=>t.id===tid);return tag?`<span class="tag-chip" style="background:${tag.color}">${esc(tag.name)}</span>`:''}).join('');
-    return `<tr class="${sel}" onclick="openLead('${l.id}')"><td style="font-weight:500;white-space:normal">${esc(l.business_name)}${tagChips?`<div class="tag-chips-row">${tagChips}</div>`:''}</td><td>${esc(l.contact_name||"—")}</td><td><a class="phone-link" href="tel:${esc(l.phone)}" onclick="event.stopPropagation()">${esc(l.phone||"—")}</a></td><td>${esc(loc)}</td><td><span class="rating-stars">${stars}</span></td><td><span class="dispo-badge" style="background:${d.color}">${d.label}</span></td><td style="color:#9aa0a6;font-size:12px">${l.updated_at?new Date(l.updated_at).toLocaleDateString():"—"}</td></tr>`;
+        return `<tr class="${sel}" onclick="openLead('${l.id}')"><td style="font-weight:500;white-space:normal">${esc(l.business_name)}${tagChips?`<div class="tag-chips-row">${tagChips}</div>`:''}</td><td>${esc(l.contact_name||"—")}</td><td>${l.email?`<a class="phone-link" href="mailto:${esc(l.email)}" onclick="event.stopPropagation()">${esc(l.email)}</a>`:'<span style="color:#5f6368">—</span>'}</td><td><a class="phone-link" href="tel:${esc(l.phone)}" onclick="event.stopPropagation()">${esc(l.phone||"—")}</a></td><td>${esc(loc)}</td><td><span class="rating-stars">${stars}</span></td><td><span class="dispo-badge" style="background:${d.color}">${d.label}</span></td><td style="color:#9aa0a6;font-size:12px">${l.updated_at?new Date(l.updated_at).toLocaleDateString():"—"}</td></tr>`;
   }).join("");
-  area.innerHTML=`<table><thead><tr><th>Business</th><th>Contact</th><th>Phone</th><th>Location</th><th>Rating</th><th>Dispo</th><th>Updated</th></tr></thead><tbody>${rows}</tbody></table>`;
+  area.innerHTML=`<table><thead><tr><th>Business</th><th>Contact</th><th>Email</th><th>Phone</th><th>Location</th><th>Rating</th><th>Dispo</th><th>Updated</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 async function openLead(id) {
@@ -1739,7 +1739,7 @@ function _checkerRecord(lead) {
 
 // Push every lead that has an email
 async function pushAllToChecker() {
-  const withEmail = allLeads.filter(l => l.email && l.email.trim());
+  const withEmail = allLeads.filter(l => l.email && l.email.includes('@') && l.email.trim());
   if (!withEmail.length) { showToast("No leads with emails to push","info"); return; }
   if (!confirm(`Push ${withEmail.length} email${withEmail.length!==1?'s':''} (with tags) to the SMTP checker?`)) return;
   const BATCH = 50; let pushed=0, skipped=0, errors=0;
@@ -1776,7 +1776,7 @@ function exportEmailsCSV() {
 
 // Fire-and-forget single push (used automatically on "Email Sent")
 function _autoPushToChecker(lead) {
-  if (!lead || !lead.email || !lead.email.trim()) return;
+  if (!lead || !lead.email || !lead.email.includes('@') || !lead.email.trim()) return;
   fetch(`${LM_URL}/rest/v1/email_contacts?on_conflict=email`, { method:'POST', headers:lmHdr({ Prefer:'resolution=ignore-duplicates,return=minimal' }), body:JSON.stringify([_checkerRecord(lead)]) })
     .then(()=>showToast("Email added to SMTP checker","success"))
     .catch(()=>{});
