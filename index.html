@@ -148,6 +148,22 @@
     .btn-solid { width: 100%; background: var(--blue); color: var(--white); border: 1px solid var(--blue); border-radius: 8px; padding: 12px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; text-decoration: none; display: block; text-align: center; }
     .btn-solid:hover { background: var(--blue-light); }
 
+
+    .founder-grid { display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 28px; align-items: stretch; }
+    .founder-card { background: var(--navy2); border: 1px solid var(--border); border-radius: 16px; padding: 32px 28px; }
+    .founder-card h3 { font-size: 20px; font-weight: 800; color: var(--white); margin-bottom: 12px; letter-spacing: -0.4px; }
+    .founder-card p { font-size: 15px; color: var(--text-sub); line-height: 1.75; }
+    .proof-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+    .proof-card { background: var(--navy2); border: 1px solid var(--border); border-radius: 14px; padding: 24px 22px; }
+    .proof-card h3 { font-size: 16px; font-weight: 700; color: var(--white); margin-bottom: 10px; }
+    .proof-card p { font-size: 14px; color: var(--text-sub); line-height: 1.7; }
+    .risk-box { background: linear-gradient(135deg, rgba(37,99,235,0.18), rgba(15,31,61,0.9)); border: 1px solid rgba(59,130,246,0.25); border-radius: 16px; padding: 34px 28px; display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: center; }
+    .risk-box h3 { font-size: 22px; font-weight: 900; color: var(--white); letter-spacing: -0.5px; margin-bottom: 10px; }
+    .risk-box p { font-size: 15px; color: var(--text-sub); line-height: 1.75; }
+    .risk-list { list-style: none; display: flex; flex-direction: column; gap: 11px; }
+    .risk-list li { font-size: 14px; color: var(--text-sub); display: flex; align-items: flex-start; gap: 10px; }
+    .risk-list li::before { content: "✓"; color: var(--green); font-weight: 800; flex-shrink: 0; }
+
     .cta-section { background: var(--navy2); padding: 88px 32px; }
     .cta-inner { max-width: 540px; margin: 0 auto; text-align: center; }
     .cta-inner h2 { margin-bottom: 14px; }
@@ -172,6 +188,9 @@
       .stats-row { grid-template-columns: repeat(2, 1fr); }
       .services-grid { grid-template-columns: 1fr; }
       .pricing-grid { grid-template-columns: 1fr; }
+      .founder-grid { grid-template-columns: 1fr; }
+      .proof-grid { grid-template-columns: 1fr; }
+      .risk-box { grid-template-columns: 1fr; }
       .hamburger { display: flex; }
       .nav-links { display: none; position: absolute; top: 68px; left: 0; right: 0; flex-direction: column; align-items: stretch; gap: 0; background: rgba(10,22,40,0.98); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 8px 0; }
       .nav-links.open { display: flex; }
@@ -325,8 +344,8 @@
   <div class="hero">
     <div>
       <div class="hero-label">Bookkeeping for Contractors & Trades</div>
-      <h1>GET CLEAN BOOKS<br>WITH OUT<em> DOING IT ALONE USING A BOOK KEEPER</em></h1>
-      <p class="hero-sub">Most contractors are too busy running jobs to know if they're actually profitable. We change that with clean, accurate books delivered every month for a flat fee agreed on day one.</p>
+      <h1>GET CLEAN BOOKS<br>WITHOUT<em> DOING IT ALONE</em></h1>
+      <p class="hero-sub">Monthly bookkeeping for contractors and trades who want tax ready books, cleaner job cost tracking, and a flat monthly rate agreed on day one.</p>
       <div class="hero-trust">
         <div class="trust-item"><div class="trust-check">&#10003;</div> No long-term contracts</div>
         <div class="trust-item"><div class="trust-check">&#10003;</div> Onboarding complete within 48 hours</div>
@@ -403,6 +422,26 @@
           <h3>You're on the calendar</h3>
           <p>We'll send a confirmation to your email shortly.</p>
         </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section class="section" id="founder">
+  <div class="section-inner">
+    <div class="section-label">Founder Trust</div>
+    <h2>BOOKKEEPING BUILT FOR<br><em>CONTRACTORS</em></h2>
+    <p class="section-desc">You do not need another software dashboard or a bookkeeper who does not understand how trades businesses actually operate.</p>
+    <div class="founder-grid">
+      <div class="founder-card">
+        <h3>Built for contractors who do not want to live inside QuickBooks</h3>
+        <p>Blu Balences helps contractors get clean monthly books without doing it alone. We focus on simple communication, flat pricing, and keeping your numbers ready for your CPA.</p>
+      </div>
+      <div class="founder-card">
+        <h3>Clear numbers, simple communication, no guessing</h3>
+        <p>Our goal is to help you understand what came in, what went out, what jobs made money, and what needs to be cleaned up before tax season becomes a problem.</p>
       </div>
     </div>
   </div>
@@ -502,10 +541,38 @@
 
 <div class="divider"></div>
 
+<section class="section" id="proof" style="background: var(--navy2);">
+  <div class="section-inner">
+    <div class="section-label">Proof</div>
+    <h2>WHAT YOU RECEIVE<br><em>EVERY MONTH</em></h2>
+    <p class="section-desc">Even before tax season, clean books should give you something useful every month: organized records, clearer decisions, and less stress around your numbers.</p>
+    <div class="proof-grid">
+      <div class="proof-card">
+        <h3>Reconciled accounts</h3>
+        <p>Your bank and credit card accounts are matched against your records so the numbers stay clean and current.</p>
+      </div>
+      <div class="proof-card">
+        <h3>Categorized transactions</h3>
+        <p>Expenses are organized so materials, fuel, tools, subcontractors, equipment, and operating costs are easier to understand.</p>
+      </div>
+      <div class="proof-card">
+        <h3>Monthly financial statements</h3>
+        <p>You receive a clean profit and loss and balance sheet so you can see where the business stands.</p>
+      </div>
+      <div class="proof-card">
+        <h3>Tax-ready records</h3>
+        <p>Your records stay organized throughout the year so your CPA is not starting from a mess when it is time to file.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
 <section class="section" id="services" style="background: var(--navy2);">
   <div class="section-inner">
     <div class="section-label">Services</div>
-    <h2>WHAT'S INCUDED<br><em>IN EVERY ENTRY</em></h2>
+    <h2>WHAT'S INCLUDED<br><em>IN EVERY ENTRY</em></h2>
     <p class="section-desc">We handle the bookkeeping. You stay focused on the jobs.</p>
     <div class="services-grid">
       <div class="service-card">
@@ -555,7 +622,7 @@
     <div class="pricing-grid">
       <div class="pricing-card">
         <div class="pricing-tier">Essential</div>
-        <div class="pricing-price"><sup>$</sup>$150</div>
+        <div class="pricing-price"><sup>$</sup>150</div>
         <div class="pricing-range">to $350 / month</div>
         <div class="pricing-note">Suitable for sole proprietors and owner-operators with straightforward finances.</div>
         <ul class="pricing-list">
@@ -604,10 +671,30 @@
 
 <div class="divider"></div>
 
+<section class="section" id="risk-reversal">
+  <div class="section-inner">
+    <div class="risk-box">
+      <div>
+        <div class="section-label">WHAT YOU GET</div>
+        <h3>KNOW THE PRICE BEFOR YOU START</h3>
+        <p>Your monthly rate is agreed on day one. No long-term contracts, no surprise invoices, and no credit card required to book the call.</p>
+      </div>
+      <ul class="risk-list">
+        <li>Flat monthly rate agreed upfront</li>
+        <li>No long-term contracts</li>
+        <li>No credit card required to book</li>
+        <li>Cancel before your next billing cycle</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
 <section class="cta-section" id="book">
   <div class="cta-inner">
     <div class="section-label">START TODAY!</div>
-    <h2>GET CLAIRTY<br><em>FIX MESSY BOOKS</em></h2>
+    <h2>GET CLARITY<br><em>FIX MESSY BOOKS</em></h2>
     <p>30 minutes. We'll look at where your books stand, tell you exactly what's costing you, and show you what working together looks like.</p>
     <div class="cta-form">
       <div id="c-flow">
