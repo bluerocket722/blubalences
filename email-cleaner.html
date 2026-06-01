@@ -343,8 +343,11 @@
     </p>
     <div id="sync-rules-wrap" style="margin-bottom:16px"></div>
     <div class="modal-field"><label>Tag to look for</label><input type="text" id="sync-tag" placeholder="e.g. CRM"></div>
-    <div class="modal-field"><label>Send matches to list</label>
-      <select id="sync-list" style="width:100%;padding:8px;border-radius:6px"><option value="">Loading lists…</option></select>
+        <div class="modal-field"><label>Send matches to list</label>
+      <div style="display:flex;gap:8px">
+        <select id="sync-list" style="flex:1;padding:8px;border-radius:6px"><option value="">Loading lists…</option></select>
+        <button class="btn-sm btn-sm-green" onclick="createListInline()" style="white-space:nowrap">+ New</button>
+      </div>
     </div>
     <div class="modal-field">
       <label style="display:flex;align-items:center;gap:8px;font-weight:400;cursor:pointer">
