@@ -537,7 +537,10 @@ select.field-input:focus{border-color:#1a73e8;outline:none}
 const SUPABASE_URL = "https://rfdvogakvyodixgpvqvz.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJmZHZvZ2FrdnlvZGl4Z3B2cXZ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcwMzU4MDMsImV4cCI6MjA4MjYxMTgwM30.UumTuz6AaKL8uYmmNxFj1ec5CInHVNQowt6LRo4cu-E";
     const AUTH_URL = SUPABASE_URL + "/auth/v1";
-
+// Blu Balence Listmonk project — where the SMTP checker stores contacts
+const LM_URL = "https://xbwuvaxtnylqvagdvpxp.supabase.co"; // same value you put in email-cleaner.html
+const LM_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhid3V2YXh0bnlscXZhZ2R2cHhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3Njk1NjMsImV4cCI6MjA5NDM0NTU2M30.WnCOew6w9HtQ2eAM1vpSJCb_AjAvv9x7Mev-k2IxSpc";
+const lmHdr = extra => ({ apikey:LM_KEY, Authorization:`Bearer ${LM_KEY}`, "Content-Type":"application/json", ...extra });
 async function doLogin() {
   const email = document.getElementById('lo-email').value.trim();
   const pass  = document.getElementById('lo-pass').value;
@@ -1726,10 +1729,10 @@ function _splitName(contactName) {
 function _checkerRecord(lead) {
   const { first_name, last_name } = _splitName(lead.contact_name);
   return {
-    email: lead.email||null,
+    email: (lead.email||'').toLowerCase()||null,
     first_name, last_name,
     phone: lead.phone||null,
-    email_valid: false, email_checked: false,
+    smtp_valid: false, smtp_checked: false,
     tags: _tagNamesFor(lead.id),
   };
 }
@@ -1743,7 +1746,7 @@ async function pushAllToChecker() {
   for (let i=0; i<withEmail.length; i+=BATCH) {
     const records = withEmail.slice(i, i+BATCH).map(_checkerRecord);
     try {
-      const res = await fetch('/api/push-leads', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ records }) });
+            const res = await fetch(`${LM_URL}/rest/v1/email_contacts?on_conflict=email`, { method:'POST', headers:lmHdr({ Prefer:'resolution=ignore-duplicates,return=minimal' }), body:JSON.stringify(records) });
       if (res.ok) pushed += records.length;
       else { const e = await res.json().catch(()=>({})); (res.status===409||e?.code==='23505') ? skipped+=records.length : errors+=records.length; }
     } catch { errors += records.length; }
@@ -1774,7 +1777,7 @@ function exportEmailsCSV() {
 // Fire-and-forget single push (used automatically on "Email Sent")
 function _autoPushToChecker(lead) {
   if (!lead || !lead.email || !lead.email.trim()) return;
-  fetch('/api/push-leads', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ records:[_checkerRecord(lead)] }) })
+  fetch(`${LM_URL}/rest/v1/email_contacts?on_conflict=email`, { method:'POST', headers:lmHdr({ Prefer:'resolution=ignore-duplicates,return=minimal' }), body:JSON.stringify([_checkerRecord(lead)]) })
     .then(()=>showToast("Email added to SMTP checker","success"))
     .catch(()=>{});
 }
