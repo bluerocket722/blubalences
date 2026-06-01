@@ -245,6 +245,7 @@
             <div class="tab"             id="db-tab-smtp_valid"   onclick="setDbFilter('smtp_valid')">SMTP Valid</div>
             <div class="tab"             id="db-tab-smtp_invalid" onclick="setDbFilter('smtp_invalid')">SMTP Invalid</div>
           </div>
+          <button class="btn-purple" onclick="openSyncModal()">⚙ Sync to Lists</button>           
           <button class="btn-export-sm" onclick="exportDbCSV()">⬇ Export CSV</button>
         </div>
       </div>
@@ -332,6 +333,34 @@
   </div>
 </div>
 
+<!-- Sync-to-Lists modal -->
+<div class="modal-backdrop hidden" id="sync-modal">
+  <div class="modal" style="max-width:560px">
+    <h3>Auto-Sync to Lists</h3>
+    <p style="font-size:13px;color:var(--text-dim);margin:-4px 0 14px">
+      Each rule pulls contacts with a given tag from this verified database into a chosen list — automatically.
+      Runs on page load and whenever you click “Sync Now.”
+    </p>
+    <div id="sync-rules-wrap" style="margin-bottom:16px"></div>
+    <div class="modal-field"><label>Tag to look for</label><input type="text" id="sync-tag" placeholder="e.g. CRM"></div>
+    <div class="modal-field"><label>Send matches to list</label>
+      <select id="sync-list" style="width:100%;padding:8px;border-radius:6px"><option value="">Loading lists…</option></select>
+    </div>
+    <div class="modal-field">
+      <label style="display:flex;align-items:center;gap:8px;font-weight:400;cursor:pointer">
+        <input type="checkbox" id="sync-valid" checked style="width:auto"> Only include SMTP-valid contacts
+      </label>
+    </div>
+    <div class="modal-footer" style="justify-content:space-between">
+      <button class="btn-sm btn-sm-green" id="sync-add-btn" onclick="addSyncRule()">+ Add Rule</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn-purple" onclick="runSync(true)">↻ Sync Now</button>
+        <button class="btn-sm btn-sm-outline" onclick="closeSyncModal()">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+  
 <script>
 // ── State ──────────────────────────────────────────────────────────────────
 var mode = 'upload';
@@ -1025,6 +1054,125 @@ function resetUpload() {
   document.getElementById('push-text').className    = 'status-text';
   document.getElementById('progress-bar').style.width = '0%';
 }
+
+// ── Auto-Sync to Lists ───────────────────────────────────────────────────────
+var syncLists = [], syncRules = [];
+
+async function lmFetchJson(path, opts) {
+  var res = await fetch(LM_URL + '/rest/v1/' + path, opts || { headers: lmHdr() });
+  var txt = await res.text();
+  var data = txt ? JSON.parse(txt) : [];
+  if (!res.ok) throw new Error((data && data.message) || ('HTTP ' + res.status));
+  return data;
+}
+
+async function openSyncModal() {
+  document.getElementById('sync-modal').classList.remove('hidden');
+  try {
+    syncLists = await lmFetchJson('lists?select=id,name&order=name');
+    syncRules = await lmFetchJson('list_rules?select=*&order=created_at.desc');
+  } catch (e) {
+    alert('Could not load lists/rules: ' + e.message + '\n\nMake sure the lists, list_members and list_rules tables exist.');
+    return;
+  }
+  var sel = document.getElementById('sync-list');
+  sel.innerHTML = '<option value="">Select a list…</option>' +
+    syncLists.map(function(l){ return '<option value="' + l.id + '">' + escHtml(l.name) + '</option>'; }).join('');
+  renderSyncRules();
+}
+
+function closeSyncModal() { document.getElementById('sync-modal').classList.add('hidden'); }
+
+function renderSyncRules() {
+  var wrap = document.getElementById('sync-rules-wrap');
+  if (!syncRules.length) { wrap.innerHTML = '<div style="font-size:13px;color:var(--text-dim);padding:8px 0">No rules yet.</div>'; return; }
+  wrap.innerHTML = '<table style="width:100%;font-size:13px"><tbody>' + syncRules.map(function(r){
+    var ln = syncLists.find(function(l){ return String(l.id) === String(r.list_id); });
+    return '<tr>'
+      + '<td style="padding:4px 6px"><span class="tag-chip">' + escHtml(r.tag) + '</span></td>'
+      + '<td style="padding:4px 6px">→ ' + (ln ? escHtml(ln.name) : '<em>deleted list</em>') + '</td>'
+      + '<td style="padding:4px 6px;color:var(--text-dim)">' + (r.require_valid ? 'valid only' : 'any') + '</td>'
+      + '<td style="padding:4px 6px;text-align:right"><button class="btn-red-sm" onclick="deleteSyncRule(\'' + r.id + '\')">Remove</button></td>'
+      + '</tr>';
+  }).join('') + '</tbody></table>';
+}
+
+async function addSyncRule() {
+  var tag = document.getElementById('sync-tag').value.trim();
+  var list_id = document.getElementById('sync-list').value;
+  var require_valid = document.getElementById('sync-valid').checked;
+  if (!tag || !list_id) { alert('Tag and list are required'); return; }
+  try {
+    await fetch(LM_URL + '/rest/v1/list_rules', {
+      method: 'POST',
+      headers: lmHdr({ Prefer: 'return=minimal' }),
+      body: JSON.stringify({ tag: tag, list_id: parseInt(list_id), require_valid: require_valid })
+    }).then(function(r){ if (!r.ok) return r.text().then(function(t){ throw new Error(t); }); });
+  } catch (e) { alert('Could not add rule: ' + e.message); return; }
+  document.getElementById('sync-tag').value = '';
+  openSyncModal();
+}
+
+async function deleteSyncRule(id) {
+  await fetch(LM_URL + '/rest/v1/list_rules?id=eq.' + id, { method: 'DELETE', headers: lmHdr() });
+  openSyncModal();
+}
+
+// Pull tagged contacts from email_contacts into their target lists. verbose = alert summary.
+async function runSync(verbose) {
+  var rules;
+  try { rules = await lmFetchJson('list_rules?select=*'); }
+  catch (e) { if (verbose) alert('Could not load rules: ' + e.message); return; }
+  if (!rules.length) { if (verbose) alert('No rules set up yet. Add one above.'); return; }
+
+  var total = 0;
+  for (var i = 0; i < rules.length; i++) {
+    var rule = rules[i];
+    var qs = 'email_contacts?select=email,first_name,last_name,phone,tags'
+           + '&tags=cs.{"' + String(rule.tag).replace(/"/g, '') + '"}';
+    if (rule.require_valid) qs += '&smtp_checked=eq.true&smtp_valid=eq.true';
+    var contacts;
+    try { contacts = await lmFetchJson(qs); } catch (e) { console.error('sync query failed', rule.tag, e); continue; }
+    if (!contacts.length) continue;
+
+    var members = contacts.map(function(ct){
+      var email = (ct.email || '').toLowerCase();
+      if (email.indexOf('@') < 0) return null;
+      var name = [ct.first_name, ct.last_name].filter(Boolean).join(' ').trim() || null;
+      var tags = Array.isArray(ct.tags) ? ct.tags.join(',') : (ct.tags || null);
+      var row = { list_id: rule.list_id, email: email, name: name };
+      if (ct.phone) row.phone = ct.phone;
+      if (tags) row.tags = tags;
+      return row;
+    }).filter(Boolean);
+    if (!members.length) continue;
+
+    var res = await fetch(LM_URL + '/rest/v1/list_members?on_conflict=list_id,email', {
+      method: 'POST',
+      headers: lmHdr({ Prefer: 'resolution=ignore-duplicates,return=minimal' }),
+      body: JSON.stringify(members)
+    });
+    if (!res.ok) {
+      var t = await res.text();
+      // Retry without phone/tags if those columns don't exist.
+      if (/phone|tags/i.test(t)) {
+        var slim = members.map(function(m){ return { list_id: m.list_id, email: m.email, name: m.name }; });
+        res = await fetch(LM_URL + '/rest/v1/list_members?on_conflict=list_id,email', {
+          method: 'POST',
+          headers: lmHdr({ Prefer: 'resolution=ignore-duplicates,return=minimal' }),
+          body: JSON.stringify(slim)
+        });
+      }
+      if (!res.ok) { console.error('sync upsert failed', rule.tag, await res.text()); continue; }
+    }
+    total += members.length;
+  }
+  if (verbose) alert('Sync complete. ' + total + ' contact(s) processed across ' + rules.length + ' rule(s).');
+}
+
+// Hands-off: run the sync automatically once the page is ready.
+window.addEventListener('load', function(){ try { runSync(false); } catch(e){} });
+  
 </script>
 </body>
 </html>
