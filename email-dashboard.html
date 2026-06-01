@@ -1997,8 +1997,13 @@ function openAddMembersModal(listId, listName) {
   showModal(`
     <h2>Add to "${listName}"</h2>
     <div class="form-group">
-      <label>Paste contacts — one per line: <code>email, Name, Company</code></label>
-      <textarea id="lm-csv" style="min-height:200px;font-size:14px;line-height:1.6" placeholder="john@example.com, John Smith, Acme Inc&#10;jane@example.com, Jane Doe&#10;bob@example.com"></textarea>
+      <label>Upload a CSV file</label>
+      <input type="file" id="lm-file" accept=".csv,text/csv" onchange="loadCsvFile()">
+      <p class="hint" style="margin-top:6px">Headers supported: <code>id, email, first_name, last_name, phone, tags, smtp_valid, smtp_checked</code>. Tags can be separated by <code>|</code> or <code>,</code>.</p>
+    </div>
+    <div class="form-group">
+      <label>…or paste CSV (with or without a header row)</label>
+      <textarea id="lm-csv" style="min-height:160px;font-size:14px;line-height:1.6" placeholder="email,first_name,last_name,phone,tags&#10;john@example.com,John,Smith,555-1234,vip|atlanta&#10;jane@example.com,Jane,Doe,,cold"></textarea>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
@@ -2006,19 +2011,121 @@ function openAddMembersModal(listId, listName) {
     </div>`);
 }
 
-async function addMembersToList(listId, listName) {
-  const csv = document.getElementById('lm-csv').value.trim();
-  if (!csv) { alert('Paste at least one email address'); return; }
-  const rows = csv.split('\n').map(line => {
-    const [email, name, company] = line.split(',').map(s => s.trim());
-    return email && email.includes('@') ? { list_id: listId, email, name: name||null, company: company||null } : null;
-  }).filter(Boolean);
-  if (!rows.length) { alert('No valid emails found'); return; }
-  const { error } = await sb.from('list_members').upsert(rows, { onConflict: 'list_id,email', ignoreDuplicates: true });
-  if (error) { alert(error.message); return; }
-  closeModal(); renderListDetail(listId, listName);
+function loadCsvFile() {
+  const f = document.getElementById('lm-file').files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = e => { document.getElementById('lm-csv').value = e.target.result; };
+  reader.readAsText(f);
 }
 
+// Splits a single CSV line, honoring double-quoted fields (and "" escapes).
+function splitCsvLine(line) {
+  const out = []; let cur = ''; let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (inQ) {
+      if (c === '"') { if (line[i+1] === '"') { cur += '"'; i++; } else inQ = false; }
+      else cur += c;
+    } else {
+      if (c === '"') inQ = true;
+      else if (c === ',') { out.push(cur); cur = ''; }
+      else cur += c;
+    }
+  }
+  out.push(cur);
+  return out.map(s => s.trim());
+}
+
+async function addMembersToList(listId, listName) {
+  const raw = document.getElementById('lm-csv').value.trim();
+  if (!raw) { alert('Upload a CSV file or paste at least one email address'); return; }
+
+  const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  if (!lines.length) { alert('No valid rows found'); return; }
+
+  // Detect a header row by looking for known column names.
+  const KNOWN = ['id','email','first_name','last_name','phone','tags','smtp_valid','smtp_checked','name','company'];
+  const firstCells = splitCsvLine(lines[0]).map(c => c.toLowerCase());
+  const hasHeader = firstCells.some(c => KNOWN.includes(c));
+
+  let header, dataLines;
+  if (hasHeader) { header = firstCells; dataLines = lines.slice(1); }
+  else { header = ['email','first_name','last_name','phone','tags']; dataLines = lines; }
+
+  const idx = name => header.indexOf(name);
+  const iEmail = idx('email'), iFirst = idx('first_name'), iLast = idx('last_name');
+  const iPhone = idx('phone'), iTags = idx('tags'), iName = idx('name'), iCompany = idx('company');
+  const iValid = idx('smtp_valid');
+
+  const crmRows = [];  // valid + CRM-tagged contacts, auto-routed to the CRM list
+
+  const rows = dataLines.map(line => {
+    const c = splitCsvLine(line);
+    const email = (iEmail >= 0 ? c[iEmail] : c[0] || '').toLowerCase();
+    if (!email || !email.includes('@')) return null;
+
+    let name = iName >= 0 ? c[iName] : '';
+    if (!name) name = [iFirst >= 0 ? c[iFirst] : '', iLast >= 0 ? c[iLast] : ''].filter(Boolean).join(' ').trim();
+
+    const phone = iPhone >= 0 ? (c[iPhone] || '') : '';
+    const tagList = (iTags >= 0 && c[iTags]) ? c[iTags].split(/[|,]/).map(t => t.trim()).filter(Boolean) : [];
+    const tags = tagList.length ? tagList.join(',') : null;
+
+    const row = { list_id: listId, email, name: name || null, company: (iCompany >= 0 ? c[iCompany] : '') || null };
+    if (phone) row.phone = phone;
+    if (tags) row.tags = tags;
+
+    // Auto-route: tagged "CRM" AND smtp_valid → also goes to the CRM list.
+    const isValid = iValid >= 0 ? /^(t|true|1|yes|valid)$/i.test((c[iValid] || '').trim()) : false;
+    const isCrm = tagList.some(t => t.toLowerCase() === 'crm');
+    if (isValid && isCrm) crmRows.push({ ...row });
+
+    return row;
+  }).filter(Boolean);
+
+  if (!rows.length) { alert('No valid emails found'); return; }
+
+  let { error } = await sb.from('list_members').upsert(rows, { onConflict: 'list_id,email', ignoreDuplicates: true });
+
+  // If the table doesn't have phone/tags columns yet, retry with just the core fields.
+  if (error && /column .*(phone|tags)/i.test(error.message)) {
+    const slim = rows.map(({ list_id, email, name, company }) => ({ list_id, email, name, company }));
+    ({ error } = await sb.from('list_members').upsert(slim, { onConflict: 'list_id,email', ignoreDuplicates: true }));
+    if (!error) alert('Imported emails/names. (Add "phone" and "tags" columns to list_members to store those too.)');
+  }
+
+  if (error) { alert(error.message); return; }
+
+  // Send valid + CRM-tagged contacts to the CRM list automatically.
+  let routed = 0;
+  if (crmRows.length) routed = await routeToCrmList(crmRows, listId);
+
+  closeModal();
+  if (routed) alert(`${routed} valid contact(s) tagged "CRM" were also added to the CRM list.`);
+  renderListDetail(listId, listName);
+}
+
+// Finds (or creates) a list named "CRM" and adds the given rows to it.
+// Skips work if we're already importing into the CRM list. Returns count routed.
+async function routeToCrmList(rows, currentListId) {
+  let { data: crm } = await sb.from('lists').select('id').ilike('name', 'CRM').limit(1).maybeSingle();
+  if (!crm) {
+    const { data: created, error } = await sb.from('lists').insert({ name: 'CRM', description: 'Auto-collected valid CRM-tagged contacts' }).select('id').single();
+    if (error) { console.error('Could not create CRM list:', error); return 0; }
+    crm = created;
+  }
+  if (String(crm.id) === String(currentListId)) return 0;  // already here
+
+  const crmMembers = rows.map(r => ({ ...r, list_id: crm.id }));
+  let { error } = await sb.from('list_members').upsert(crmMembers, { onConflict: 'list_id,email', ignoreDuplicates: true });
+  if (error && /column .*(phone|tags)/i.test(error.message)) {
+    const slim = crmMembers.map(({ list_id, email, name, company }) => ({ list_id, email, name, company }));
+    ({ error } = await sb.from('list_members').upsert(slim, { onConflict: 'list_id,email', ignoreDuplicates: true }));
+  }
+  if (error) { console.error('Could not add to CRM list:', error); return 0; }
+  return crmMembers.length;
+}
 async function openEnrollListModal(listId, listName) {
   const { data: seqs } = await sb.from('sequences').select('id,name').eq('active', true);
   showModal(`
