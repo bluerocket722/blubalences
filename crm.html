@@ -306,7 +306,9 @@ select.field-input:focus{border-color:#1a73e8;outline:none}
   <select class="sort-select" id="tag-filter" onchange="applyFilter()" style="max-width:160px">
     <option value="">All Tags</option>
   </select>
-  <button class="btn btn-ghost btn-sm" id="filter-clear" onclick="clearFilter()" style="display:none">✕ Clear Filter</button>
+    <button class="btn btn-ghost btn-sm" id="filter-clear" onclick="clearFilter()" style="display:none">✕ Clear Filter</button>
+  <button class="btn btn-ghost btn-sm" onclick="pushAllToChecker()" title="Push every lead with an email (and its tags) to the SMTP checker">✉ Push to Checker</button>
+  <button class="btn btn-ghost btn-sm" onclick="exportEmailsCSV()" title="Download email + tags CSV to upload into the SMTP checker">⬇ Email CSV</button>
   <span style="margin-left:auto;font-size:13px;color:#9aa0a6" id="lead-count"></span>
 </div>
 
@@ -672,10 +674,16 @@ function clearFilter() { activeDispo=null; document.getElementById("search-input
 function applyFilter() {
   const q=(document.getElementById("search-input").value||"").toLowerCase();
   const sort=document.getElementById("sort-select").value;
-  const tagId=document.getElementById("tag-filter")?.value||"";
+    const tagId=document.getElementById("tag-filter")?.value||"";
+  // Cascade: selecting a tag includes that tag + every tag above it in the list.
+  let allowedTagIds=null;
+  if(tagId){
+    const idx=allTags.findIndex(t=>t.id===tagId);
+    allowedTagIds=new Set(allTags.slice(0, idx<0?allTags.length:idx+1).map(t=>t.id));
+  }
   let leads=allLeads.filter(l => {
     if(activeDispo && l.dispo!==activeDispo) return false;
-    if(tagId && !(leadTagsMap[l.id]||[]).includes(tagId)) return false;
+    if(allowedTagIds && !(leadTagsMap[l.id]||[]).some(tid=>allowedTagIds.has(tid))) return false;
     if(!q) return true;
     return [l.business_name,l.contact_name,l.phone,l.email,l.address,l.city,l.state,l.notes].join(" ").toLowerCase().includes(q);
   });
@@ -795,8 +803,9 @@ async function setDispo(newDispo) {
   try {
     await fetch(db(`crm_leads?id=eq.${currentLead.id}`),{method:"PATCH",headers:hdr(),body:JSON.stringify({dispo:newDispo,last_contacted_at:new Date().toISOString()})});
     await fetch(db("crm_activity"),{method:"POST",headers:hdr(),body:JSON.stringify({lead_id:currentLead.id,activity_type:"dispo_change",old_dispo:oldDispo,new_dispo:newDispo,body:note||null})});
-    currentLead.dispo=newDispo;
+        currentLead.dispo=newDispo;
     const idx=allLeads.findIndex(l=>l.id===currentLead.id); if(idx!==-1)allLeads[idx].dispo=newDispo;
+    if(newDispo==='email') _autoPushToChecker(currentLead);
     const d=DISPOS[newDispo];
     document.getElementById("panel-sub").innerHTML=`<span class="dispo-badge" style="background:${d.color}">${d.label}</span>`;
     buildStats(); renderDispoTab(); renderTable(); showToast(`Dispo → ${d.label}`,"success");
@@ -1625,9 +1634,10 @@ async function _saveDialerDispo(newDispo) {
       });
       lead.notes = merged;
     }
-    lead.dispo = newDispo;
+        lead.dispo = newDispo;
     const idx = allLeads.findIndex(l => l.id === lead.id);
     if (idx !== -1) allLeads[idx].dispo = newDispo;
+    if (newDispo === 'email') _autoPushToChecker(lead);
   } catch(e) { showToast('Failed to save dispo','error'); }
 
   if (autoAdvanceOn) {
@@ -1694,6 +1704,79 @@ function buildTagFilter() {
   sel.innerHTML = '<option value="">All Tags</option>' + allTags.map(t =>
     `<option value="${t.id}" ${cur===t.id?'selected':''}>${esc(t.name)}</option>`
   ).join('');
+}
+
+
+// ── SMTP CHECKER BRIDGE ──────────────────────────────────────────────────────
+// The SMTP checker (email-cleaner.html) lives on the same domain and exposes
+// /api/push-leads. We convert each CRM lead's tag IDs into tag-name strings so
+// tags carry over.
+function _tagNamesFor(leadId) {
+  return (leadTagsMap[leadId]||[])
+    .map(tid => (allTags.find(t=>t.id===tid)||{}).name)
+    .filter(Boolean);
+}
+
+function _splitName(contactName) {
+  const parts = (contactName||"").trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return { first_name:null, last_name:null };
+  return { first_name:parts[0], last_name:parts.slice(1).join(" ")||null };
+}
+
+function _checkerRecord(lead) {
+  const { first_name, last_name } = _splitName(lead.contact_name);
+  return {
+    email: lead.email||null,
+    first_name, last_name,
+    phone: lead.phone||null,
+    email_valid: false, email_checked: false,
+    tags: _tagNamesFor(lead.id),
+  };
+}
+
+// Push every lead that has an email
+async function pushAllToChecker() {
+  const withEmail = allLeads.filter(l => l.email && l.email.trim());
+  if (!withEmail.length) { showToast("No leads with emails to push","info"); return; }
+  if (!confirm(`Push ${withEmail.length} email${withEmail.length!==1?'s':''} (with tags) to the SMTP checker?`)) return;
+  const BATCH = 50; let pushed=0, skipped=0, errors=0;
+  for (let i=0; i<withEmail.length; i+=BATCH) {
+    const records = withEmail.slice(i, i+BATCH).map(_checkerRecord);
+    try {
+      const res = await fetch('/api/push-leads', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ records }) });
+      if (res.ok) pushed += records.length;
+      else { const e = await res.json().catch(()=>({})); (res.status===409||e?.code==='23505') ? skipped+=records.length : errors+=records.length; }
+    } catch { errors += records.length; }
+  }
+  showToast(`Checker: ${pushed} pushed, ${skipped} skipped${errors?`, ${errors} errors`:''}`, errors?"error":"success");
+}
+
+// Download a CSV you can upload into the checker's Upload screen
+function exportEmailsCSV() {
+  const withEmail = allLeads.filter(l => l.email && l.email.trim());
+  if (!withEmail.length) { showToast("No leads with emails to export","info"); return; }
+  const esc = s => `"${String(s??"").replace(/"/g,'""')}"`;
+  const rows = [["email","first_name","last_name","phone","tags"]];
+  withEmail.forEach(l => {
+    const { first_name, last_name } = _splitName(l.contact_name);
+    rows.push([l.email, first_name||"", last_name||"", l.phone||"", _tagNamesFor(l.id).join("|")].map(esc));
+  });
+  const csv = rows.map(r=>r.join(",")).join("\n");
+  const blob = new Blob([csv], { type:"text/csv" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "crm-emails.csv";
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast(`Exported ${withEmail.length} emails`,"success");
+}
+
+// Fire-and-forget single push (used automatically on "Email Sent")
+function _autoPushToChecker(lead) {
+  if (!lead || !lead.email || !lead.email.trim()) return;
+  fetch('/api/push-leads', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ records:[_checkerRecord(lead)] }) })
+    .then(()=>showToast("Email added to SMTP checker","success"))
+    .catch(()=>{});
 }
 
 function openTagsModal() {
