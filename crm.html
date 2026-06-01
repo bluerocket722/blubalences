@@ -1222,21 +1222,43 @@ function renderDialerLead() {
   document.getElementById('d-prog-fill').style.width=pct+'%';
   document.getElementById('d-footer-remaining').textContent=`${dialerQueue.length-dialerIndex-1} remaining`;
   renderDialerStats();
-
+  
+  const _extraPhonesArr = _parseExtras(lead.extra_phones);
+  const _extraEmailsArr = _parseExtras(lead.extra_emails);
+  
   document.getElementById('d-lead-panel').innerHTML=`
     <div style="margin-bottom:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
       <span class="dispo-badge" style="background:${d.color}">${d.label}</span>
       ${stars?`<span style="color:#fbbc04;font-size:12px">${stars} ${lead.rating}</span>`:''}
       ${lead.reviews?`<span style="color:#9aa0a6;font-size:11px">(${lead.reviews} reviews)</span>`:''}
+      ${(lead.call_count||0)>0?`<span style="background:#2a2d2f;border:1px solid #5f6368;border-radius:12px;font-size:11px;color:#9aa0a6;padding:2px 8px">📞 Called ${lead.call_count} time${lead.call_count!==1?'s':''}</span>`:''}
     </div>
     <div class="d-biz-name">${esc(lead.business_name)}</div>
-    <div class="d-contact">${lead.contact_name?esc(lead.contact_name):'<span style="font-style:italic;color:#5f6368">No contact name</span>'}</div>
+
+    <div style="margin-top:10px"><div class="d-section-label">Contact Name</div>
+      <input type="text" id="dl-contact-name" class="d-phone-edit" value="${esc(lead.contact_name||'')}" placeholder="Contact name" style="margin-top:4px">
+    </div>
+
+    <div style="margin-top:10px"><div class="d-section-label">Email</div>
+      <input type="email" id="dl-email" class="d-phone-edit" value="${esc(lead.email||'')}" placeholder="Email address" style="margin-top:4px">
+      <div id="dl-extra-emails-list" style="margin-top:4px">${_extraEmailsArr.map((e,i)=>`<div style="display:flex;gap:6px;margin-top:4px"><input type="email" class="d-phone-edit dl-extra-email" data-idx="${i}" value="${esc(e)}" style="flex:1"><button onclick="dlRemoveExtraEmail(${i})" style="background:#3c4043;border:none;color:#e8eaed;border-radius:6px;padding:0 8px;cursor:pointer">✕</button></div>`).join('')}</div>
+      <button onclick="dlAddExtraEmail()" style="margin-top:6px;background:transparent;border:1px dashed #5f6368;color:#9aa0a6;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;width:100%">+ Add Email</button>
+    </div>
+
     ${loc?`<div class="d-info-row"><span class="d-info-icon">📍</span>${esc(loc)}</div>`:''}
     ${lead.address?`<div class="d-info-row"><span class="d-info-icon">🏠</span>${esc(lead.address)}</div>`:''}
-    ${lead.email?`<div class="d-info-row"><span class="d-info-icon">✉</span>${esc(lead.email)}</div>`:''}
+
+    <div style="margin-top:10px"><div class="d-section-label">Extra Phones</div>
+      <div id="dl-extra-phones-list" style="margin-top:4px">${_extraPhonesArr.map((p,i)=>`<div style="display:flex;gap:6px;margin-top:4px"><input type="tel" class="d-phone-edit dl-extra-phone" data-idx="${i}" value="${esc(p)}" style="flex:1"><button onclick="dlRemoveExtraPhone(${i})" style="background:#3c4043;border:none;color:#e8eaed;border-radius:6px;padding:0 8px;cursor:pointer">✕</button></div>`).join('')}</div>
+      <button onclick="dlAddExtraPhone()" style="margin-top:6px;background:transparent;border:1px dashed #5f6368;color:#9aa0a6;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;width:100%">+ Add Phone</button>
+    </div>
+
     ${lead.website?`<div class="d-info-row"><span class="d-info-icon">🌐</span><a href="${esc(lead.website)}" target="_blank" style="color:#8ab4f8;font-size:13px;word-break:break-all">${esc(lead.website)}</a></div>`:''}
     ${lead.google_maps_link?`<div class="d-info-row"><span class="d-info-icon">🗺</span><a href="${esc(lead.google_maps_link)}" target="_blank" style="color:#8ab4f8;font-size:13px">Open Maps</a></div>`:''}
     ${lead.follow_up_date?`<div class="d-info-row"><span class="d-info-icon">📅</span>Call back: ${lead.follow_up_date}</div>`:''}
+
+    <button onclick="saveDialerLeadEdits()" style="margin-top:14px;width:100%;background:#1a73e8;border:none;color:#fff;border-radius:8px;padding:8px;font-size:13px;cursor:pointer;font-weight:500">💾 Save Lead Changes</button>
+
     ${lead.notes?`<div style="margin-top:14px"><div class="d-section-label">Notes</div><div class="d-notes-box">${esc(lead.notes)}</div></div>`:''}
     <div style="margin-top:16px"><div class="d-section-label">Quick Note</div><textarea id="d-quick-note" class="d-quick-note" placeholder="Note about this call..."></textarea></div>`;
 
@@ -1259,10 +1281,7 @@ function renderDialerLead() {
       <div class="d-countdown" id="d-auto-dial-cd"></div>
     </div>
     <div>
-      <div class="d-section-label">Email</div>
-      <input type="email" id="d-email-field" class="d-email-input"
-        value="${esc(lead.email||'')}" placeholder="Email address">
-    </div>
+      
     <div>
       <div class="d-section-label">Disposition</div>
       <div class="d-dispo-grid">${dispoGrid}</div>
@@ -1320,6 +1339,74 @@ function renderDialerAutoSection() {
     </div>`;
 }
 
+function dlAddExtraPhone() {
+  const lead = dialerQueue[dialerIndex];
+  const list = document.getElementById('dl-extra-phones-list');
+  if (!list) return;
+  const arr = _parseExtras(lead.extra_phones);
+  const i = arr.length;
+  const div = document.createElement('div');
+  div.style.cssText = 'display:flex;gap:6px;margin-top:4px';
+  div.innerHTML = `<input type="tel" class="d-phone-edit dl-extra-phone" data-idx="${i}" value="" style="flex:1"><button onclick="dlRemoveExtraPhone(${i})" style="background:#3c4043;border:none;color:#e8eaed;border-radius:6px;padding:0 8px;cursor:pointer">✕</button>`;
+  list.appendChild(div);
+}
+
+function dlRemoveExtraPhone(idx) {
+  const lead = dialerQueue[dialerIndex];
+  const arr = _parseExtras(lead.extra_phones);
+  arr.splice(idx, 1);
+  lead.extra_phones = arr.length ? JSON.stringify(arr) : null;
+  renderDialerLead();
+}
+
+function dlAddExtraEmail() {
+  const lead = dialerQueue[dialerIndex];
+  const list = document.getElementById('dl-extra-emails-list');
+  if (!list) return;
+  const arr = _parseExtras(lead.extra_emails);
+  const i = arr.length;
+  const div = document.createElement('div');
+  div.style.cssText = 'display:flex;gap:6px;margin-top:4px';
+  div.innerHTML = `<input type="email" class="d-phone-edit dl-extra-email" data-idx="${i}" value="" style="flex:1"><button onclick="dlRemoveExtraEmail(${i})" style="background:#3c4043;border:none;color:#e8eaed;border-radius:6px;padding:0 8px;cursor:pointer">✕</button>`;
+  list.appendChild(div);
+}
+
+function dlRemoveExtraEmail(idx) {
+  const lead = dialerQueue[dialerIndex];
+  const arr = _parseExtras(lead.extra_emails);
+  arr.splice(idx, 1);
+  lead.extra_emails = arr.length ? JSON.stringify(arr) : null;
+  renderDialerLead();
+}
+
+async function saveDialerLeadEdits() {
+  const lead = dialerQueue[dialerIndex];
+  if (!lead) return;
+  const contactName = (document.getElementById('dl-contact-name')?.value||'').trim()||null;
+  const email = (document.getElementById('dl-email')?.value||'').trim()||null;
+  const extraPhoneEls = document.querySelectorAll('.dl-extra-phone');
+  const extraEmailEls = document.querySelectorAll('.dl-extra-email');
+  const extraPhones = [...extraPhoneEls].map(el=>el.value.trim()).filter(Boolean);
+  const extraEmails = [...extraEmailEls].map(el=>el.value.trim()).filter(Boolean);
+  const patch = {
+    contact_name: contactName,
+    email: email,
+    extra_phones: extraPhones.length ? JSON.stringify(extraPhones) : null,
+    extra_emails: extraEmails.length ? JSON.stringify(extraEmails) : null,
+  };
+  try {
+    const r = await fetch(db(`crm_leads?id=eq.${lead.id}`), { method:'PATCH', headers:hdr(), body:JSON.stringify(patch) });
+    if (!r.ok) throw new Error(r.status);
+    Object.assign(lead, patch);
+    const idx = allLeads.findIndex(l => l.id === lead.id);
+    if (idx !== -1) Object.assign(allLeads[idx], patch);
+    showToast('Lead saved', 'success');
+  } catch(e) {
+    showToast('Save failed — see console', 'error');
+    console.error(e);
+  }
+}
+    
 function dialerToggleAutoDial() {
   if (autoDialTmo) { clearTimeout(autoDialTmo); autoDialTmo = null; }
   const cdEl = document.getElementById('d-auto-dial-cd');
@@ -1375,11 +1462,12 @@ async function dialerCall() {
   try {
     await fetch(db(`crm_leads?id=eq.${lead.id}`), {
       method:'PATCH', headers:hdr(),
-      body:JSON.stringify({ last_called_date:today, last_contacted_at:new Date().toISOString() })
+      body:JSON.stringify({ last_called_date:today, last_contacted_at:new Date().toISOString(), call_count:(lead.call_count||0)+1 })
     });
-    lead.last_called_date = today;
+        lead.last_called_date = today;
+    lead.call_count = (lead.call_count||0) + 1;
     const idx = allLeads.findIndex(l => l.id === lead.id);
-    if (idx !== -1) allLeads[idx].last_called_date = today;
+    if (idx !== -1) { allLeads[idx].last_called_date = today; allLeads[idx].call_count = lead.call_count; }
   } catch(e) { /* non-critical */ }
 }
 
