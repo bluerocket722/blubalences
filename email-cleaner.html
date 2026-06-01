@@ -351,9 +351,30 @@ let bulkTags = [];
 let pendingDeleteIds = null;
 let pendingDeleteAll = false;
 
+
+// ── Supabase (Blu Balence Listmonk) ─────────────────────────────────────────
+const LM_URL   = "https://xbwuvaxtnylqvagdvpxp.supabase.co"; // <-- Project URL
+const LM_KEY   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhid3V2YXh0bnlscXZhZ2R2cHhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3Njk1NjMsImV4cCI6MjA5NDM0NTU2M30.WnCOew6w9HtQ2eAM1vpSJCb_AjAvv9x7Mev-k2IxSpc";                       // <-- anon public key
+const LM_TABLE = "email_contacts";
+const LM_COLS  = "id,email,first_name,last_name,phone,tags,smtp_checked,smtp_valid";
+const lmHdr = extra => ({ apikey:LM_KEY, Authorization:`Bearer ${LM_KEY}`, "Content-Type":"application/json", ...extra });
+function lmFilterQS(f){
+  if(f==='smtp_valid')   return '&smtp_checked=eq.true&smtp_valid=eq.true';
+  if(f==='smtp_invalid') return '&smtp_checked=eq.true&smtp_valid=eq.false';
+  return '';
+}
+function lmSearchQS(s){
+  if(!s) return '';
+  const t = encodeURIComponent('*'+s+'*');
+  return `&or=(email.ilike.${t},first_name.ilike.${t},last_name.ilike.${t})`;
+}
+function lmTagsQS(tags){
+  if(!tags||!tags.length) return '';
+  return `&tags=ov.{${tags.map(t=>'"'+String(t).replace(/"/g,'')+'"').join(',')}}`;
+}
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 function escHtml(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 function triggerDownload(csv, filename) {
@@ -380,15 +401,13 @@ async function loadDb() {
   document.getElementById('db-table').classList.add('hidden');
   document.getElementById('db-empty-msg').classList.add('hidden');
 
-  const params = new URLSearchParams({ page: dbPage, limit: dbLimit, filter: dbFilter });
-  if (dbSearch) params.set('search', dbSearch);
-  if (filterTags.length) params.set('tags', filterTags.join(','));
-
-  try {
-    const res  = await fetch(`/api/get-leads?${params}`);
-    const json = await res.json();
-    dbRows  = json.data  || [];
-    dbTotal = json.total || 0;
+    try {
+    const from = dbPage*dbLimit, to = from + dbLimit - 1;
+    const url = `${LM_URL}/rest/v1/${LM_TABLE}?select=${LM_COLS}&order=id.desc${lmFilterQS(dbFilter)}${lmSearchQS(dbSearch)}${lmTagsQS(filterTags)}`;
+    const res = await fetch(url, { headers: lmHdr({ Range:`${from}-${to}`, Prefer:'count=exact' }) });
+    dbRows = (await res.json()) || [];
+    const cr = res.headers.get('content-range'); // "0-49/1234"
+    dbTotal = (cr && cr.includes('/')) ? (parseInt(cr.split('/')[1])||0) : dbRows.length;
   } catch { dbRows = []; dbTotal = 0; }
 
   document.getElementById('db-loading').classList.add('hidden');
@@ -537,12 +556,10 @@ async function fetchAllDbRows() {
   let all = [], page = 0;
   const limit = 1000;
   while (true) {
-    const params = new URLSearchParams({ page, limit, filter: dbFilter });
-    if (dbSearch) params.set('search', dbSearch);
-    if (filterTags.length) params.set('tags', filterTags.join(','));
-    const res  = await fetch(`/api/get-leads?${params}`);
-    const json = await res.json();
-    const rows = json.data || [];
+        const from = page*limit, to = from + limit - 1;
+    const url = `${LM_URL}/rest/v1/${LM_TABLE}?select=${LM_COLS}&order=id.desc${lmFilterQS(dbFilter)}${lmSearchQS(dbSearch)}${lmTagsQS(filterTags)}`;
+    const res  = await fetch(url, { headers: lmHdr({ Range:`${from}-${to}` }) });
+    const rows = (await res.json()) || [];
     all = all.concat(rows);
     if (rows.length < limit) break;
     page++;
@@ -597,19 +614,14 @@ async function executeDelete() {
   btn.disabled = true; btn.textContent = 'Deleting...';
 
   try {
-    let body;
+        let url;
     if (pendingDeleteAll) {
-      body = { selectAll: true, filter: dbFilter, search: dbSearch };
-      if (filterTags.length) body.tags = filterTags;
+      url = `${LM_URL}/rest/v1/${LM_TABLE}?id=not.is.null${lmFilterQS(dbFilter)}${lmSearchQS(dbSearch)}${lmTagsQS(filterTags)}`;
     } else {
-      body = { ids: pendingDeleteIds };
+      url = `${LM_URL}/rest/v1/${LM_TABLE}?id=in.(${pendingDeleteIds.join(',')})`;
     }
 
-    const res = await fetch('/api/delete-leads', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+    const res = await fetch(url, { method:'DELETE', headers: lmHdr() });
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -718,20 +730,22 @@ async function applyBulkTags() {
   const btn = document.getElementById('bulk-apply-btn');
   btn.disabled = true; btn.textContent = 'Applying...';
   try {
-    let body;
+        let targets; // [{ id, tags(existing) }]
     if (selectAllMode) {
-      body = { selectAll: true, filter: dbFilter, search: dbSearch, tags: bulkTags };
-      if (filterTags.length) body.filterTags = filterTags;
+      const url = `${LM_URL}/rest/v1/${LM_TABLE}?select=id,tags&id=not.is.null${lmFilterQS(dbFilter)}${lmSearchQS(dbSearch)}${lmTagsQS(filterTags)}`;
+      const r = await fetch(url, { headers: lmHdr() });
+      targets = (await r.json()) || [];
     } else {
-      const updates = [...selectedIds].map(id => {
-        const row = dbRows.find(r => r.id === id);
-        return { id, tags: [...new Set([...(row ? row.tags||[] : []), ...bulkTags])] };
-      });
-      body = { updates };
+      targets = [...selectedIds].map(id => { const row = dbRows.find(r=>r.id===id); return { id, tags: row ? row.tags||[] : [] }; });
     }
-    const res  = await fetch('/api/bulk-tag-leads', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
-    const json = await res.json();
-    if (!res.ok) { alert('Error: ' + JSON.stringify(json.error)); btn.disabled=false; btn.textContent='Apply Tags'; return; }
+    let okCount = 0, anyFail = false;
+    for (const t of targets) {
+      const merged = [...new Set([...(t.tags||[]), ...bulkTags])];
+      const pr = await fetch(`${LM_URL}/rest/v1/${LM_TABLE}?id=eq.${t.id}`, { method:'PATCH', headers: lmHdr(), body: JSON.stringify({ tags: merged }) });
+      pr.ok ? okCount++ : (anyFail = true);
+    }
+    const json = { ok: okCount };
+    if (anyFail && okCount === 0) { alert('Error applying tags'); btn.disabled=false; btn.textContent='Apply Tags'; return; }
     if (!selectAllMode) {
       [...selectedIds].forEach(id => {
         const row = dbRows.find(r => r.id === id);
@@ -818,9 +832,9 @@ async function saveEdit() {
   if (editId) {
     btn.disabled = true; btn.textContent = 'Saving...';
     try {
-      const res = await fetch('/api/update-lead', {
-        method: 'PATCH', headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ id: editId, email, first_name, last_name, phone, tags }),
+            const res = await fetch(`${LM_URL}/rest/v1/${LM_TABLE}?id=eq.${editId}`, {
+        method: 'PATCH', headers: lmHdr(),
+        body: JSON.stringify({ email, first_name, last_name, phone, tags }),
       });
       if (res.ok) {
         dbRows[editIndex] = { ...dbRows[editIndex], email, first_name, last_name, phone, tags };
@@ -985,13 +999,13 @@ async function pushToSupabase() {
   const BATCH = 50; let inserted = 0, skipped = 0, errors = 0;
   const total = uploadData.valid.length;
   for (let i = 0; i < total; i += BATCH) {
-    const batch = uploadData.valid.slice(i, i+BATCH).map(r => ({
-      email: r.email||null, first_name: r.first_name||null, last_name: r.last_name||null, phone: r.phone||null,
-      email_valid: true, email_checked: true,
+        const batch = uploadData.valid.slice(i, i+BATCH).map(r => ({
+      email: (r.email||'').toLowerCase()||null, first_name: r.first_name||null, last_name: r.last_name||null, phone: r.phone||null,
+      smtp_valid: true, smtp_checked: true,
       tags: [...new Set([...batchTags,...(r.tags||[])])],
     }));
     try {
-      const res = await fetch('/api/push-leads', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ records: batch }) });
+      const res = await fetch(`${LM_URL}/rest/v1/${LM_TABLE}?on_conflict=email`, { method:'POST', headers: lmHdr({ Prefer:'resolution=ignore-duplicates,return=minimal' }), body: JSON.stringify(batch) });
       if (res.ok) { inserted += batch.length; }
       else {
         const err = await res.json().catch(()=>({}));
