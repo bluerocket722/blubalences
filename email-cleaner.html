@@ -172,11 +172,11 @@
     <button class="mode-btn" id="mode-db" onclick="setMode('db')">🗄 View Database</button>
   </div>
 
-  <!-- ── UPLOAD MODE ────────────────────────────────────────── -->
+  <!-- UPLOAD MODE -->
   <div id="upload-mode">
     <div class="drop-zone" id="drop-zone">
       <div class="drop-icon">📋</div>
-      <p>Drag & drop your CSV here</p>
+      <p>Drag &amp; drop your CSV here</p>
       <span>Columns: Email, First Name, Last Name, Phone</span><br>
       <label class="browse-btn" for="file-input">Browse File</label>
       <input type="file" id="file-input" accept=".csv">
@@ -219,14 +219,14 @@
 
     <div class="actions hidden" id="actions">
       <button class="btn btn-green" onclick="downloadCSV()">⬇ Download Clean CSV</button>
-      <button class="btn btn-blue" id="push-btn" onclick="pushToSupabase()">☁ Push to Supabase</button>
+      <button class="btn btn-blue" id="push-btn" onclick="pushToSupabase()">☁ Push to Database</button>
       <button class="btn btn-outline" onclick="resetUpload()">Upload New File</button>
     </div>
 
     <div class="push-status hidden" id="push-status">
       <div class="status-row">
         <div class="spinner" id="push-spinner"></div>
-        <div class="status-text" id="push-text">Pushing to Supabase...</div>
+        <div class="status-text" id="push-text">Pushing to database...</div>
       </div>
       <div class="progress-bar-wrap">
         <div class="progress-bar" id="progress-bar" style="width:0%"></div>
@@ -234,7 +234,7 @@
     </div>
   </div>
 
-  <!-- ── DATABASE MODE ──────────────────────────────────────── -->
+  <!-- DATABASE MODE -->
   <div id="db-mode" class="hidden">
     <div class="results-card">
       <div class="results-header">
@@ -334,52 +334,61 @@
 
 <script>
 // ── State ──────────────────────────────────────────────────────────────────
-let mode = 'upload';
-let currentUploadTab = 'valid';
-let uploadData = { valid: [], invalid: [], dupes: [] };
-let batchTags = [];
-let editIndex = null, editList = null, editId = null;
-let modalTags = [];
+var mode = 'upload';
+var currentUploadTab = 'valid';
+var uploadData = { valid: [], invalid: [], dupes: [] };
+var batchTags = [];
+var editIndex = null, editList = null, editId = null;
+var modalTags = [];
 
-let dbPage = 0, dbLimit = 50, dbTotal = 0;
-let dbFilter = 'all', dbSearch = '', dbRows = [];
-let dbSearchTimer = null;
-let filterTags = [];
-let selectedIds = new Set();
-let selectAllMode = false;
-let bulkTags = [];
-let pendingDeleteIds = null;
-let pendingDeleteAll = false;
+var dbPage = 0, dbLimit = 50, dbTotal = 0;
+var dbFilter = 'all', dbSearch = '', dbRows = [];
+var dbSearchTimer = null;
+var filterTags = [];
+var selectedIds = new Set();
+var selectAllMode = false;
+var bulkTags = [];
+var pendingDeleteIds = null;
+var pendingDeleteAll = false;
 
+// ── Supabase (Blu Balence Listmonk) ────────────────────────────────────────
+var LM_URL   = "https://xbwuvaxtnylqvagdvpxp.supabase.co";
+var LM_KEY   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhid3V2YXh0bnlscXZhZ2R2cHhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3Njk1NjMsImV4cCI6MjA5NDM0NTU2M30.WnCOew6w9HtQ2eAM1vpSJCb_AjAvv9x7Mev-k2IxSpc";
+var LM_TABLE = "email_contacts";
+var LM_COLS  = "id,email,first_name,last_name,phone,tags,smtp_checked,smtp_valid";
 
-// ── Supabase (Blu Balence Listmonk) ─────────────────────────────────────────
-const LM_URL   = "https://xbwuvaxtnylqvagdvpxp.supabase.co"; // <-- Project URL
-const LM_KEY   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhid3V2YXh0bnlscXZhZ2R2cHhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3Njk1NjMsImV4cCI6MjA5NDM0NTU2M30.WnCOew6w9HtQ2eAM1vpSJCb_AjAvv9x7Mev-k2IxSpc";                       // <-- anon public key
-const LM_TABLE = "email_contacts";
-const LM_COLS  = "id,email,first_name,last_name,phone,tags,smtp_checked,smtp_valid";
-const lmHdr = extra => ({ apikey:LM_KEY, Authorization:`Bearer ${LM_KEY}`, "Content-Type":"application/json", ...extra });
-function lmFilterQS(f){
-  if(f==='smtp_valid')   return '&smtp_checked=eq.true&smtp_valid=eq.true';
-  if(f==='smtp_invalid') return '&smtp_checked=eq.true&smtp_valid=eq.false';
+function lmHdr(extra) {
+  var h = { apikey: LM_KEY, Authorization: "Bearer " + LM_KEY, "Content-Type": "application/json" };
+  if (extra) Object.assign(h, extra);
+  return h;
+}
+function lmFilterQS(f) {
+  if (f === 'smtp_valid')   return '&smtp_checked=eq.true&smtp_valid=eq.true';
+  if (f === 'smtp_invalid') return '&smtp_checked=eq.true&smtp_valid=eq.false';
   return '';
 }
-function lmSearchQS(s){
-  if(!s) return '';
-  const t = encodeURIComponent('*'+s+'*');
-  return `&or=(email.ilike.${t},first_name.ilike.${t},last_name.ilike.${t})`;
+function lmSearchQS(s) {
+  if (!s) return '';
+  var t = encodeURIComponent('*' + s + '*');
+  return '&or=(email.ilike.' + t + ',first_name.ilike.' + t + ',last_name.ilike.' + t + ')';
 }
-function lmTagsQS(tags){
-  if(!tags||!tags.length) return '';
-  return `&tags=ov.{${tags.map(t=>'"'+String(t).replace(/"/g,'')+'"').join(',')}}`;
+function lmTagsQS(tags) {
+  if (!tags || !tags.length) return '';
+  return '&tags=ov.{' + tags.map(function(t){ return '"' + String(t).replace(/"/g,'') + '"'; }).join(',') + '}';
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 function escHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
 }
 
 function triggerDownload(csv, filename) {
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const a = document.createElement('a');
+  var blob = new Blob([csv], { type: 'text/csv' });
+  var a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = filename;
   a.click();
@@ -395,21 +404,32 @@ function setMode(m) {
   if (m === 'db') loadDb();
 }
 
-// ── DB load ────────────────────────────────────────────────────────────────async function loadDb() {
+// ── DB load ────────────────────────────────────────────────────────────────
+async function loadDb() {
   document.getElementById('db-loading').classList.remove('hidden');
   document.getElementById('db-table').classList.add('hidden');
   document.getElementById('db-empty-msg').classList.add('hidden');
 
   try {
-    const from = dbPage*dbLimit, to = from + dbLimit - 1;
-    const url = `${LM_URL}/rest/v1/${LM_TABLE}?select=${LM_COLS}&order=id.desc${lmFilterQS(dbFilter)}${lmSearchQS(dbSearch)}${lmTagsQS(filterTags)}`;
-    const res = await fetch(url, { headers: lmHdr({ Range:`${from}-${to}`, Prefer:'count=exact' }) });
-    const data = await res.json();
+    var from = dbPage * dbLimit;
+    var to   = from + dbLimit - 1;
+    var url  = LM_URL + '/rest/v1/' + LM_TABLE
+      + '?select=' + LM_COLS
+      + '&order=id.desc'
+      + lmFilterQS(dbFilter)
+      + lmSearchQS(dbSearch)
+      + lmTagsQS(filterTags);
+    var res  = await fetch(url, { headers: lmHdr({ Range: from + '-' + to, Prefer: 'count=exact' }) });
+    var data = await res.json();
     dbRows  = Array.isArray(data) ? data : [];
-    const cr = res.headers.get('content-range'); // "0-49/1234"
-    dbTotal = (cr && cr.includes('/')) ? (parseInt(cr.split('/')[1])||0) : dbRows.length;
-    if (!Array.isArray(data)) console.error('get-leads error:', data);
-  } catch (e) { console.error('loadDb failed:', e); dbRows = []; dbTotal = 0; }
+    var cr  = res.headers.get('content-range');
+    dbTotal = (cr && cr.includes('/')) ? (parseInt(cr.split('/')[1]) || 0) : dbRows.length;
+    if (!Array.isArray(data)) console.error('loadDb error:', data);
+  } catch(e) {
+    console.error('loadDb failed:', e);
+    dbRows  = [];
+    dbTotal = 0;
+  }
 
   document.getElementById('db-loading').classList.add('hidden');
   renderDbTable();
@@ -418,44 +438,48 @@ function setMode(m) {
 }
 
 function renderDbTable() {
-  const tbody = document.getElementById('db-table-body');
-  const empty = document.getElementById('db-empty-msg');
-  const table = document.getElementById('db-table');
-  if (!dbRows.length) { table.classList.add('hidden'); empty.classList.remove('hidden'); return; }
-  empty.classList.add('hidden'); table.classList.remove('hidden');
-  const offset = dbPage * dbLimit;
-  tbody.innerHTML = dbRows.map((r, i) => {
-    const tags = (r.tags||[]).map(t => `<span class="row-tag">${escHtml(t)}</span>`).join('') || '<span style="color:var(--text-dim);font-size:11px">—</span>';
-    const smtp = r.smtp_checked
+  var tbody = document.getElementById('db-table-body');
+  var empty = document.getElementById('db-empty-msg');
+  var table = document.getElementById('db-table');
+  if (!dbRows.length) {
+    table.classList.add('hidden');
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+  table.classList.remove('hidden');
+  var offset = dbPage * dbLimit;
+  tbody.innerHTML = dbRows.map(function(r, i) {
+    var tags  = (r.tags || []).map(function(t){ return '<span class="row-tag">' + escHtml(t) + '</span>'; }).join('') || '<span style="color:var(--text-dim);font-size:11px">—</span>';
+    var smtp  = r.smtp_checked
       ? (r.smtp_valid ? '<span class="badge valid">Valid</span>' : '<span class="badge invalid">Invalid</span>')
       : '<span class="badge unchecked">—</span>';
-    const chk   = (selectAllMode || selectedIds.has(r.id)) ? 'checked' : '';
-    const selCl = (selectAllMode || selectedIds.has(r.id)) ? 'selected' : '';
-    const name  = [r.first_name, r.last_name].filter(Boolean).join(' ') || '—';
-    return `<tr class="${selCl}" id="row-${r.id}">
-      <td><input type="checkbox" ${chk} onchange="toggleRow(${r.id}, this.checked)"></td>
-      <td style="color:var(--text-dim)">${offset + i + 1}</td>
-      <td style="font-size:12px">${escHtml(r.email || '—')}</td>
-      <td style="color:var(--text-sub);font-size:12px">${escHtml(name)}</td>
-      <td>${tags}</td>
-      <td>${smtp}</td>
-      <td style="white-space:nowrap">
-        <button class="edit-btn" title="Edit" onclick="openDbEdit(${i})">✎</button>
-        <button class="del-btn"  title="Delete" onclick="confirmSingleDelete(${r.id})">🗑</button>
-      </td>
-    </tr>`;
+    var chk   = (selectAllMode || selectedIds.has(r.id)) ? 'checked' : '';
+    var selCl = (selectAllMode || selectedIds.has(r.id)) ? 'selected' : '';
+    var name  = [r.first_name, r.last_name].filter(Boolean).join(' ') || '—';
+    return '<tr class="' + selCl + '" id="row-' + r.id + '">'
+      + '<td><input type="checkbox" ' + chk + ' onchange="toggleRow(' + r.id + ', this.checked)"></td>'
+      + '<td style="color:var(--text-dim)">' + (offset + i + 1) + '</td>'
+      + '<td style="font-size:12px">' + escHtml(r.email || '—') + '</td>'
+      + '<td style="color:var(--text-sub);font-size:12px">' + escHtml(name) + '</td>'
+      + '<td>' + tags + '</td>'
+      + '<td>' + smtp + '</td>'
+      + '<td style="white-space:nowrap">'
+      + '<button class="edit-btn" title="Edit" onclick="openDbEdit(' + i + ')">✎</button>'
+      + '<button class="del-btn" title="Delete" onclick="confirmSingleDelete(' + r.id + ')">🗑</button>'
+      + '</td></tr>';
   }).join('');
-  const allChecked = dbRows.length > 0 && dbRows.every(r => selectAllMode || selectedIds.has(r.id));
+  var allChecked = dbRows.length > 0 && dbRows.every(function(r){ return selectAllMode || selectedIds.has(r.id); });
   document.getElementById('select-all-check').checked = allChecked;
 }
 
 function updateDbPagination() {
-  const start = dbPage * dbLimit + 1;
-  const end   = Math.min((dbPage + 1) * dbLimit, dbTotal);
-  const totalPages = Math.ceil(dbTotal / dbLimit) || 1;
-  document.getElementById('db-count-label').textContent = dbTotal ? `${start}–${end} of ${dbTotal.toLocaleString()}` : '0 contacts';
-  document.getElementById('db-title').textContent = dbTotal ? `${dbTotal.toLocaleString()} Contacts` : 'Contacts';
-  document.getElementById('db-page-info').textContent = totalPages > 1 ? `Page ${dbPage+1} of ${totalPages}` : '';
+  var start      = dbPage * dbLimit + 1;
+  var end        = Math.min((dbPage + 1) * dbLimit, dbTotal);
+  var totalPages = Math.ceil(dbTotal / dbLimit) || 1;
+  document.getElementById('db-count-label').textContent = dbTotal ? (start + '–' + end + ' of ' + dbTotal.toLocaleString()) : '0 contacts';
+  document.getElementById('db-title').textContent       = dbTotal ? (dbTotal.toLocaleString() + ' Contacts') : 'Contacts';
+  document.getElementById('db-page-info').textContent   = totalPages > 1 ? ('Page ' + (dbPage + 1) + ' of ' + totalPages) : '';
   document.getElementById('db-prev').disabled = dbPage === 0;
   document.getElementById('db-next').disabled = (dbPage + 1) * dbLimit >= dbTotal;
 }
@@ -465,12 +489,11 @@ function dbChangePage(dir) { dbPage = Math.max(0, dbPage + dir); loadDb(); }
 // ── SMTP Filter ────────────────────────────────────────────────────────────
 function setDbFilter(f) {
   dbFilter = f; dbPage = 0;
-  const tabs = ['all', 'smtp_valid', 'smtp_invalid'];
-  tabs.forEach(t => {
-    const el = document.getElementById('db-tab-' + t);
+  ['all','smtp_valid','smtp_invalid'].forEach(function(t) {
+    var el = document.getElementById('db-tab-' + t);
     if (!el) return;
-    const activeClass = t === 'all' ? 'active-all' : t === 'smtp_valid' ? 'active-valid' : 'active-invalid';
-    el.className = 'tab' + (t === f ? ' ' + activeClass : '');
+    var ac = t === 'all' ? 'active-all' : t === 'smtp_valid' ? 'active-valid' : 'active-invalid';
+    el.className = 'tab' + (t === f ? ' ' + ac : '');
   });
   clearSelection();
   loadDb();
@@ -478,131 +501,115 @@ function setDbFilter(f) {
 
 function dbSearchDebounce() {
   clearTimeout(dbSearchTimer);
-  dbSearchTimer = setTimeout(() => {
+  dbSearchTimer = setTimeout(function() {
     dbSearch = document.getElementById('db-search').value.trim();
     dbPage = 0; clearSelection(); loadDb();
   }, 400);
 }
 
 // ── Tag Filter ─────────────────────────────────────────────────────────────
-(function initTagFilterInput() {
-  const container = document.getElementById('tag-filter-chips');
-  const input     = document.getElementById('tag-filter-input');
-
-  container.addEventListener('click', e => {
+(function() {
+  var container = document.getElementById('tag-filter-chips');
+  var input     = document.getElementById('tag-filter-input');
+  container.addEventListener('click', function(e) {
     if (e.target.tagName === 'BUTTON' && e.target.dataset.remove !== undefined) {
-      const idx = parseInt(e.target.dataset.remove);
-      filterTags.splice(idx, 1);
+      filterTags.splice(parseInt(e.target.dataset.remove), 1);
       renderFilterChips();
       dbPage = 0; clearSelection(); loadDb();
-    } else {
-      input.focus();
-    }
+    } else { input.focus(); }
   });
-
-  input.addEventListener('keydown', e => {
+  input.addEventListener('keydown', function(e) {
     if ((e.key === 'Enter' || e.key === ',') && input.value.trim()) {
       e.preventDefault();
-      const tag = input.value.trim().replace(/,$/,'');
-      if (tag && !filterTags.includes(tag)) {
-        filterTags.push(tag);
-        renderFilterChips();
-        dbPage = 0; clearSelection(); loadDb();
-      }
+      var tag = input.value.trim().replace(/,$/, '');
+      if (tag && !filterTags.includes(tag)) { filterTags.push(tag); renderFilterChips(); dbPage = 0; clearSelection(); loadDb(); }
       input.value = '';
     } else if (e.key === 'Backspace' && !input.value && filterTags.length) {
-      filterTags.pop();
-      renderFilterChips();
-      dbPage = 0; clearSelection(); loadDb();
+      filterTags.pop(); renderFilterChips(); dbPage = 0; clearSelection(); loadDb();
     }
   });
 })();
 
 function renderFilterChips() {
-  const container = document.getElementById('tag-filter-chips');
-  const input     = document.getElementById('tag-filter-input');
-  container.querySelectorAll('.chip').forEach(el => el.remove());
-  filterTags.forEach((t, i) => {
-    const chip = document.createElement('span');
+  var container = document.getElementById('tag-filter-chips');
+  var input     = document.getElementById('tag-filter-input');
+  container.querySelectorAll('.chip').forEach(function(el){ el.remove(); });
+  filterTags.forEach(function(t, i) {
+    var chip = document.createElement('span');
     chip.className = 'chip';
-    chip.innerHTML = `${escHtml(t)}<button type="button" data-remove="${i}">×</button>`;
+    chip.innerHTML = escHtml(t) + '<button type="button" data-remove="' + i + '">×</button>';
     container.insertBefore(chip, input);
   });
   input.placeholder = filterTags.length ? '' : 'Filter by tag + Enter...';
 }
 
-// ── Export / Download DB ───────────────────────────────────────────────────
+// ── Export ─────────────────────────────────────────────────────────────────
 async function exportDbCSV() {
-  const btn = document.querySelector('.btn-export-sm');
-  const origText = btn.innerHTML;
+  var btn = document.querySelector('.btn-export-sm');
+  var orig = btn.innerHTML;
   btn.innerHTML = '⏳ Fetching...';
-
   try {
-    const allRows = await fetchAllDbRows();
-    if (!allRows.length) { alert('No contacts to export.'); btn.innerHTML = origText; return; }
-    const headers = ['id','email','first_name','last_name','phone','tags','smtp_valid','smtp_checked'];
-    const lines = [headers.join(',')];
-    allRows.forEach(r => {
-      lines.push(headers.map(h => {
-        let v = r[h] ?? '';
+    var allRows = await fetchAllDbRows();
+    if (!allRows.length) { alert('No contacts to export.'); btn.innerHTML = orig; return; }
+    var headers = ['id','email','first_name','last_name','phone','tags','smtp_valid','smtp_checked'];
+    var lines = [headers.join(',')];
+    allRows.forEach(function(r) {
+      lines.push(headers.map(function(h) {
+        var v = r[h] != null ? r[h] : '';
         if (Array.isArray(v)) v = v.join('|');
         return '"' + String(v).replace(/"/g,'""') + '"';
       }).join(','));
     });
-    triggerDownload(lines.join('\n'), `leads-export-${Date.now()}.csv`);
+    triggerDownload(lines.join('\n'), 'leads-export-' + Date.now() + '.csv');
   } catch(e) { alert('Export failed: ' + e.message); }
-  btn.innerHTML = origText;
+  btn.innerHTML = orig;
 }
 
 async function fetchAllDbRows() {
-  let all = [], page = 0;
-  const limit = 1000;
+  var all = [], page = 0, limit = 1000;
   while (true) {
-        const from = page*limit, to = from + limit - 1;
-    const url = `${LM_URL}/rest/v1/${LM_TABLE}?select=${LM_COLS}&order=id.desc${lmFilterQS(dbFilter)}${lmSearchQS(dbSearch)}${lmTagsQS(filterTags)}`;
-    const res  = await fetch(url, { headers: lmHdr({ Range:`${from}-${to}` }) });
-    const rows = (await res.json()) || [];
-    all = all.concat(rows);
-    if (rows.length < limit) break;
+    var from = page * limit, to = from + limit - 1;
+    var url  = LM_URL + '/rest/v1/' + LM_TABLE + '?select=' + LM_COLS + '&order=id.desc' + lmFilterQS(dbFilter) + lmSearchQS(dbSearch) + lmTagsQS(filterTags);
+    var res  = await fetch(url, { headers: lmHdr({ Range: from + '-' + to }) });
+    var rows = await res.json();
+    all = all.concat(Array.isArray(rows) ? rows : []);
+    if (!Array.isArray(rows) || rows.length < limit) break;
     page++;
   }
   return all;
 }
 
 async function exportSelectedCSV() {
-  const ids = selectAllMode ? null : [...selectedIds];
+  var ids = selectAllMode ? null : [...selectedIds];
   if (!selectAllMode && !ids.length) { alert('Nothing selected.'); return; }
   if (selectAllMode) { await exportDbCSV(); return; }
-
-  const rows = dbRows.filter(r => ids.includes(r.id));
+  var rows = dbRows.filter(function(r){ return ids.includes(r.id); });
   if (!rows.length) { alert('Selected rows not in current view.'); return; }
-  const headers = ['id','email','first_name','last_name','phone','tags','smtp_valid','smtp_checked'];
-  const lines = [headers.join(',')];
-  rows.forEach(r => {
-    lines.push(headers.map(h => {
-      let v = r[h] ?? '';
+  var headers = ['id','email','first_name','last_name','phone','tags','smtp_valid','smtp_checked'];
+  var lines = [headers.join(',')];
+  rows.forEach(function(r) {
+    lines.push(headers.map(function(h) {
+      var v = r[h] != null ? r[h] : '';
       if (Array.isArray(v)) v = v.join('|');
       return '"' + String(v).replace(/"/g,'""') + '"';
     }).join(','));
   });
-  triggerDownload(lines.join('\n'), `selected-leads-${Date.now()}.csv`);
+  triggerDownload(lines.join('\n'), 'selected-leads-' + Date.now() + '.csv');
 }
 
 // ── Delete ─────────────────────────────────────────────────────────────────
 function confirmSingleDelete(id) {
-  pendingDeleteIds  = [id];
-  pendingDeleteAll  = false;
+  pendingDeleteIds = [id]; pendingDeleteAll = false;
   document.getElementById('confirm-msg').textContent = 'Delete this contact? This cannot be undone.';
   document.getElementById('confirm-modal').classList.remove('hidden');
 }
 
 function confirmBulkDelete() {
-  const n = selectAllMode ? dbTotal : selectedIds.size;
+  var n = selectAllMode ? dbTotal : selectedIds.size;
   if (!n) { alert('Select at least one contact.'); return; }
   pendingDeleteAll = selectAllMode;
   pendingDeleteIds = selectAllMode ? null : [...selectedIds];
-  document.getElementById('confirm-msg').textContent =
-    `Delete ${selectAllMode ? 'all ' + dbTotal.toLocaleString() : n} contact${n !== 1 ? 's' : ''}? This cannot be undone.`;
+  document.getElementById('confirm-msg').textContent = 'Delete ' + (selectAllMode ? 'all ' + dbTotal.toLocaleString() : n) + ' contact' + (n !== 1 ? 's' : '') + '? This cannot be undone.';
   document.getElementById('confirm-modal').classList.remove('hidden');
 }
 
@@ -612,27 +619,21 @@ function closeConfirm() {
 }
 
 async function executeDelete() {
-  const btn = document.getElementById('confirm-delete-btn');
+  var btn = document.getElementById('confirm-delete-btn');
   btn.disabled = true; btn.textContent = 'Deleting...';
-
   try {
-        let url;
+    var url;
     if (pendingDeleteAll) {
-      url = `${LM_URL}/rest/v1/${LM_TABLE}?id=not.is.null${lmFilterQS(dbFilter)}${lmSearchQS(dbSearch)}${lmTagsQS(filterTags)}`;
+      url = LM_URL + '/rest/v1/' + LM_TABLE + '?id=not.is.null' + lmFilterQS(dbFilter) + lmSearchQS(dbSearch) + lmTagsQS(filterTags);
     } else {
-      url = `${LM_URL}/rest/v1/${LM_TABLE}?id=in.(${pendingDeleteIds.join(',')})`;
+      url = LM_URL + '/rest/v1/' + LM_TABLE + '?id=in.(' + pendingDeleteIds.join(',') + ')';
     }
-
-    const res = await fetch(url, { method:'DELETE', headers: lmHdr() });
-
+    var res = await fetch(url, { method: 'DELETE', headers: lmHdr() });
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
+      var err = await res.json().catch(function(){ return {}; });
       alert('Delete failed: ' + (err.error || res.status));
     } else {
-      clearSelection();
-      closeConfirm();
-      dbPage = 0;
-      loadDb();
+      clearSelection(); closeConfirm(); dbPage = 0; loadDb();
     }
   } catch(e) { alert('Delete failed: ' + e.message); }
   btn.disabled = false; btn.textContent = 'Delete';
@@ -642,131 +643,120 @@ async function executeDelete() {
 function toggleRow(id, checked) {
   if (!checked) selectAllMode = false;
   checked ? selectedIds.add(id) : selectedIds.delete(id);
-  const row = document.getElementById('row-' + id);
+  var row = document.getElementById('row-' + id);
   if (row) row.className = checked ? 'selected' : '';
-  const allChecked = dbRows.length > 0 && dbRows.every(r => selectedIds.has(r.id));
+  var allChecked = dbRows.length > 0 && dbRows.every(function(r){ return selectedIds.has(r.id); });
   document.getElementById('select-all-check').checked = allChecked;
   updateBulkBar();
 }
 
 function toggleSelectAll(checked) {
   selectAllMode = false;
-  dbRows.forEach(r => { checked ? selectedIds.add(r.id) : selectedIds.delete(r.id); });
-  renderDbTable();
-  updateBulkBar();
+  dbRows.forEach(function(r){ checked ? selectedIds.add(r.id) : selectedIds.delete(r.id); });
+  renderDbTable(); updateBulkBar();
 }
 
 function selectAllAcrossPages(e) {
   if (e) e.preventDefault();
-  selectAllMode = true;
-  updateBulkBar();
+  selectAllMode = true; updateBulkBar();
 }
 
 function clearSelection() {
-  selectedIds.clear();
-  selectAllMode = false;
-  bulkTags = [];
-  renderBulkTags();
-  renderDbTable();
-  updateBulkBar();
+  selectedIds.clear(); selectAllMode = false; bulkTags = [];
+  renderBulkTags(); renderDbTable(); updateBulkBar();
 }
 
 function updateBulkBar() {
-  const bar    = document.getElementById('bulk-bar');
-  const label  = document.getElementById('bulk-label');
-  const banner = document.getElementById('sel-banner');
-  const n = selectAllMode ? dbTotal : selectedIds.size;
+  var bar    = document.getElementById('bulk-bar');
+  var label  = document.getElementById('bulk-label');
+  var banner = document.getElementById('sel-banner');
+  var n = selectAllMode ? dbTotal : selectedIds.size;
   if (n === 0) { bar.classList.add('hidden'); return; }
   bar.classList.remove('hidden');
   if (selectAllMode) {
-    label.textContent = `All ${dbTotal.toLocaleString()} contacts selected`;
-    banner.innerHTML  = `<a onclick="clearSelection()">Clear selection</a>`;
+    label.textContent = 'All ' + dbTotal.toLocaleString() + ' contacts selected';
+    banner.innerHTML  = '<a onclick="clearSelection()">Clear selection</a>';
     banner.classList.remove('hidden');
   } else {
-    label.textContent = `${n} selected`;
-    const allOnPageSelected = dbRows.length > 0 && dbRows.every(r => selectedIds.has(r.id));
-    if (allOnPageSelected && dbTotal > dbLimit) {
-      banner.innerHTML = `All ${dbRows.length} on this page. <a onclick="selectAllAcrossPages(event)">Select all ${dbTotal.toLocaleString()}</a>`;
+    label.textContent = n + ' selected';
+    var allOnPage = dbRows.length > 0 && dbRows.every(function(r){ return selectedIds.has(r.id); });
+    if (allOnPage && dbTotal > dbLimit) {
+      banner.innerHTML = 'All ' + dbRows.length + ' on this page. <a onclick="selectAllAcrossPages(event)">Select all ' + dbTotal.toLocaleString() + '</a>';
       banner.classList.remove('hidden');
-    } else {
-      banner.classList.add('hidden');
-    }
+    } else { banner.classList.add('hidden'); }
   }
 }
 
 // ── Bulk tag chips ─────────────────────────────────────────────────────────
-document.getElementById('bulk-tag-chips').addEventListener('keydown', e => {
+document.getElementById('bulk-tag-chips').addEventListener('keydown', function(e) {
   if (e.target.id !== 'bulk-tag-input') return;
   if ((e.key === 'Enter' || e.key === ',') && e.target.value.trim()) {
-    e.preventDefault();
-    addBulkTag(e.target.value.trim().replace(/,$/,''));
-    e.target.value = '';
-  } else if (e.key === 'Backspace' && !e.target.value && bulkTags.length) {
-    bulkTags.pop(); renderBulkTags();
-  }
+    e.preventDefault(); addBulkTag(e.target.value.trim().replace(/,$/, '')); e.target.value = '';
+  } else if (e.key === 'Backspace' && !e.target.value && bulkTags.length) { bulkTags.pop(); renderBulkTags(); }
 });
 
 function addBulkTag(tag) {
-  tag = tag.trim();
-  if (!tag || bulkTags.includes(tag)) return;
-  bulkTags.push(tag); renderBulkTags();
+  tag = tag.trim(); if (!tag || bulkTags.includes(tag)) return; bulkTags.push(tag); renderBulkTags();
 }
 
 function renderBulkTags() {
-  const container = document.getElementById('bulk-tag-chips');
-  const input     = document.getElementById('bulk-tag-input');
-  container.querySelectorAll('.chip').forEach(el => el.remove());
-  bulkTags.forEach((t, i) => {
-    const chip = document.createElement('span');
+  var container = document.getElementById('bulk-tag-chips');
+  var input     = document.getElementById('bulk-tag-input');
+  container.querySelectorAll('.chip').forEach(function(el){ el.remove(); });
+  bulkTags.forEach(function(t, i) {
+    var chip = document.createElement('span');
     chip.className = 'chip';
-    chip.innerHTML = `${escHtml(t)}<button type="button">×</button>`;
-    chip.querySelector('button').addEventListener('click', () => { bulkTags.splice(i,1); renderBulkTags(); });
+    chip.innerHTML = escHtml(t) + '<button type="button">×</button>';
+    chip.querySelector('button').addEventListener('click', function(){ bulkTags.splice(i,1); renderBulkTags(); });
     container.insertBefore(chip, input);
   });
 }
 
 async function applyBulkTags() {
   if (!bulkTags.length) { alert('Type at least one tag first.'); return; }
-  const n = selectAllMode ? dbTotal : selectedIds.size;
+  var n = selectAllMode ? dbTotal : selectedIds.size;
   if (!n) { alert('Select at least one contact.'); return; }
-  const btn = document.getElementById('bulk-apply-btn');
+  var btn = document.getElementById('bulk-apply-btn');
   btn.disabled = true; btn.textContent = 'Applying...';
   try {
-        let targets; // [{ id, tags(existing) }]
+    var targets;
     if (selectAllMode) {
-      const url = `${LM_URL}/rest/v1/${LM_TABLE}?select=id,tags&id=not.is.null${lmFilterQS(dbFilter)}${lmSearchQS(dbSearch)}${lmTagsQS(filterTags)}`;
-      const r = await fetch(url, { headers: lmHdr() });
-      targets = (await r.json()) || [];
+      var url = LM_URL + '/rest/v1/' + LM_TABLE + '?select=id,tags&id=not.is.null' + lmFilterQS(dbFilter) + lmSearchQS(dbSearch) + lmTagsQS(filterTags);
+      var r   = await fetch(url, { headers: lmHdr() });
+      targets = await r.json();
+      if (!Array.isArray(targets)) targets = [];
     } else {
-      targets = [...selectedIds].map(id => { const row = dbRows.find(r=>r.id===id); return { id, tags: row ? row.tags||[] : [] }; });
+      targets = [...selectedIds].map(function(id) {
+        var row = dbRows.find(function(r){ return r.id === id; });
+        return { id: id, tags: row ? (row.tags || []) : [] };
+      });
     }
-    let okCount = 0, anyFail = false;
-    for (const t of targets) {
-      const merged = [...new Set([...(t.tags||[]), ...bulkTags])];
-      const pr = await fetch(`${LM_URL}/rest/v1/${LM_TABLE}?id=eq.${t.id}`, { method:'PATCH', headers: lmHdr(), body: JSON.stringify({ tags: merged }) });
+    var okCount = 0, anyFail = false;
+    for (var i = 0; i < targets.length; i++) {
+      var merged = [...new Set([...(targets[i].tags || []), ...bulkTags])];
+      var pr = await fetch(LM_URL + '/rest/v1/' + LM_TABLE + '?id=eq.' + targets[i].id, { method: 'PATCH', headers: lmHdr(), body: JSON.stringify({ tags: merged }) });
       pr.ok ? okCount++ : (anyFail = true);
     }
-    const json = { ok: okCount };
-    if (anyFail && okCount === 0) { alert('Error applying tags'); btn.disabled=false; btn.textContent='Apply Tags'; return; }
+    if (anyFail && okCount === 0) { alert('Error applying tags'); btn.disabled = false; btn.textContent = 'Apply Tags'; return; }
     if (!selectAllMode) {
-      [...selectedIds].forEach(id => {
-        const row = dbRows.find(r => r.id === id);
-        if (row) row.tags = [...new Set([...(row.tags||[]), ...bulkTags])];
+      [...selectedIds].forEach(function(id) {
+        var row = dbRows.find(function(r){ return r.id === id; });
+        if (row) row.tags = [...new Set([...(row.tags || []), ...bulkTags])];
       });
       renderDbTable();
     }
     bulkTags = []; renderBulkTags(); clearSelection();
     if (selectAllMode) { selectAllMode = false; loadDb(); }
-    btn.textContent = `✓ Applied to ${json.ok}`;
-    setTimeout(() => { btn.textContent = 'Apply Tags'; btn.disabled = false; }, 1800);
-  } catch(e) { alert('Failed: ' + e.message); btn.textContent='Apply Tags'; btn.disabled=false; }
+    btn.textContent = '✓ Applied to ' + okCount;
+    setTimeout(function(){ btn.textContent = 'Apply Tags'; btn.disabled = false; }, 1800);
+  } catch(e) { alert('Failed: ' + e.message); btn.textContent = 'Apply Tags'; btn.disabled = false; }
 }
 
 // ── DB edit modal ──────────────────────────────────────────────────────────
 function openDbEdit(i) {
-  const r = dbRows[i];
+  var r = dbRows[i];
   editId = r.id; editIndex = i; editList = null;
-  modalTags = [...(r.tags||[])];
+  modalTags = [...(r.tags || [])];
   document.getElementById('edit-email').value = r.email      || '';
   document.getElementById('edit-first').value = r.first_name || '';
   document.getElementById('edit-last').value  = r.last_name  || '';
@@ -777,44 +767,38 @@ function openDbEdit(i) {
 }
 
 function openUploadEdit(tab, idx) {
-  const r = uploadData[tab][idx];
+  var r = uploadData[tab][idx];
   editId = null; editIndex = idx; editList = tab;
-  modalTags = [...(r.tags||[])];
-  document.getElementById('edit-email').value = r.email;
-  document.getElementById('edit-first').value = r.first_name;
-  document.getElementById('edit-last').value  = r.last_name;
-  document.getElementById('edit-phone').value = r.phone;
+  modalTags = [...(r.tags || [])];
+  document.getElementById('edit-email').value = r.email      || '';
+  document.getElementById('edit-first').value = r.first_name || '';
+  document.getElementById('edit-last').value  = r.last_name  || '';
+  document.getElementById('edit-phone').value = r.phone      || '';
   document.getElementById('save-indicator').classList.add('hidden');
   renderModalTags();
   document.getElementById('modal').classList.remove('hidden');
 }
 
-document.getElementById('modal-tag-chips').addEventListener('keydown', e => {
+document.getElementById('modal-tag-chips').addEventListener('keydown', function(e) {
   if (e.target.id !== 'modal-tag-input') return;
   if ((e.key === 'Enter' || e.key === ',') && e.target.value.trim()) {
-    e.preventDefault();
-    addModalTag(e.target.value.trim().replace(/,$/,''));
-    e.target.value = '';
-  } else if (e.key === 'Backspace' && !e.target.value && modalTags.length) {
-    modalTags.pop(); renderModalTags();
-  }
+    e.preventDefault(); addModalTag(e.target.value.trim().replace(/,$/, '')); e.target.value = '';
+  } else if (e.key === 'Backspace' && !e.target.value && modalTags.length) { modalTags.pop(); renderModalTags(); }
 });
 
 function addModalTag(tag) {
-  tag = tag.trim();
-  if (!tag || modalTags.includes(tag)) return;
-  modalTags.push(tag); renderModalTags();
+  tag = tag.trim(); if (!tag || modalTags.includes(tag)) return; modalTags.push(tag); renderModalTags();
 }
 
 function renderModalTags() {
-  const container = document.getElementById('modal-tag-chips');
-  const input     = document.getElementById('modal-tag-input');
-  container.querySelectorAll('.chip').forEach(el => el.remove());
-  modalTags.forEach((t, i) => {
-    const chip = document.createElement('span');
+  var container = document.getElementById('modal-tag-chips');
+  var input     = document.getElementById('modal-tag-input');
+  container.querySelectorAll('.chip').forEach(function(el){ el.remove(); });
+  modalTags.forEach(function(t, i) {
+    var chip = document.createElement('span');
     chip.className = 'chip';
-    chip.innerHTML = `${escHtml(t)}<button type="button">×</button>`;
-    chip.querySelector('button').addEventListener('click', () => { modalTags.splice(i,1); renderModalTags(); });
+    chip.innerHTML = escHtml(t) + '<button type="button">×</button>';
+    chip.querySelector('button').addEventListener('click', function(){ modalTags.splice(i,1); renderModalTags(); });
     container.insertBefore(chip, input);
   });
 }
@@ -825,103 +809,97 @@ function closeModal() {
 }
 
 async function saveEdit() {
-  const email      = document.getElementById('edit-email').value.trim().toLowerCase();
-  const first_name = document.getElementById('edit-first').value.trim();
-  const last_name  = document.getElementById('edit-last').value.trim();
-  const phone      = document.getElementById('edit-phone').value.trim();
-  const tags       = [...modalTags];
-  const btn        = document.getElementById('modal-save-btn');
+  var email      = document.getElementById('edit-email').value.trim().toLowerCase();
+  var first_name = document.getElementById('edit-first').value.trim();
+  var last_name  = document.getElementById('edit-last').value.trim();
+  var phone      = document.getElementById('edit-phone').value.trim();
+  var tags       = [...modalTags];
+  var btn        = document.getElementById('modal-save-btn');
   if (editId) {
     btn.disabled = true; btn.textContent = 'Saving...';
     try {
-            const res = await fetch(`${LM_URL}/rest/v1/${LM_TABLE}?id=eq.${editId}`, {
+      var res = await fetch(LM_URL + '/rest/v1/' + LM_TABLE + '?id=eq.' + editId, {
         method: 'PATCH', headers: lmHdr(),
-        body: JSON.stringify({ email, first_name, last_name, phone, tags }),
+        body: JSON.stringify({ email: email, first_name: first_name, last_name: last_name, phone: phone, tags: tags }),
       });
       if (res.ok) {
-        dbRows[editIndex] = { ...dbRows[editIndex], email, first_name, last_name, phone, tags };
+        dbRows[editIndex] = Object.assign({}, dbRows[editIndex], { email: email, first_name: first_name, last_name: last_name, phone: phone, tags: tags });
         renderDbTable();
         document.getElementById('save-indicator').classList.remove('hidden');
-        setTimeout(() => closeModal(), 800);
+        setTimeout(function(){ closeModal(); }, 800);
       } else { alert('Save failed.'); }
-    } catch { alert('Save failed.'); }
+    } catch(e) { alert('Save failed.'); }
     btn.disabled = false; btn.textContent = 'Save';
   } else {
-    const r = uploadData[editList][editIndex];
-    r.email = email; r.first_name = first_name; r.last_name = last_name; r.phone = phone; r.tags = tags;
+    var row = uploadData[editList][editIndex];
+    row.email = email; row.first_name = first_name; row.last_name = last_name; row.phone = phone; row.tags = tags;
     closeModal(); renderUploadTable();
   }
 }
 
-document.getElementById('modal').addEventListener('click', e => { if (e.target === document.getElementById('modal')) closeModal(); });
-document.getElementById('confirm-modal').addEventListener('click', e => { if (e.target === document.getElementById('confirm-modal')) closeConfirm(); });
+document.getElementById('modal').addEventListener('click', function(e){ if (e.target === document.getElementById('modal')) closeModal(); });
+document.getElementById('confirm-modal').addEventListener('click', function(e){ if (e.target === document.getElementById('confirm-modal')) closeConfirm(); });
 
-// ── Batch tag chips (upload mode) ──────────────────────────────────────────
-document.getElementById('batch-tag-chips').addEventListener('keydown', e => {
+// ── Batch tag chips ────────────────────────────────────────────────────────
+document.getElementById('batch-tag-chips').addEventListener('keydown', function(e) {
   if (e.target.id !== 'batch-tag-input') return;
   if ((e.key === 'Enter' || e.key === ',') && e.target.value.trim()) {
-    e.preventDefault();
-    addBatchTag(e.target.value.trim().replace(/,$/,''));
-    e.target.value = '';
-  } else if (e.key === 'Backspace' && !e.target.value && batchTags.length) {
-    batchTags.pop(); renderBatchTags();
-  }
+    e.preventDefault(); addBatchTag(e.target.value.trim().replace(/,$/, '')); e.target.value = '';
+  } else if (e.key === 'Backspace' && !e.target.value && batchTags.length) { batchTags.pop(); renderBatchTags(); }
 });
 
 function addBatchTag(tag) {
-  tag = tag.trim();
-  if (!tag || batchTags.includes(tag)) return;
-  batchTags.push(tag); renderBatchTags();
+  tag = tag.trim(); if (!tag || batchTags.includes(tag)) return; batchTags.push(tag); renderBatchTags();
 }
 
 function renderBatchTags() {
-  const container = document.getElementById('batch-tag-chips');
-  const input     = document.getElementById('batch-tag-input');
-  container.querySelectorAll('.chip').forEach(el => el.remove());
-  batchTags.forEach((t, i) => {
-    const chip = document.createElement('span');
+  var container = document.getElementById('batch-tag-chips');
+  var input     = document.getElementById('batch-tag-input');
+  container.querySelectorAll('.chip').forEach(function(el){ el.remove(); });
+  batchTags.forEach(function(t, i) {
+    var chip = document.createElement('span');
     chip.className = 'chip';
-    chip.innerHTML = `${escHtml(t)}<button type="button">×</button>`;
-    chip.querySelector('button').addEventListener('click', () => { batchTags.splice(i,1); renderBatchTags(); });
+    chip.innerHTML = escHtml(t) + '<button type="button">×</button>';
+    chip.querySelector('button').addEventListener('click', function(){ batchTags.splice(i,1); renderBatchTags(); });
     container.insertBefore(chip, input);
   });
   renderUploadTable();
 }
 
 // ── File handling ──────────────────────────────────────────────────────────
-const dropZone  = document.getElementById('drop-zone');
-const fileInput = document.getElementById('file-input');
-dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
-dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); const f = e.dataTransfer.files[0]; if (f) processFile(f); });
-fileInput.addEventListener('change', e => { if (e.target.files[0]) processFile(e.target.files[0]); });
+var dropZone  = document.getElementById('drop-zone');
+var fileInput = document.getElementById('file-input');
+dropZone.addEventListener('dragover', function(e){ e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', function(){ dropZone.classList.remove('drag-over'); });
+dropZone.addEventListener('drop', function(e){ e.preventDefault(); dropZone.classList.remove('drag-over'); var f = e.dataTransfer.files[0]; if (f) processFile(f); });
+fileInput.addEventListener('change', function(e){ if (e.target.files[0]) processFile(e.target.files[0]); });
 
 function processFile(file) {
-  const r = new FileReader();
-  r.onload = e => parseCSV(e.target.result);
+  var r = new FileReader();
+  r.onload = function(e){ parseCSV(e.target.result); };
   r.readAsText(file);
 }
 
 function parseCSV(text) {
-  const lines   = text.split(/\r?\n/).filter(l => l.trim());
+  var lines   = text.split(/\r?\n/).filter(function(l){ return l.trim(); });
   if (!lines.length) return alert('File is empty.');
-  const headers  = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g,'').toLowerCase());
-  const emailCol = headers.findIndex(h => h === 'email');
+  var headers  = lines[0].split(',').map(function(h){ return h.trim().replace(/^"|"$/g,'').toLowerCase(); });
+  var emailCol = headers.findIndex(function(h){ return h === 'email'; });
   if (emailCol === -1) return alert('No "Email" column found.');
-  const firstCol = headers.findIndex(h => h.includes('first'));
-  const lastCol  = headers.findIndex(h => h.includes('last'));
-  const phoneCol = headers.findIndex(h => h.includes('phone'));
-  const seen = new Set();
+  var firstCol = headers.findIndex(function(h){ return h.includes('first'); });
+  var lastCol  = headers.findIndex(function(h){ return h.includes('last'); });
+  var phoneCol = headers.findIndex(function(h){ return h.includes('phone'); });
+  var seen = new Set();
   uploadData = { valid:[], invalid:[], dupes:[] };
-  for (let i = 1; i < lines.length; i++) {
-    const cols = splitCSVLine(lines[i]);
-    const raw  = (cols[emailCol]||'').trim().replace(/^"|"$/g,'').toLowerCase();
+  for (var i = 1; i < lines.length; i++) {
+    var cols = splitCSVLine(lines[i]);
+    var raw  = (cols[emailCol] || '').trim().replace(/^"|"$/g,'').toLowerCase();
     if (!raw) continue;
-    const record = {
+    var record = {
       email:      raw,
-      first_name: firstCol >= 0 ? (cols[firstCol]||'').trim().replace(/^"|"$/g,'') : '',
-      last_name:  lastCol  >= 0 ? (cols[lastCol] ||'').trim().replace(/^"|"$/g,'') : '',
-      phone:      phoneCol >= 0 ? (cols[phoneCol]||'').trim().replace(/^"|"$/g,'') : '',
+      first_name: firstCol >= 0 ? (cols[firstCol] || '').trim().replace(/^"|"$/g,'') : '',
+      last_name:  lastCol  >= 0 ? (cols[lastCol]  || '').trim().replace(/^"|"$/g,'') : '',
+      phone:      phoneCol >= 0 ? (cols[phoneCol] || '').trim().replace(/^"|"$/g,'') : '',
       tags: [],
     };
     if (seen.has(raw)) { uploadData.dupes.push(record); }
@@ -931,14 +909,15 @@ function parseCSV(text) {
   document.getElementById('stat-valid').textContent   = uploadData.valid.length;
   document.getElementById('stat-dupes').textContent   = uploadData.dupes.length;
   document.getElementById('stat-invalid').textContent = uploadData.invalid.length;
-  ['tag-panel','stats','upload-results-card','actions'].forEach(id => document.getElementById(id).classList.remove('hidden'));
+  ['tag-panel','stats','upload-results-card','actions'].forEach(function(id){ document.getElementById(id).classList.remove('hidden'); });
   document.getElementById('drop-zone').classList.add('hidden');
   switchUploadTab('valid');
 }
 
 function splitCSVLine(line) {
-  const result = []; let cur = '', inQ = false;
-  for (const ch of line) {
+  var result = [], cur = '', inQ = false;
+  for (var i = 0; i < line.length; i++) {
+    var ch = line[i];
     if (ch === '"') { inQ = !inQ; }
     else if (ch === ',' && !inQ) { result.push(cur); cur = ''; }
     else { cur += ch; }
@@ -952,89 +931,98 @@ function isValidEmail(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e); }
 function switchUploadTab(tab) {
   currentUploadTab = tab;
   document.getElementById('upload-search').value = '';
-  ['valid','invalid','dupes'].forEach(t => {
-    document.getElementById('tab-' + t).className = 'tab' + (t === tab ? ` active-${t}` : '');
+  ['valid','invalid','dupes'].forEach(function(t){
+    document.getElementById('tab-' + t).className = 'tab' + (t === tab ? ' active-' + t : '');
   });
   renderUploadTable();
 }
 
 function renderUploadTable() {
-  const query = document.getElementById('upload-search').value.toLowerCase();
-  const list  = uploadData[currentUploadTab];
-  const rows  = list.filter(r => r.email.includes(query));
-  const tbody = document.getElementById('upload-table-body');
-  const empty = document.getElementById('upload-empty-msg');
+  var query = document.getElementById('upload-search').value.toLowerCase();
+  var list  = uploadData[currentUploadTab];
+  var rows  = list.filter(function(r){ return r.email.includes(query); });
+  var tbody = document.getElementById('upload-table-body');
+  var empty = document.getElementById('upload-empty-msg');
   if (!rows.length) { tbody.innerHTML = ''; empty.classList.remove('hidden'); return; }
   empty.classList.add('hidden');
-  const bc = currentUploadTab === 'valid' ? 'valid' : currentUploadTab === 'invalid' ? 'invalid' : 'dupe';
-  const bl = currentUploadTab === 'valid' ? 'Valid' : currentUploadTab === 'invalid' ? 'Invalid' : 'Duplicate';
-  tbody.innerHTML = rows.map((r, i) => {
-    const allTags = [...new Set([...batchTags,...(r.tags||[])])];
-    const tagHtml = allTags.map(t => `<span class="row-tag">${escHtml(t)}</span>`).join('') || '<span style="color:var(--text-dim);font-size:11px">—</span>';
-    const realIdx = list.indexOf(r);
-    return `<tr>
-      <td style="color:var(--text-dim)">${i+1}</td>
-      <td style="font-size:12px">${escHtml(r.email)}</td>
-      <td style="color:var(--text-sub);font-size:12px">${escHtml([r.first_name,r.last_name].filter(Boolean).join(' ')||'—')}</td>
-      <td>${tagHtml}</td>
-      <td><span class="badge ${bc}">${bl}</span></td>
-      <td><button class="edit-btn" onclick="openUploadEdit('${currentUploadTab}',${realIdx})">✎</button></td>
-    </tr>`;
+  var bc = currentUploadTab === 'valid' ? 'valid' : currentUploadTab === 'invalid' ? 'invalid' : 'dupe';
+  var bl = currentUploadTab === 'valid' ? 'Valid' : currentUploadTab === 'invalid' ? 'Invalid' : 'Duplicate';
+  tbody.innerHTML = rows.map(function(r, i) {
+    var allTags = [...new Set([...batchTags,...(r.tags||[])])];
+    var tagHtml = allTags.map(function(t){ return '<span class="row-tag">' + escHtml(t) + '</span>'; }).join('') || '<span style="color:var(--text-dim);font-size:11px">—</span>';
+    var realIdx = list.indexOf(r);
+    return '<tr>'
+      + '<td style="color:var(--text-dim)">' + (i+1) + '</td>'
+      + '<td style="font-size:12px">' + escHtml(r.email) + '</td>'
+      + '<td style="color:var(--text-sub);font-size:12px">' + escHtml([r.first_name,r.last_name].filter(Boolean).join(' ')||'—') + '</td>'
+      + '<td>' + tagHtml + '</td>'
+      + '<td><span class="badge ' + bc + '">' + bl + '</span></td>'
+      + '<td><button class="edit-btn" onclick="openUploadEdit(\'' + currentUploadTab + '\',' + realIdx + ')">✎</button></td>'
+      + '</tr>';
   }).join('');
 }
 
-// ── Download (upload mode) ─────────────────────────────────────────────────
+// ── Download ───────────────────────────────────────────────────────────────
 function downloadCSV() {
-  const rows = uploadData.valid.map(r => {
-    const tags = [...new Set([...batchTags,...(r.tags||[])])].join('|');
-    return `"${r.email}","${r.first_name}","${r.last_name}","${r.phone}","${tags}"`;
+  var rows = uploadData.valid.map(function(r) {
+    var tags = [...new Set([...batchTags,...(r.tags||[])])].join('|');
+    return '"' + r.email + '","' + r.first_name + '","' + r.last_name + '","' + r.phone + '","' + tags + '"';
   });
   triggerDownload('email,first_name,last_name,phone,tags\n' + rows.join('\n'), 'clean-leads.csv');
 }
 
-// ── Push ───────────────────────────────────────────────────────────────────
+// ── Push to Supabase ───────────────────────────────────────────────────────
 async function pushToSupabase() {
   if (!uploadData.valid.length) { alert('No valid emails to push.'); return; }
   document.getElementById('push-status').classList.remove('hidden');
   document.getElementById('push-btn').disabled = true;
   document.getElementById('push-spinner').style.display = 'block';
-  const BATCH = 50; let inserted = 0, skipped = 0, errors = 0;
-  const total = uploadData.valid.length;
-  for (let i = 0; i < total; i += BATCH) {
-        const batch = uploadData.valid.slice(i, i+BATCH).map(r => ({
-      email: (r.email||'').toLowerCase()||null, first_name: r.first_name||null, last_name: r.last_name||null, phone: r.phone||null,
-      smtp_valid: true, smtp_checked: true,
-      tags: [...new Set([...batchTags,...(r.tags||[])])],
-    }));
+  var BATCH = 50, inserted = 0, skipped = 0, errors = 0;
+  var total = uploadData.valid.length;
+  for (var i = 0; i < total; i += BATCH) {
+    var batch = uploadData.valid.slice(i, i + BATCH).map(function(r) {
+      return {
+        email:        (r.email || '').toLowerCase() || null,
+        first_name:   r.first_name || null,
+        last_name:    r.last_name  || null,
+        phone:        r.phone      || null,
+        smtp_valid:   false,
+        smtp_checked: false,
+        tags: [...new Set([...batchTags,...(r.tags||[])])],
+      };
+    });
     try {
-      const res = await fetch(`${LM_URL}/rest/v1/${LM_TABLE}?on_conflict=email`, { method:'POST', headers: lmHdr({ Prefer:'resolution=ignore-duplicates,return=minimal' }), body: JSON.stringify(batch) });
+      var res = await fetch(LM_URL + '/rest/v1/' + LM_TABLE + '?on_conflict=email', {
+        method:  'POST',
+        headers: lmHdr({ Prefer: 'resolution=ignore-duplicates,return=minimal' }),
+        body:    JSON.stringify(batch),
+      });
       if (res.ok) { inserted += batch.length; }
       else {
-        const err = await res.json().catch(()=>({}));
-        (res.status===409||err?.code==='23505') ? skipped += batch.length : errors += batch.length;
+        var err = await res.json().catch(function(){ return {}; });
+        (res.status === 409 || (err && err.code === '23505')) ? skipped += batch.length : errors += batch.length;
       }
-    } catch { errors += batch.length; }
-    document.getElementById('progress-bar').style.width = Math.min(Math.round(((i+BATCH)/total)*100),100) + '%';
-    document.getElementById('push-text').textContent = `Pushing... ${Math.min(i+BATCH,total)} of ${total}`;
+    } catch(e) { errors += batch.length; }
+    document.getElementById('progress-bar').style.width = Math.min(Math.round(((i + BATCH) / total) * 100), 100) + '%';
+    document.getElementById('push-text').textContent = 'Pushing... ' + Math.min(i + BATCH, total) + ' of ' + total;
   }
   document.getElementById('push-spinner').style.display = 'none';
   document.getElementById('progress-bar').style.width = '100%';
   document.getElementById('push-text').textContent = errors === 0
-    ? `✓ Done — ${inserted} pushed, ${skipped} skipped (already in DB)`
-    : `⚠ Done — ${inserted} pushed, ${skipped} skipped, ${errors} errors.`;
-  document.getElementById('push-text').className = 'status-text ' + (errors===0 ? 'success' : 'error');
+    ? '✓ Done — ' + inserted + ' pushed, ' + skipped + ' skipped (already in DB)'
+    : '⚠ Done — ' + inserted + ' pushed, ' + skipped + ' skipped, ' + errors + ' errors.';
+  document.getElementById('push-text').className = 'status-text ' + (errors === 0 ? 'success' : 'error');
   document.getElementById('push-btn').disabled = false;
 }
 
-// ── Reset upload ───────────────────────────────────────────────────────────
+// ── Reset ──────────────────────────────────────────────────────────────────
 function resetUpload() {
-  uploadData = { valid:[],invalid:[],dupes:[] }; batchTags = []; currentUploadTab = 'valid';
-  fileInput.value = '';
-  renderBatchTags();
+  uploadData = { valid:[], invalid:[], dupes:[] }; batchTags = []; currentUploadTab = 'valid';
+  fileInput.value = ''; renderBatchTags();
   document.getElementById('drop-zone').classList.remove('hidden');
-  ['tag-panel','stats','upload-results-card','actions','push-status'].forEach(id => document.getElementById(id).classList.add('hidden'));
-  document.getElementById('push-text').textContent = 'Pushing to Supabase...';
-  document.getElementById('push-text').className = 'status-text';
+  ['tag-panel','stats','upload-results-card','actions','push-status'].forEach(function(id){ document.getElementById(id).classList.add('hidden'); });
+  document.getElementById('push-text').textContent  = 'Pushing to database...';
+  document.getElementById('push-text').className    = 'status-text';
   document.getElementById('progress-bar').style.width = '0%';
 }
 </script>
