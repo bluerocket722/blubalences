@@ -2359,6 +2359,7 @@ async function sendManualWarmup() {
         subject,
         htmlContent: '<html><body>' + body.replace(/\n/g,'<br>') + '</body></html>',
         tags: ['warmup-manual'],
+        headers: { 'X-Warmup-Type': 'manual' },
       }),
     });
     if (!r.ok) { const e = await r.text(); status.textContent = 'Failed: ' + e; status.style.color = 'var(--red)'; return; }
