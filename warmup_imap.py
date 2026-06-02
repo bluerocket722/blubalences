@@ -135,7 +135,7 @@ def gmail_access_token(client_id, client_secret, refresh_token):
         'refresh_token': refresh_token,
         'grant_type': 'refresh_token',
     }).encode()
-        req = urllib.request.Request('https://oauth2.googleapis.com/token', data=data)
+    req = urllib.request.Request('https://oauth2.googleapis.com/token', data=data)
     try:
         with urllib.request.urlopen(req, timeout=30) as r:
             return json.loads(r.read().decode())['access_token']
