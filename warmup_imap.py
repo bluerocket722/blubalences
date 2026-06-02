@@ -17,11 +17,6 @@ from supabase import create_client
 SUPABASE_URL = os.environ['SUPABASE_URL']
 SUPABASE_KEY = os.environ['SUPABASE_SERVICE_ROLE_KEY']
 
-# ── Gmail API OAuth (HTTPS — Railway blocks all SMTP ports)
-GMAIL_CLIENT_ID = os.environ.get('GMAIL_CLIENT_ID', '')
-GMAIL_CLIENT_SECRET = os.environ.get('GMAIL_CLIENT_SECRET', '')
-GMAIL_REFRESH_TOKEN = os.environ.get('GMAIL_REFRESH_TOKEN', '')
-
 PROXY_HOST = os.environ.get('WEBSHARE_HOST', 'p.webshare.io')
 PROXY_PORT = int(os.environ.get('WEBSHARE_PORT', '1080'))
 PROXY_USER = os.environ.get('WEBSHARE_USER', '')
@@ -77,7 +72,6 @@ def bell_minutes(min_m, max_m):
 
 
 def make_proxied_socket(host, port, timeout=30):
-    # If no proxy configured, connect directly
     if not PROXY_HOST or not PROXY_USER:
         sock = socket.create_connection((host, int(port)), timeout=timeout)
         sock.settimeout(timeout)
@@ -132,12 +126,12 @@ def imap_connect(host, port, email_addr, password):
         return None
 
 
-def gmail_access_token():
-    """Exchange the refresh token for a short-lived access token over HTTPS."""
+def gmail_access_token(client_id, client_secret, refresh_token):
+    """Exchange a refresh token for a short-lived access token over HTTPS."""
     data = urllib.parse.urlencode({
-        'client_id': GMAIL_CLIENT_ID,
-        'client_secret': GMAIL_CLIENT_SECRET,
-        'refresh_token': GMAIL_REFRESH_TOKEN,
+        'client_id': client_id,
+        'client_secret': client_secret,
+        'refresh_token': refresh_token,
         'grant_type': 'refresh_token',
     }).encode()
     req = urllib.request.Request('https://oauth2.googleapis.com/token', data=data)
@@ -145,13 +139,14 @@ def gmail_access_token():
         return json.loads(r.read().decode())['access_token']
 
 
-def send_reply_gmail_api(from_addr, to_addr, subject, body, in_reply_to=None):
-    """Send a reply through the Gmail API (HTTPS port 443)."""
-    if not (GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET and GMAIL_REFRESH_TOKEN):
-        print("    Gmail API not configured (missing GMAIL_* env vars)")
+def send_reply_gmail_api(client_id, client_secret, refresh_token,
+                         from_addr, to_addr, subject, body, in_reply_to=None):
+    """Send a reply through the Gmail API (HTTPS port 443 — no SMTP needed)."""
+    if not (client_id and client_secret and refresh_token):
+        print("    Gmail API not configured for this mailbox (missing client_id/secret/refresh_token)")
         return
     try:
-        token = gmail_access_token()
+        token = gmail_access_token(client_id, client_secret, refresh_token)
 
         msg = MIMEMultipart('alternative')
         msg['From'] = from_addr
@@ -218,6 +213,9 @@ def process_mailbox(mb, inbox_emails, min_m, max_m):
     email_addr = mb.get('email', '')
     password = mb.get('app_password', '')
     name = mb.get('name', email_addr)
+    client_id = mb.get('gmail_client_id', '')
+    client_secret = mb.get('gmail_client_secret', '')
+    refresh_token = mb.get('gmail_refresh_token', '')
     reply_chance = mb.get('reply_chance')
     reply_chance = 0.4 if reply_chance is None else float(reply_chance)
     do_rescue = mb.get('rescue_from_spam', True) is not False
@@ -256,7 +254,6 @@ def process_mailbox(mb, inbox_emails, min_m, max_m):
                 frm = msg.get('From', '')
                 _, from_addr = email.utils.parseaddr(frm)
 
-                # Only process emails from our inboxes
                 if from_addr.lower() not in inbox_emails:
                     continue
 
@@ -270,20 +267,19 @@ def process_mailbox(mb, inbox_emails, min_m, max_m):
                 opened += 1
 
                 if is_manual:
-                    # Reply instantly
                     delay = random.uniform(2, 8)
                     print(f"  Manual email from {from_addr} — replying in {delay:.0f}s")
                     time.sleep(delay)
                 else:
-                    # Bell curve delay
                     wait_min = bell_minutes(min_m, max_m)
                     wait_sec = wait_min * 60
                     print(f"  Auto email from {from_addr} — bell curve delay {wait_min}m")
-                    time.sleep(min(wait_sec, 300))  # cap at 5min within a single run
+                    time.sleep(min(wait_sec, 300))
 
                 if random.random() < reply_chance:
                     reply_subj = f"Re: {subj}" if not subj.lower().startswith('re:') else subj
                     send_reply_gmail_api(
+                        client_id, client_secret, refresh_token,
                         from_addr=email_addr, to_addr=from_addr,
                         subject=reply_subj,
                         body=random.choice(REPLY_TEMPLATES),
