@@ -70,6 +70,11 @@ def bell_minutes(min_m, max_m):
 
 
 def make_proxied_socket(host, port, timeout=30):
+    # If no proxy configured, connect directly
+    if not PROXY_HOST or not PROXY_USER:
+        sock = socket.create_connection((host, int(port)), timeout=timeout)
+        sock.settimeout(timeout)
+        return sock
     import base64
     proxy = socket.create_connection((PROXY_HOST, PROXY_PORT), timeout=timeout)
     auth = base64.b64encode(f"{PROXY_USER}:{PROXY_PASS}".encode()).decode()
