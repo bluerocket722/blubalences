@@ -2343,7 +2343,7 @@ async function sendManualWarmup() {
   const toMb = (window._warmupMbs||[]).find(m => m.id === toId);
   if (!inbox || !toMb) { alert('Could not find inbox or mailbox'); return; }
   const { data: settRows } = await sb.from('settings').select('key,value');
-  const cfg = Object.fromEntries((settRows||[]).map(r => [r.key, r.value?.replace(/^"|"$/g,'')||'']));
+  const cfg = Object.fromEntries((settRows||[]).map(r => [r.key, typeof r.value === 'string' ? r.value.replace(/^"|"$/g,'') : (r.value||'')]));
   const brevoKey = inbox.brevo_api_key || cfg.brevo_api_key;
   if (!brevoKey) { alert('No Brevo API key on this inbox. Add one in the Inboxes tab.'); return; }
   status.textContent = 'Sending…';
