@@ -8,6 +8,7 @@ import os
 import ssl
 import json
 import base64
+import re
 import urllib.request
 import urllib.parse
 import urllib.error
@@ -146,7 +147,7 @@ def gmail_access_token(client_id, client_secret, refresh_token):
 
 
 def send_reply_gmail_api(client_id, client_secret, refresh_token,
-                         from_addr, to_addr, subject, body, in_reply_to=None):
+                         from_addr, to_addr, subject, body, in_reply_to=None, thread_id=None):
     """Send a reply through the Gmail API (HTTPS port 443 — no SMTP needed)."""
     if not (client_id and client_secret and refresh_token):
         print("    Gmail API not configured for this mailbox (missing client_id/secret/refresh_token)")
@@ -164,7 +165,10 @@ def send_reply_gmail_api(client_id, client_secret, refresh_token,
         msg.attach(MIMEText(body, 'plain'))
 
         raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
-        payload = json.dumps({'raw': raw}).encode()
+        body_obj = {'raw': raw}
+        if thread_id:
+            body_obj['threadId'] = thread_id
+        payload = json.dumps(body_obj).encode()
 
         req = urllib.request.Request(
             'https://gmail.googleapis.com/gmail/v1/users/me/messages/send',
@@ -254,8 +258,17 @@ def process_mailbox(mb, inbox_emails, min_m, max_m):
 
         for num in ids[:20]:
             try:
-                _, data = M.fetch(num, '(RFC822)')
+                _, data = M.fetch(num, '(X-GM-THRID RFC822)')
                 msg = email.message_from_bytes(data[0][1])
+                # Gmail thread id (decimal) → Gmail API threadId (hex)
+                thread_id = None
+                try:
+                    meta = data[0][0].decode('utf-8', errors='replace')
+                    mth = re.search(r'X-GM-THRID (\d+)', meta)
+                    if mth:
+                        thread_id = format(int(mth.group(1)), 'x')
+                except Exception:
+                    thread_id = None
 
                 frm = msg.get('From', '')
                 _, from_addr = email.utils.parseaddr(frm)
@@ -289,7 +302,7 @@ def process_mailbox(mb, inbox_emails, min_m, max_m):
                         from_addr=email_addr, to_addr=from_addr,
                         subject=reply_subj,
                         body=random.choice(REPLY_TEMPLATES),
-                        in_reply_to=msg_id)
+                        in_reply_to=msg_id, thread_id=thread_id)
                     replied += 1
 
             except Exception as e:
