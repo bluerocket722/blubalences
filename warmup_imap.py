@@ -71,12 +71,11 @@ def bell_minutes(min_m, max_m):
 
 def make_proxied_socket(host, port, timeout=30):
     s = socks.socksocket()
-    s.set_proxy(socks.SOCKS5, PROXY_HOST, PROXY_PORT,
+    s.set_proxy(socks.HTTP, PROXY_HOST, PROXY_PORT,
                 username=PROXY_USER, password=PROXY_PASS)
     s.settimeout(timeout)
     s.connect((host, int(port)))
     return s
-
 
 class ProxiedIMAP4_SSL(imaplib.IMAP4_SSL):
     def _create_socket(self, timeout=None):
