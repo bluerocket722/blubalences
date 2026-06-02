@@ -170,23 +170,30 @@ def send_reply_smtp(smtp_host, smtp_port, username, password,
         msg['References'] = in_reply_to
     msg.attach(MIMEText(body, 'plain'))
     try:
-        if int(smtp_port) == 465:
+        port = int(smtp_port)
+        # Force IPv4 (Railway has no IPv6 route)
+        ipv4 = socket.getaddrinfo(smtp_host, port, socket.AF_INET, socket.SOCK_STREAM)[0][4]
+        raw = socket.create_connection(ipv4, timeout=30)
+        if port == 465:
             ctx = ssl.create_default_context()
-            sock = make_proxied_socket(smtp_host, smtp_port)
-            sock = ctx.wrap_socket(sock, server_hostname=smtp_host)
-            with smtplib.SMTP_SSL(smtp_host, smtp_port) as server:
-                server.sock = sock
-                server.login(username, password)
-                server.sendmail(from_addr, [to_addr], msg.as_string())
+            raw = ctx.wrap_socket(raw, server_hostname=smtp_host)
+            server = smtplib.SMTP_SSL()
+            server.sock = raw
+            server.file = None
+            (code, msg_resp) = server.getreply()
+            server._host = smtp_host
         else:
-            raw = make_proxied_socket(smtp_host, smtp_port)
-            with smtplib.SMTP(smtp_host, smtp_port) as server:
-                server.sock = raw
-                server.file = server.makefile('rb')
-                server.ehlo()
-                server.starttls()
-                server.login(username, password)
-                server.sendmail(from_addr, [to_addr], msg.as_string())
+            server = smtplib.SMTP()
+            server._host = smtp_host
+            server.sock = raw
+            (code, msg_resp) = server.getreply()
+            server.ehlo()
+            server.starttls(context=ssl.create_default_context())
+            server.ehlo()
+        server.login(username, password)
+        server.sendmail(from_addr, [to_addr], msg.as_string())
+        server.quit()
+        print(f"    ✓ Replied to {to_addr}")
     except Exception as e:
         print(f"    SMTP reply failed to {to_addr}: {e}")
 
