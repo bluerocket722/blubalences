@@ -70,12 +70,27 @@ def bell_minutes(min_m, max_m):
 
 
 def make_proxied_socket(host, port, timeout=30):
-    s = socks.socksocket()
-    s.set_proxy(socks.HTTP, PROXY_HOST, PROXY_PORT,
-                username=PROXY_USER, password=PROXY_PASS)
-    s.settimeout(timeout)
-    s.connect((host, int(port)))
-    return s
+    import base64
+    proxy = socket.create_connection((PROXY_HOST, PROXY_PORT), timeout=timeout)
+    auth = base64.b64encode(f"{PROXY_USER}:{PROXY_PASS}".encode()).decode()
+    connect_req = (
+        f"CONNECT {host}:{int(port)} HTTP/1.1\r\n"
+        f"Host: {host}:{int(port)}\r\n"
+        f"Proxy-Authorization: Basic {auth}\r\n"
+        f"\r\n"
+    )
+    proxy.sendall(connect_req.encode())
+    resp = b""
+    while b"\r\n\r\n" not in resp:
+        chunk = proxy.recv(4096)
+        if not chunk:
+            break
+        resp += chunk
+    status_line = resp.split(b"\r\n")[0].decode(errors="replace")
+    if " 200 " not in status_line:
+        raise Exception(f"Proxy CONNECT failed: {status_line}")
+    proxy.settimeout(timeout)
+    return proxy
 
 class ProxiedIMAP4_SSL(imaplib.IMAP4_SSL):
     def _create_socket(self, timeout=None):
