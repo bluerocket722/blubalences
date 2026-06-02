@@ -169,26 +169,29 @@ def send_reply_smtp(smtp_host, smtp_port, username, password,
         msg['In-Reply-To'] = in_reply_to
         msg['References'] = in_reply_to
     msg.attach(MIMEText(body, 'plain'))
+
+    # Force port 465 (SMTP_SSL) for Gmail — Railway blocks 587 (STARTTLS)
+    port = 465 if 'gmail' in smtp_host.lower() else int(smtp_port)
     try:
-        port = int(smtp_port)
         # Force IPv4 (Railway has no IPv6 route)
         ipv4 = socket.getaddrinfo(smtp_host, port, socket.AF_INET, socket.SOCK_STREAM)[0][4]
         raw = socket.create_connection(ipv4, timeout=30)
+        ctx = ssl.create_default_context()
         if port == 465:
-            ctx = ssl.create_default_context()
             raw = ctx.wrap_socket(raw, server_hostname=smtp_host)
             server = smtplib.SMTP_SSL()
+            server._host = smtp_host
             server.sock = raw
             server.file = None
             (code, msg_resp) = server.getreply()
-            server._host = smtp_host
+            server.ehlo()
         else:
             server = smtplib.SMTP()
             server._host = smtp_host
             server.sock = raw
             (code, msg_resp) = server.getreply()
             server.ehlo()
-            server.starttls(context=ssl.create_default_context())
+            server.starttls(context=ctx)
             server.ehlo()
         server.login(username, password)
         server.sendmail(from_addr, [to_addr], msg.as_string())
