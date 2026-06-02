@@ -2215,11 +2215,34 @@ async function sendReplyEmail(replyId, toEmail) {
 /* ─── WARM-UP MAILBOXES ─── */
 async function renderWarmupMailboxes() {
   const { data: mbs } = await sb.from('warmup_mailboxes').select('*').order('created_at');
+  const { data: inboxes } = await sb.from('inboxes').select('*').eq('active', true).order('created_at');
   window._warmupMbs = mbs || [];
+  window._warmupInboxes = inboxes || [];
   document.getElementById('topbar-actions').innerHTML = `<button class="btn btn-primary" onclick="openWarmupMailboxModal()">+ Add Mailbox</button>`;
   const provLabel = { gmail:'Gmail', outlook:'Outlook / Microsoft', office365:'Outlook / Microsoft', microsoft:'Outlook / Microsoft', icloud:'iCloud', custom:'Custom' };
   document.getElementById('content').innerHTML = `
     <div class="info-banner">⭐ <strong>Warm-Up reply mailboxes.</strong> These inboxes receive your warm-up emails and auto-reply through rotating Webshare IPs — no phone needed. Add Gmail, Outlook, iCloud or custom mailboxes, each with its own app password / key.</div>
+        <div class="panel" style="margin-bottom:20px">
+      <div class="panel-header"><h2>✉ Send Manual Warm-Up Email</h2></div>
+      <div style="padding:20px">
+        <div class="form-row-2">
+          <div class="form-group"><label>From Inbox</label>
+            <select id="wu-from">
+              ${(inboxes||[]).map(i=>`<option value="${i.id}">${esc(i.name)} &lt;${i.email}&gt;</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group"><label>To Warm-Up Mailbox</label>
+            <select id="wu-to">
+              ${(mbs||[]).map(m=>`<option value="${m.id}">${esc(m.name||'')} &lt;${m.email}&gt;</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div class="form-group"><label>Subject</label><input id="wu-subj" value="Quick check-in" placeholder="Subject line"></div>
+        <div class="form-group"><label>Body</label><textarea id="wu-body" style="min-height:100px">Hey, just checking in — hope all is well!</textarea></div>
+        <button class="btn btn-primary" onclick="sendManualWarmup()">✉ Send Now</button>
+        <span id="wu-status" style="margin-left:12px;font-size:13px;color:var(--gray)"></span>
+      </div>
+    </div>
     ${!mbs || !mbs.length ? '<div class="panel"><div class="empty">No warm-up mailboxes yet. Add blubalencesupport@gmail.com to start.</div></div>' :
     `<div class="panel" style="overflow-x:auto"><table>
       <thead><tr><th>Name</th><th>Email</th><th>Provider</th><th>Reply %</th><th>Spam Rescue</th><th>Key</th><th>Active</th><th>Actions</th></tr></thead>
@@ -2307,6 +2330,42 @@ async function saveWarmupMailbox(id) {
   if (error) { alert(error.message); return; }
   closeModal();
   renderWarmupMailboxes();
+}
+
+async function sendManualWarmup() {
+  const fromId = document.getElementById('wu-from').value;
+  const toId = document.getElementById('wu-to').value;
+  const subject = document.getElementById('wu-subj').value.trim();
+  const body = document.getElementById('wu-body').value.trim();
+  const status = document.getElementById('wu-status');
+  if (!fromId || !toId || !subject || !body) { alert('All fields required'); return; }
+  const inbox = (window._warmupInboxes||[]).find(i => i.id === fromId);
+  const toMb = (window._warmupMbs||[]).find(m => m.id === toId);
+  if (!inbox || !toMb) { alert('Could not find inbox or mailbox'); return; }
+  const { data: settRows } = await sb.from('settings').select('key,value');
+  const cfg = Object.fromEntries((settRows||[]).map(r => [r.key, r.value?.replace(/^"|"$/g,'')||'']));
+  const brevoKey = inbox.brevo_api_key || cfg.brevo_api_key;
+  if (!brevoKey) { alert('No Brevo API key on this inbox. Add one in the Inboxes tab.'); return; }
+  status.textContent = 'Sending…';
+  status.style.color = 'var(--gray)';
+  try {
+    const raw = inbox.email;
+    const r = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: { 'api-key': brevoKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sender: { email: raw, name: inbox.name || raw },
+        to: [{ email: toMb.email, name: toMb.name || toMb.email }],
+        subject,
+        htmlContent: '<html><body>' + body.replace(/\n/g,'<br>') + '</body></html>',
+        tags: ['warmup-manual'],
+      }),
+    });
+    if (!r.ok) { const e = await r.text(); status.textContent = 'Failed: ' + e; status.style.color = 'var(--red)'; return; }
+    status.textContent = '✓ Sent!';
+    status.style.color = 'var(--green)';
+    setTimeout(() => { status.textContent = ''; }, 4000);
+  } catch(e) { status.textContent = 'Error: ' + e.message; status.style.color = 'var(--red)'; }
 }
 
 async function openWarmupEnroll(id) {
