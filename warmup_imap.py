@@ -51,7 +51,11 @@ def load_settings():
     cfg = {}
     for r in rows:
         v = r.get('value', '') or ''
-        cfg[r['key']] = v.strip('"')
+        if isinstance(v, list):
+            v = v[0] if v else ''
+        if isinstance(v, str):
+            v = v.strip('"')
+        cfg[r['key']] = v
     return cfg
 
 
