@@ -1,6 +1,4 @@
 import imaplib
-import smtplib
-import socks
 import socket
 import email
 import email.utils
@@ -8,12 +6,21 @@ import random
 import time
 import os
 import ssl
+import json
+import base64
+import urllib.request
+import urllib.parse
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from supabase import create_client
 
 SUPABASE_URL = os.environ['SUPABASE_URL']
 SUPABASE_KEY = os.environ['SUPABASE_SERVICE_ROLE_KEY']
+
+# ── Gmail API OAuth (HTTPS — Railway blocks all SMTP ports)
+GMAIL_CLIENT_ID = os.environ.get('GMAIL_CLIENT_ID', '')
+GMAIL_CLIENT_SECRET = os.environ.get('GMAIL_CLIENT_SECRET', '')
+GMAIL_REFRESH_TOKEN = os.environ.get('GMAIL_REFRESH_TOKEN', '')
 
 PROXY_HOST = os.environ.get('WEBSHARE_HOST', 'p.webshare.io')
 PROXY_PORT = int(os.environ.get('WEBSHARE_PORT', '1080'))
@@ -75,7 +82,6 @@ def make_proxied_socket(host, port, timeout=30):
         sock = socket.create_connection((host, int(port)), timeout=timeout)
         sock.settimeout(timeout)
         return sock
-    import base64
     proxy = socket.create_connection((PROXY_HOST, PROXY_PORT), timeout=timeout)
     auth = base64.b64encode(f"{PROXY_USER}:{PROXY_PASS}".encode()).decode()
     connect_req = (
@@ -96,6 +102,7 @@ def make_proxied_socket(host, port, timeout=30):
         raise Exception(f"Proxy CONNECT failed: {status_line}")
     proxy.settimeout(timeout)
     return proxy
+
 
 class ProxiedIMAP4_SSL(imaplib.IMAP4_SSL):
     def _create_socket(self, timeout=None):
@@ -123,6 +130,54 @@ def imap_connect(host, port, email_addr, password):
     except Exception as e:
         print(f"  IMAP connect failed for {email_addr}: {e}")
         return None
+
+
+def gmail_access_token():
+    """Exchange the refresh token for a short-lived access token over HTTPS."""
+    data = urllib.parse.urlencode({
+        'client_id': GMAIL_CLIENT_ID,
+        'client_secret': GMAIL_CLIENT_SECRET,
+        'refresh_token': GMAIL_REFRESH_TOKEN,
+        'grant_type': 'refresh_token',
+    }).encode()
+    req = urllib.request.Request('https://oauth2.googleapis.com/token', data=data)
+    with urllib.request.urlopen(req, timeout=30) as r:
+        return json.loads(r.read().decode())['access_token']
+
+
+def send_reply_gmail_api(from_addr, to_addr, subject, body, in_reply_to=None):
+    """Send a reply through the Gmail API (HTTPS port 443)."""
+    if not (GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET and GMAIL_REFRESH_TOKEN):
+        print("    Gmail API not configured (missing GMAIL_* env vars)")
+        return
+    try:
+        token = gmail_access_token()
+
+        msg = MIMEMultipart('alternative')
+        msg['From'] = from_addr
+        msg['To'] = to_addr
+        msg['Subject'] = subject
+        if in_reply_to:
+            msg['In-Reply-To'] = in_reply_to
+            msg['References'] = in_reply_to
+        msg.attach(MIMEText(body, 'plain'))
+
+        raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
+        payload = json.dumps({'raw': raw}).encode()
+
+        req = urllib.request.Request(
+            'https://gmail.googleapis.com/gmail/v1/users/me/messages/send',
+            data=payload,
+            headers={
+                'Authorization': f'Bearer {token}',
+                'Content-Type': 'application/json',
+            },
+        )
+        with urllib.request.urlopen(req, timeout=30) as r:
+            r.read()
+        print(f"    ✓ Replied to {to_addr}")
+    except Exception as e:
+        print(f"    Gmail API reply failed to {to_addr}: {e}")
 
 
 def rescue_from_spam(M, inbox_emails):
@@ -157,48 +212,6 @@ def mark_important(M, num, is_gmail):
             M.store(num, '+FLAGS', '\\Flagged')
     except Exception as e:
         print(f"    mark important failed: {e}")
-
-
-def send_reply_smtp(smtp_host, smtp_port, username, password,
-                    from_addr, to_addr, subject, body, in_reply_to=None):
-    msg = MIMEMultipart('alternative')
-    msg['From'] = from_addr
-    msg['To'] = to_addr
-    msg['Subject'] = subject
-    if in_reply_to:
-        msg['In-Reply-To'] = in_reply_to
-        msg['References'] = in_reply_to
-    msg.attach(MIMEText(body, 'plain'))
-
-    # Force port 465 (SMTP_SSL) for Gmail — Railway blocks 587 (STARTTLS)
-    port = 465 if 'gmail' in smtp_host.lower() else int(smtp_port)
-    try:
-        # Force IPv4 (Railway has no IPv6 route)
-        ipv4 = socket.getaddrinfo(smtp_host, port, socket.AF_INET, socket.SOCK_STREAM)[0][4]
-        raw = socket.create_connection(ipv4, timeout=30)
-        ctx = ssl.create_default_context()
-        if port == 465:
-            raw = ctx.wrap_socket(raw, server_hostname=smtp_host)
-            server = smtplib.SMTP_SSL()
-            server._host = smtp_host
-            server.sock = raw
-            server.file = None
-            (code, msg_resp) = server.getreply()
-            server.ehlo()
-        else:
-            server = smtplib.SMTP()
-            server._host = smtp_host
-            server.sock = raw
-            (code, msg_resp) = server.getreply()
-            server.ehlo()
-            server.starttls(context=ctx)
-            server.ehlo()
-        server.login(username, password)
-        server.sendmail(from_addr, [to_addr], msg.as_string())
-        server.quit()
-        print(f"    ✓ Replied to {to_addr}")
-    except Exception as e:
-        print(f"    SMTP reply failed to {to_addr}: {e}")
 
 
 def process_mailbox(mb, inbox_emails, min_m, max_m):
@@ -270,11 +283,11 @@ def process_mailbox(mb, inbox_emails, min_m, max_m):
 
                 if random.random() < reply_chance:
                     reply_subj = f"Re: {subj}" if not subj.lower().startswith('re:') else subj
-                    send_reply_smtp(smtp_host, smtp_port, email_addr, password,
-                                    from_addr=email_addr, to_addr=from_addr,
-                                    subject=reply_subj,
-                                    body=random.choice(REPLY_TEMPLATES),
-                                    in_reply_to=msg_id)
+                    send_reply_gmail_api(
+                        from_addr=email_addr, to_addr=from_addr,
+                        subject=reply_subj,
+                        body=random.choice(REPLY_TEMPLATES),
+                        in_reply_to=msg_id)
                     replied += 1
 
             except Exception as e:
