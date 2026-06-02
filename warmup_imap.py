@@ -10,6 +10,7 @@ import json
 import base64
 import urllib.request
 import urllib.parse
+import urllib.error
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from supabase import create_client
@@ -134,9 +135,14 @@ def gmail_access_token(client_id, client_secret, refresh_token):
         'refresh_token': refresh_token,
         'grant_type': 'refresh_token',
     }).encode()
-    req = urllib.request.Request('https://oauth2.googleapis.com/token', data=data)
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return json.loads(r.read().decode())['access_token']
+        req = urllib.request.Request('https://oauth2.googleapis.com/token', data=data)
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return json.loads(r.read().decode())['access_token']
+    except urllib.error.HTTPError as e:
+        body = e.read().decode(errors='replace')
+        print(f"    token endpoint {e.code}: {body}")
+        raise
 
 
 def send_reply_gmail_api(client_id, client_secret, refresh_token,
