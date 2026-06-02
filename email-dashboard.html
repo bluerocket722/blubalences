@@ -2030,20 +2030,29 @@ async function renderInboxes() {
           </div>
         </div>
         <div class="actions" style="flex-shrink:0">
-          <button class="btn btn-secondary btn-sm" onclick="openInboxModal('${inbox.id}','${esc(inbox.name)}','${esc(inbox.email)}','${esc(inbox.reply_to||'')}','${esc(inbox.brevo_api_key||'')}',${inbox.active})">Edit</button>
+          <button class="btn btn-secondary btn-sm" onclick="openInboxModal('${inbox.id}','${esc(inbox.name)}','${esc(inbox.email)}','${esc(inbox.reply_to||'')}','${esc(inbox.brevo_api_key||'')}',${inbox.active},'${esc(inbox.imap_host||'')}',${inbox.imap_port||993},'${esc(inbox.imap_password||'')}')">Edit</button>
           <button class="btn btn-danger btn-sm" onclick="deleteInbox('${inbox.id}')">Delete</button>
         </div>
       </div>`;
     }).join(''))}`;
 }
 
-function openInboxModal(id, name, email, replyTo, apiKey, active) {
+function openInboxModal(id, name, email, replyTo, apiKey, active, im_host, im_port, im_pass) {
   showModal(`
     <h2>${id ? 'Edit' : 'New'} Inbox</h2>
     <div class="form-group"><label>Display Name</label><input id="ib-name" value="${name||''}" placeholder="Aaron — Blu Balence"></div>
     <div class="form-group"><label>From Email</label><input id="ib-email" value="${email||''}" placeholder="aaron@blubalencebookkeeping.com"></div>
     <div class="form-group"><label>Reply-To <span style="color:var(--gray);font-weight:400">(optional)</span></label><input id="ib-replyto" value="${replyTo||''}" placeholder="replies@yourdomain.com"></div>
     <div class="form-group"><label>Brevo API Key <span style="color:var(--gray);font-weight:400">(leave blank to use global)</span></label><input id="ib-apikey" type="password" value="${apiKey||''}" placeholder="xkeysib-..."></div>
+        <div class="form-group" style="border:1px solid #e5e7eb;border-radius:8px;padding:12px;background:#fafafa">
+      <label style="font-weight:600">Inbound (catch replies via IMAP)</label>
+      <p class="hint">So prospect replies show in the Replies tab. Gmail/Workspace: host imap.gmail.com, use an app password.</p>
+      <div class="form-row-2">
+        <div class="form-group"><label>IMAP Host</label><input id="ib-imaph" value="${esc(im_host||'')}" placeholder="imap.gmail.com"></div>
+        <div class="form-group"><label>IMAP Port</label><input id="ib-imapp" type="number" value="${im_port||993}"></div>
+      </div>
+      <div class="form-group"><label>IMAP Password / App Password</label><input id="ib-imappass" type="password" value="${esc(im_pass||'')}" placeholder="app password"></div>
+    </div>
     <div class="form-group" style="display:flex;align-items:center;gap:10px">
       <label class="toggle"><input id="ib-active" type="checkbox" ${active!==false?'checked':''}><span class="toggle-slider"></span></label>
       <span style="font-size:14px">Active</span>
@@ -2061,6 +2070,9 @@ async function saveInbox(id) {
     reply_to: document.getElementById('ib-replyto').value.trim() || null,
     brevo_api_key: document.getElementById('ib-apikey').value.trim() || null,
     active: document.getElementById('ib-active').checked,
+    imap_host: document.getElementById('ib-imaph').value.trim() || null,
+    imap_port: parseInt(document.getElementById('ib-imapp').value) || 993,
+    imap_password: document.getElementById('ib-imappass').value.replace(/\s+/g,'') || null,
   };
   if (!payload.name || !payload.email) { alert('Name and email are required'); return; }
   let error;
