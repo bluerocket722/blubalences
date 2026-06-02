@@ -174,9 +174,13 @@ def send_reply_gmail_api(client_id, client_secret, refresh_token,
                 'Content-Type': 'application/json',
             },
         )
-        with urllib.request.urlopen(req, timeout=30) as r:
-            r.read()
-        print(f"    ✓ Replied to {to_addr}")
+        try:
+            with urllib.request.urlopen(req, timeout=30) as r:
+                r.read()
+            print(f"    ✓ Replied to {to_addr}")
+        except urllib.error.HTTPError as e:
+            errbody = e.read().decode(errors='replace')
+            print(f"    Gmail send {e.code}: {errbody}")
     except Exception as e:
         print(f"    Gmail API reply failed to {to_addr}: {e}")
 
