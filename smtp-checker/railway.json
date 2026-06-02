@@ -4,7 +4,7 @@
     "builder": "NIXPACKS"
   },
   "deploy": {
-    "cronSchedule": "*/10 * * * *",
+    "cronSchedule": "* * * * *",
     "startCommand": "python smtp_checker.py",
     "restartPolicyType": "NEVER"
   }
