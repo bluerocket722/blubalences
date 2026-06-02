@@ -1474,7 +1474,7 @@ async function renderSubscribers() {
   document.getElementById('topbar-actions').innerHTML = `
     <button class="btn btn-secondary" style="margin-right:8px" onclick="openBulkModal()">Bulk CSV</button>
     <button class="btn btn-primary" onclick="openEnrollModal()">+ Enroll</button>`;
-  const badge = s => ({ active:'badge-green', paused:'badge-yellow', completed:'badge-blue', unsubscribed:'badge-red' }[s] || 'badge-gray');
+  const badge = s => ({ active:'badge-green', paused:'badge-yellow', completed:'badge-blue', unsubscribed:'badge-red', opportunity:'badge-blue', no:'badge-red' }[s] || 'badge-gray');
   document.getElementById('content').innerHTML = `
     <div class="panel">
       <div class="panel-header"><h2>Enrollments (${(enrs||[]).length})</h2></div>
@@ -2089,29 +2089,39 @@ async function refreshUnreadBadge() {
   } catch(e) {}
 }
 
-async function renderReplies() {
-  let query = sb.from('replies').select('*').order('received_at', { ascending: false }).limit(200);
-  if (replyFilter === 'unread') query = query.eq('read', false);
-  if (replyFilter === 'replied') query = query.not('replied_at', 'is', null);
-  const { data: replies } = await query;
+let replyTab = 'prospect';
 
+async function renderReplies() {
   const { data: inboxes } = await sb.from('inboxes').select('id,name,email,brevo_api_key').eq('active', true);
   const { data: settRows } = await sb.from('settings').select('key,value');
   const cfg = Object.fromEntries((settRows||[]).map(r => [r.key, cfgVal(r.value)]));
   window._replyInboxes = inboxes || [];
   window._replyCfg = cfg;
 
-  const unread = (replies||[]).filter(r => !r.read).length;
   document.getElementById('topbar-actions').innerHTML = `<button class="btn btn-secondary btn-sm" onclick="renderReplies()">Refresh</button>`;
 
+  if (replyTab === 'warmup') {
+    await renderWarmupReplies();
+    return;
+  }
+
+  let query = sb.from('replies').select('*').order('received_at', { ascending: false }).limit(200);
+  if (replyFilter === 'unread') query = query.eq('read', false);
+  if (replyFilter === 'replied') query = query.not('replied_at', 'is', null);
+  const { data: replies } = await query;
+  const unread = (replies||[]).filter(r => !r.read).length;
+
   document.getElementById('content').innerHTML = `
-    <div class="info-banner">ℹ️ Replies are stored in Supabase when someone replies to your emails. You need the <code>replies</code> table and a webhook/forwarding rule to populate it. See SQL below.</div>
+    <div class="filter-bar" style="margin-bottom:8px">
+      <button class="btn ${replyTab==='prospect'?'btn-primary':'btn-secondary'} btn-sm" onclick="replyTab='prospect';renderReplies()">💼 Prospect Replies</button>
+      <button class="btn ${replyTab==='warmup'?'btn-primary':'btn-secondary'} btn-sm" onclick="replyTab='warmup';renderReplies()">⭐ Warm-Up Replies</button>
+    </div>
     <div class="filter-bar" style="margin-bottom:16px">
       <button class="btn ${replyFilter==='all'?'btn-primary':'btn-secondary'} btn-sm" onclick="replyFilter='all';renderReplies()">All (${(replies||[]).length})</button>
       <button class="btn ${replyFilter==='unread'?'btn-primary':'btn-secondary'} btn-sm" onclick="replyFilter='unread';renderReplies()">Unread${unread>0?` (${unread})`:''}</button>
       <button class="btn ${replyFilter==='replied'?'btn-primary':'btn-secondary'} btn-sm" onclick="replyFilter='replied';renderReplies()">Replied</button>
     </div>
-    ${!replies||!replies.length ? '<div class="panel"><div class="empty">No replies yet.</div></div>' :
+    ${!replies||!replies.length ? '<div class="panel"><div class="empty">No prospect replies yet.</div></div>' :
     replies.map(r => `
       <div class="reply-card ${!r.read?'unread':''}" onclick="openReplyModal('${r.id}')">
         <div class="reply-meta">
@@ -2124,6 +2134,29 @@ async function renderReplies() {
       </div>`).join('')}`;
 
   refreshUnreadBadge();
+}
+
+async function renderWarmupReplies() {
+  const { data: logs } = await sb.from('warmup_log').select('*').order('ran_at', { ascending: false }).limit(200);
+  const rows = (logs||[]).filter(l => l.replied > 0);
+  document.getElementById('content').innerHTML = `
+    <div class="filter-bar" style="margin-bottom:8px">
+      <button class="btn btn-secondary btn-sm" onclick="replyTab='prospect';renderReplies()">💼 Prospect Replies</button>
+      <button class="btn btn-primary btn-sm" onclick="replyTab='warmup';renderReplies()">⭐ Warm-Up Replies</button>
+    </div>
+    ${!rows.length ? '<div class="panel"><div class="empty">No warm-up replies logged yet.</div></div>' :
+    `<div class="panel"><table>
+      <thead><tr><th>Mailbox</th><th>Opened</th><th>Replied</th><th>Rescued</th><th>Time</th></tr></thead>
+      <tbody>${rows.map(l => `
+        <tr>
+          <td>${l.email||'—'}</td>
+          <td>${l.opened||0}</td>
+          <td><span class="badge badge-green">${l.replied||0}</span></td>
+          <td>${l.rescued||0}</td>
+          <td style="color:var(--gray);font-size:12px">${new Date(l.ran_at).toLocaleString()}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table></div>`}`;
 }
 
 async function openReplyModal(replyId) {
@@ -2159,13 +2192,31 @@ Thanks for your response...
 Best,
 Aaron
 Blu Balence Bookkeeping"></textarea></div>
-    <div class="modal-footer">
+    <div class="modal-footer" style="flex-wrap:wrap;gap:8px">
       <button class="btn btn-secondary" onclick="closeModal()">Close</button>
+      <button class="btn btn-secondary" style="background:#fef9c3;border-color:#fde047;color:#854d0e" onclick="markReplyStatus('${esc(r.from_email)}','opportunity')">🌟 Opportunity</button>
+      <button class="btn btn-secondary" style="background:#fee2e2;border-color:#fca5a5;color:#991b1b" onclick="markReplyStatus('${esc(r.from_email)}','no')">🚫 Mark as No</button>
       <button class="btn btn-primary" onclick="sendReplyEmail('${r.id}','${esc(r.from_email)}')">Send Reply</button>
     </div>`, true);
 
   refreshUnreadBadge();
 }
+
+  async function markReplyStatus(email, status) {
+  const { data: enrs } = await sb.from('enrollments').select('id,status,sequences(name)').eq('email', email).eq('status', 'active');
+  if (!enrs || !enrs.length) {
+    alert(`No active sequence enrollments found for ${email}. Status not changed.`);
+    return;
+  }
+  const names = enrs.map(e => e.sequences?.name || e.id).join(', ');
+  const label = status === 'opportunity' ? '🌟 Opportunity' : '🚫 No';
+  if (!confirm(`Mark ${email} as "${label}" and stop all ${enrs.length} active sequence(s)?\n\n${names}`)) return;
+  await sb.from('enrollments').update({ status }).eq('email', email).eq('status', 'active');
+  closeModal();
+  alert(`✓ ${email} marked as ${label}. Removed from ${enrs.length} sequence(s).`);
+  renderReplies();
+}
+
 
 async function sendReplyEmail(replyId, toEmail) {
   const subject = document.getElementById('rp-subj').value.trim();
