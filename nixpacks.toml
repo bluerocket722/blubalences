@@ -5,4 +5,4 @@ nixPkgs = ["python311"]
 cmds = ["pip install -r warmup_requirements.txt"]
 
 [start]
-cmd = "python warmup_imap.py"
+cmd = "python3 warmup_imap.py"
