@@ -2282,6 +2282,13 @@ function openWarmupMailboxModal(id) {
       <div class="form-group"><label>SMTP Port</label><input id="wm-smtpp" type="number" value="${m.smtp_port||587}"></div>
     </div>
     <div class="form-group"><label>App Password / Key</label><input id="wm-pass" value="${esc(m.app_password||'')}" placeholder="app password (spaces ok)"><p class="hint">Gmail: generate at myaccount.google.com/apppasswords</p></div>
+        <div id="wm-gmail-oauth" class="form-group" style="border:1px solid #e5e7eb;border-radius:8px;padding:12px;background:#fafafa">
+      <label style="font-weight:600">Gmail API — for sending replies ⭐</label>
+      <p class="hint">Railway blocks SMTP, so replies go through the Gmail API over HTTPS. Get these 3 values from the OAuth Playground (one set per Gmail account).</p>
+      <div class="form-group"><label>Client ID</label><input id="wm-gcid" value="${esc(m.gmail_client_id||'')}" placeholder="...apps.googleusercontent.com"></div>
+      <div class="form-group"><label>Client Secret</label><input id="wm-gcsec" value="${esc(m.gmail_client_secret||'')}" placeholder="GOCSPX-..."></div>
+      <div class="form-group"><label>Refresh Token</label><input id="wm-grt" value="${esc(m.gmail_refresh_token||'')}" placeholder="1//..."></div>
+    </div>
     <div class="form-row-2">
       <div class="form-group"><label>Reply Chance (%)</label><input id="wm-reply" type="number" min="0" max="100" value="${Math.round((m.reply_chance==null?0.4:m.reply_chance)*100)}"></div>
       <div class="form-group"><label>Rescue From Spam</label>
@@ -2292,7 +2299,7 @@ function openWarmupMailboxModal(id) {
       <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
       <button class="btn btn-primary" onclick="saveWarmupMailbox('${m.id||''}')">Save</button>
     </div>`, true);
-  if (!m.id) warmupProviderFill();
+    warmupProviderFill();
 }
 
 function warmupProviderFill() {
@@ -2303,7 +2310,9 @@ function warmupProviderFill() {
     icloud:  ['imap.mail.me.com',993,'smtp.mail.me.com',587],
     custom:  ['',993,'',587],
   };
-  const [ih,ip,sh,sp] = map[p] || map.custom;
+    const [ih,ip,sh,sp] = map[p] || map.custom;
+  const oauthBox = document.getElementById('wm-gmail-oauth');
+  if (oauthBox) oauthBox.style.display = (p === 'gmail') ? 'block' : 'none';
   document.getElementById('wm-imaph').value = ih;
   document.getElementById('wm-imapp').value = ip;
   document.getElementById('wm-smtph').value = sh;
@@ -2322,6 +2331,9 @@ async function saveWarmupMailbox(id) {
     app_password: document.getElementById('wm-pass').value.replace(/\s+/g,''),
     reply_chance: (parseInt(document.getElementById('wm-reply').value)||40) / 100,
     rescue_from_spam: document.getElementById('wm-rescue').value === 'true',
+    gmail_client_id: document.getElementById('wm-gcid').value.trim() || null,
+    gmail_client_secret: document.getElementById('wm-gcsec').value.trim() || null,
+    gmail_refresh_token: document.getElementById('wm-grt').value.trim() || null,
   };
   if (!payload.email) { alert('Email is required'); return; }
   let error;
