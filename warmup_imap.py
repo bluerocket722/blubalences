@@ -31,6 +31,8 @@ PROVIDER_HOSTS = {
     'office365': ('outlook.office365.com', 993, 'smtp.office365.com', 587),
     'microsoft': ('outlook.office365.com', 993, 'smtp.office365.com', 587),
     'icloud':    ('imap.mail.me.com', 993, 'smtp.mail.me.com', 587),
+    'yahoo':     ('imap.mail.yahoo.com', 993, 'smtp.mail.yahoo.com', 587),
+    'aol':       ('imap.aol.com', 993, 'smtp.aol.com', 587),
 }
 
 REPLY_TEMPLATES = [
