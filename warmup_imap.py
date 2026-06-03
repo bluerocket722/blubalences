@@ -181,6 +181,13 @@ def rescue_from_spam(M, inbox_emails):
                 msg = email.message_from_string(raw)
                 _, from_addr = email.utils.parseaddr(msg.get('From', ''))
                 if from_addr.lower() in inbox_emails:
+                    # RFC 5788 not-junk signal (honored by Outlook/iCloud/Dovecot;
+                    # ignored by Gmail, where the move below IS the not-spam action)
+                    if not folder.startswith('[Gmail]'):
+                        try:
+                            M.store(num, '-FLAGS', '($Junk)')
+                            M.store(num, '+FLAGS', '($NotJunk)')
+                        except Exception: pass
                     M.copy(num, 'INBOX')
                     M.store(num, '+FLAGS', '\\Deleted')
                     M.expunge()
