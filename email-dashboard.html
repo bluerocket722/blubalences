@@ -2090,6 +2090,7 @@ async function deleteInbox(id) {
 
 /* ─── REPLIES ─── */
 let replyFilter = 'all';
+let replyTab = 'prospect';
 
 async function refreshUnreadBadge() {
   try {
@@ -2100,8 +2101,6 @@ async function refreshUnreadBadge() {
     else badge.style.display = 'none';
   } catch(e) {}
 }
-
-let replyTab = 'prospect';
 
 async function renderReplies() {
   const { data: inboxes } = await sb.from('inboxes').select('id,name,email,brevo_api_key').eq('active', true);
@@ -2114,9 +2113,13 @@ async function renderReplies() {
 
   if (replyTab === 'warmup') {
     await renderWarmupReplies();
-    return;
+  } else {
+    await renderProspectReplies();
   }
+  refreshUnreadBadge();
+}
 
+async function renderProspectReplies() {
   let query = sb.from('replies').select('*').order('received_at', { ascending: false }).limit(200);
   if (replyFilter === 'unread') query = query.eq('read', false);
   if (replyFilter === 'replied') query = query.not('replied_at', 'is', null);
@@ -2124,28 +2127,135 @@ async function renderReplies() {
   const unread = (replies||[]).filter(r => !r.read).length;
 
   document.getElementById('content').innerHTML = `
-    <div class="filter-bar" style="margin-bottom:8px">
-      <button class="btn ${replyTab==='prospect'?'btn-primary':'btn-secondary'} btn-sm" onclick="replyTab='prospect';renderReplies()">💼 Prospect Replies</button>
-      <button class="btn ${replyTab==='warmup'?'btn-primary':'btn-secondary'} btn-sm" onclick="replyTab='warmup';renderReplies()">⭐ Warm-Up Replies</button>
+    <div style="display:flex;gap:10px;margin-bottom:18px">
+      <button class="btn btn-primary btn-sm">💼 Prospect Replies</button>
+      <button class="btn btn-secondary btn-sm" onclick="replyTab='warmup';renderReplies()">⭐ Warm-Up Replies</button>
     </div>
     <div class="filter-bar" style="margin-bottom:16px">
-      <button class="btn ${replyFilter==='all'?'btn-primary':'btn-secondary'} btn-sm" onclick="replyFilter='all';renderReplies()">All (${(replies||[]).length})</button>
-      <button class="btn ${replyFilter==='unread'?'btn-primary':'btn-secondary'} btn-sm" onclick="replyFilter='unread';renderReplies()">Unread${unread>0?` (${unread})`:''}</button>
-      <button class="btn ${replyFilter==='replied'?'btn-primary':'btn-secondary'} btn-sm" onclick="replyFilter='replied';renderReplies()">Replied</button>
+      <button class="btn ${replyFilter==='all'?'btn-primary':'btn-secondary'} btn-sm" onclick="replyFilter='all';renderProspectReplies()">All (${(replies||[]).length})</button>
+      <button class="btn ${replyFilter==='unread'?'btn-primary':'btn-secondary'} btn-sm" onclick="replyFilter='unread';renderProspectReplies()">Unread${unread>0?` (${unread})`:''}</button>
+      <button class="btn ${replyFilter==='replied'?'btn-primary':'btn-secondary'} btn-sm" onclick="replyFilter='replied';renderProspectReplies()">Replied</button>
     </div>
-    ${!replies||!replies.length ? '<div class="panel"><div class="empty">No prospect replies yet.</div></div>' :
-    replies.map(r => `
+    ${!replies||!replies.length ? '<div class="panel"><div class="empty">No prospect replies yet. Make sure reply_imap.py is running and your inbox IMAP credentials are saved.</div></div>' :
+    (replies||[]).map(r => `
       <div class="reply-card ${!r.read?'unread':''}" onclick="openReplyModal('${r.id}')">
         <div class="reply-meta">
           <div class="reply-from">${r.from_name||r.from_email} ${!r.read?'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--blue);margin-left:4px;vertical-align:middle"></span>':''}</div>
           <div class="reply-subj">${r.subject||'(no subject)'}</div>
-          <div class="reply-preview">${(r.body_text||'').replace(/\n/g,' ').slice(0,120)}</div>
-          ${r.replied_at?`<div style="margin-top:6px"><span class="badge badge-green" style="font-size:11px">✓ You replied ${new Date(r.replied_at).toLocaleDateString()}</span></div><div style="font-size:12px;color:#065f46;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><em>${(r.reply_body||'').replace(/\n/g,' ').slice(0,100)}</em></div>`:''}
+          <div class="reply-preview">${(r.body_text||'').replace(/</g,'&lt;').replace(/\n/g,' ').slice(0,120)}</div>
+          ${r.status==='opportunity'?'<span class="badge badge-green" style="font-size:11px">🌟 Opportunity</span>':''}
+          ${r.status==='no'?'<span class="badge" style="font-size:11px;background:#666;color:#fff">🚫 No</span>':''}
+          ${r.replied_at?`<span class="badge badge-green" style="font-size:11px">Replied ${new Date(r.replied_at).toLocaleDateString()}</span>`:''}
         </div>
         <div class="reply-time">${new Date(r.received_at).toLocaleDateString()}<br><span style="color:var(--gray)">${new Date(r.received_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span></div>
       </div>`).join('')}`;
+}
+
+async function renderWarmupReplies() {
+  const { data: logs } = await sb.from('warmup_log').select('*').order('ran_at', { ascending: false }).limit(200);
+  document.getElementById('content').innerHTML = `
+    <div style="display:flex;gap:10px;margin-bottom:18px">
+      <button class="btn btn-secondary btn-sm" onclick="replyTab='prospect';renderReplies()">💼 Prospect Replies</button>
+      <button class="btn btn-primary btn-sm">⭐ Warm-Up Replies</button>
+    </div>
+    ${!logs||!logs.length ? '<div class="panel"><div class="empty">No warm-up activity yet.</div></div>' :
+    `<table class="table"><thead><tr><th>MAILBOX</th><th>OPENED</th><th>REPLIED</th><th>RESCUED</th><th>TIME</th></tr></thead><tbody>
+    ${logs.map(l => `<tr>
+      <td>${l.email||l.mailbox_id||'—'}</td>
+      <td>${l.opened||0}</td>
+      <td><span style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:${(l.replied||0)>0?'rgba(52,199,89,.15)':'transparent'};color:${(l.replied||0)>0?'#34c759':'var(--gray)'};font-weight:700">${l.replied||0}</span></td>
+      <td>${l.rescued||0}</td>
+      <td>${new Date(l.ran_at).toLocaleString()}</td>
+    </tr>`).join('')}
+    </tbody></table>`}`;
+}
+
+async function openReplyModal(replyId) {
+  await sb.from('replies').update({ read: true }).eq('id', replyId);
+  const { data: r } = await sb.from('replies').select('*').eq('id', replyId).single();
+  if (!r) return;
+
+  const inboxOpts = (window._replyInboxes||[]).length
+    ? (window._replyInboxes||[]).map(ib => `<option value="${ib.id}" ${ib.email===r.to_email?'selected':''}>${ib.name} &lt;${ib.email}&gt;</option>`).join('')
+    : `<option value="">Global (${window._replyCfg?.from_email||'from settings'})</option>`;
+
+  showModal(`
+    <h2 style="margin-bottom:4px">Reply from ${r.from_name||r.from_email}</h2>
+    <div style="font-size:13px;color:var(--gray);margin-bottom:12px">
+      <strong>From:</strong> ${r.from_name ? `${r.from_name} &lt;${r.from_email}&gt;` : r.from_email}<br>
+      <strong>To:</strong> ${r.to_email||'—'}<br>
+      <strong>Subject:</strong> ${r.subject||'(no subject)'}<br>
+      <strong>Received:</strong> ${new Date(r.received_at).toLocaleString()}
+    </div>
+    <div style="background:var(--panel-bg,#1a1a1a);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:16px;font-size:14px;white-space:pre-wrap;max-height:220px;overflow-y:auto">${(r.body_text||r.body_html||'(empty message)').replace(/</g,'&lt;').trim()}</div>
+    ${r.replied_at ? `<div class="info-banner" style="margin-bottom:12px">✓ You replied on ${new Date(r.replied_at).toLocaleString()}</div>` : ''}
+    <div style="display:flex;gap:10px;margin-bottom:16px">
+      <button class="btn btn-sm" style="background:#f0a500;color:#fff;border:none" onclick="markReplyStatus('${r.id}','${r.from_email}','opportunity')">🌟 Opportunity</button>
+      <button class="btn btn-sm" style="background:#666;color:#fff;border:none" onclick="markReplyStatus('${r.id}','${r.from_email}','no')">🚫 No</button>
+    </div>
+    <div class="section-title">Compose Reply</div>
+    ${(window._replyInboxes||[]).length > 1 ? `<div class="form-group"><label>Send From</label><select id="rp-inbox">${inboxOpts}</select></div>` : ''}
+    <div class="form-group"><label>Subject</label><input id="rp-subj" value="Re: ${esc(r.subject||'')}"></div>
+    <div class="form-group"><label>Message</label><textarea id="rp-body" style="min-height:140px" placeholder="Hi ${r.from_name||'there'},&#10;&#10;Thanks for your response...&#10;&#10;Best,&#10;Aaron&#10;Blu Balence Bookkeeping"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="sendReplyEmail('${r.id}','${esc(r.from_email)}','${esc(r.message_id||'')}')">Send Reply</button>
+    </div>`, true);
 
   refreshUnreadBadge();
+}
+
+async function markReplyStatus(replyId, fromEmail, status) {
+  await sb.from('replies').update({ status }).eq('id', replyId);
+  // Stop all active enrollments for this prospect
+  await sb.from('enrollments').update({ status: 'stopped' }).eq('email', fromEmail).eq('status', 'active');
+  closeModal();
+  renderReplies();
+  alert(status === 'opportunity' ? '🌟 Marked as Opportunity — sequences stopped.' : '🚫 Marked as No — sequences stopped.');
+}
+
+async function sendReplyEmail(replyId, toEmail, inReplyTo) {
+  const subject = document.getElementById('rp-subj').value.trim();
+  const body = document.getElementById('rp-body').value.trim();
+  if (!body) { alert('Message is required'); return; }
+
+  const inboxEl = document.getElementById('rp-inbox');
+  let fromEmail, fromName, brevoKey;
+
+  if (inboxEl && inboxEl.value) {
+    const inbox = (window._replyInboxes||[]).find(ib => ib.id === inboxEl.value);
+    if (inbox) { fromEmail = inbox.email; fromName = inbox.name; brevoKey = inbox.brevo_api_key || window._replyCfg?.brevo_api_key; }
+  }
+  if (!fromEmail) {
+    const raw = window._replyCfg?.from_email || '';
+    const m = raw.match(/^(.+?)\s*<(.+?)>\s*$/);
+    fromEmail = m ? m[2] : raw;
+    fromName = m ? m[1] : '';
+    brevoKey = window._replyCfg?.brevo_api_key;
+  }
+  if (!brevoKey) { alert('No Brevo API key found. Add one in Settings or to the inbox.'); return; }
+
+  const htmlBody = '<html><body>' + body.replace(/\n/g,'<br>') + '</body></html>';
+  const payload = {
+    sender: { email: fromEmail, name: fromName || fromEmail },
+    to: [{ email: toEmail }],
+    subject,
+    htmlContent: htmlBody,
+  };
+  if (inReplyTo) { payload.headers = { 'In-Reply-To': inReplyTo, 'References': inReplyTo }; }
+
+  try {
+    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: { 'api-key': brevoKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) { const e = await res.text(); alert('Send failed: ' + e); return; }
+    await sb.from('replies').update({ replied_at: new Date().toISOString(), reply_body: body }).eq('id', replyId);
+    closeModal();
+    renderReplies();
+    alert('Reply sent!');
+  } catch(e) { alert('Error: ' + e.message); }
 }
 
 async function renderWarmupReplies() {
