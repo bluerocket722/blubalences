@@ -127,5 +127,13 @@ def main():
         process_inbox(ib, warmup_emails)
     print("\n=== Done ===")
 
+def run_loop():
+    while True:
+        try:
+            main()
+        except Exception as e:
+            print(f"!! run error: {e}")
+        time.sleep(60)
+
 if __name__ == '__main__':
-    main()
+    run_loop()
