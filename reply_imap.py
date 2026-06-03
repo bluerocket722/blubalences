@@ -1,5 +1,4 @@
 import imaplib
-import socket
 import email
 import email.utils
 import email.header
@@ -12,10 +11,8 @@ SUPABASE_URL = os.environ['SUPABASE_URL']
 SUPABASE_KEY = os.environ['SUPABASE_SERVICE_ROLE_KEY']
 sb = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-PROVIDER_DEFAULT = ('imap.gmail.com', 993)
-
-def load_prospect_emails():
-    rows = sb.table('enrollments').select('email').execute().data or []
+def load_warmup_emails():
+    rows = sb.table('warmup_mailboxes').select('email').eq('active', True).execute().data or []
     return set((r.get('email') or '').lower() for r in rows if r.get('email'))
 
 def get_body(msg):
@@ -46,10 +43,10 @@ def already_have(message_id):
     res = sb.table('replies').select('id').eq('message_id', message_id).limit(1).execute()
     return bool(res.data)
 
-def process_inbox(ib, prospects):
+def process_inbox(ib, warmup_emails):
     email_addr = ib.get('email', '')
-    host = ib.get('imap_host') or PROVIDER_DEFAULT[0]
-    port = ib.get('imap_port') or PROVIDER_DEFAULT[1]
+    host = ib.get('imap_host') or 'imap.gmail.com'
+    port = ib.get('imap_port') or 993
     password = ib.get('imap_password', '')
     if not email_addr or not password:
         print(f"  Skipping {email_addr} — no IMAP password set")
@@ -65,27 +62,52 @@ def process_inbox(ib, prospects):
     captured = 0
     try:
         M.select('INBOX')
-        since = time.strftime('%d-%b-%Y', time.gmtime(time.time() - 3 * 86400))
+        since = time.strftime('%d-%b-%Y', time.gmtime(time.time() - 7 * 86400))
         _, nums = M.search(None, f'(SINCE {since})')
         ids = nums[0].split() if nums[0] else []
-        for num in ids[-100:]:
+        print(f"  Scanning {len(ids)} emails from last 7 days")
+        for num in ids[-200:]:
             try:
                 _, data = M.fetch(num, '(RFC822)')
                 msg = email.message_from_bytes(data[0][1])
-                _, from_addr = email.utils.parseaddr(msg.get('From', ''))
+                from_name, from_addr = email.utils.parseaddr(msg.get('From', ''))
                 from_addr = (from_addr or '').lower()
-                if from_addr not in prospects: continue
+
+                # Skip emails the inbox sent to itself
+                if from_addr == email_addr.lower(): continue
+                # Skip blank senders
+                if not from_addr or '@' not in from_addr: continue
+
                 message_id = msg.get('Message-ID', '') or ''
                 if already_have(message_id): continue
-                from_name = email.utils.parseaddr(msg.get('From', ''))[0] or ''
+
+                # Determine kind: warmup or prospect
+                kind = 'warmup' if from_addr in warmup_emails else 'prospect'
+
                 subject = str(email.header.make_header(email.header.decode_header(msg.get('Subject', ''))))
                 text, html = get_body(msg)
+                in_reply_to = msg.get('In-Reply-To', '') or ''
                 date_hdr = msg.get('Date', '')
                 try: received = email.utils.parsedate_to_datetime(date_hdr).isoformat()
                 except Exception: received = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
-                sb.table('replies').insert({'from_name': from_name, 'from_email': from_addr, 'to_email': email_addr, 'inbox_email': email_addr, 'subject': subject, 'body_text': text, 'body_html': html, 'message_id': message_id, 'received_at': received, 'read': False}).execute()
+
+                sb.table('replies').insert({
+                    'kind': kind,
+                    'direction': 'in',
+                    'from_name': from_name or '',
+                    'from_email': from_addr,
+                    'to_email': email_addr,
+                    'inbox_email': email_addr,
+                    'subject': subject,
+                    'body_text': text,
+                    'body_html': html,
+                    'message_id': message_id,
+                    'thread_id': in_reply_to or None,
+                    'received_at': received,
+                    'read': False,
+                }).execute()
                 captured += 1
-                print(f"    + reply from {from_addr}: {subject[:50]}")
+                print(f"    + [{kind}] reply from {from_addr}: {subject[:50]}")
             except Exception as e:
                 print(f"    error on message: {e}")
         print(f"  Captured: {captured}")
@@ -95,14 +117,14 @@ def process_inbox(ib, prospects):
 
 def main():
     print("=== Reply catcher ===")
-    prospects = load_prospect_emails()
-    print(f"Known prospects: {len(prospects)}")
+    warmup_emails = load_warmup_emails()
+    print(f"Known warm-up addresses: {len(warmup_emails)}")
     inboxes = sb.table('inboxes').select('*').eq('active', True).execute().data or []
     if not inboxes:
         print("No active inboxes.")
         return
     for ib in inboxes:
-        process_inbox(ib, prospects)
+        process_inbox(ib, warmup_emails)
     print("\n=== Done ===")
 
 if __name__ == '__main__':
