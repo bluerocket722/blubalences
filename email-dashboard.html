@@ -186,6 +186,10 @@ textarea{resize:vertical;min-height:80px}
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
         Analytics
       </a>
+      <a onclick="navigate('proxies')" id="nav-proxies">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>
+        Proxies
+      </a>
       <a onclick="navigate('inboxes')" id="nav-inboxes">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg>
         Inboxes
@@ -291,7 +295,7 @@ async function navigate(tab) {
   const el = document.getElementById('nav-' + tab);
   if (el) el.classList.add('active');
   document.getElementById('page-title').textContent =
-     { dashboard:'Dashboard', sequences:'Sequences', subscribers:'Subscribers', analytics:'Analytics', settings:'Settings', inboxes:'Inboxes', replies:'Replies', copy:'Copy', lists:'Lists', warmup:'Warm-Up ⭐' }[tab] || tab;
+     { dashboard:'Dashboard', sequences:'Sequences', subscribers:'Subscribers', analytics:'Analytics', settings:'Settings', inboxes:'Inboxes', replies:'Replies', copy:'Copy', lists:'Lists', warmup:'Warm-Up ⭐',proxies:'Proxies' }[tab] || tab;
   document.getElementById('topbar-actions').innerHTML = '';
   document.getElementById('content').innerHTML = '<div style="padding:40px;text-align:center;color:#6b7280">Loading…</div>';
   if (tab === 'dashboard') await renderDashboard();
@@ -302,6 +306,7 @@ async function navigate(tab) {
   else if (tab === 'analytics') await renderAnalytics();
   else if (tab === 'settings') await renderSettings();
   else if (tab === 'inboxes') await renderInboxes();
+  else if (tab === 'proxies') await renderProxies();
   else if (tab === 'replies') await renderReplies();
   else if (tab === 'warmup') await renderWarmupMailboxes();
 }
@@ -2498,6 +2503,174 @@ function esc(s) { return (s||'').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
     bootFromStorage();
   }
 })();
+  // ─── PROXIES ──────────────────────────────────────────────────────────────────
+
+async function renderProxies() {
+  const [{ data: proxies }, { data: mailboxes }] = await Promise.all([
+    sb.from('proxies').select('*').order('created_at'),
+    sb.from('warmup_mailboxes').select('id,email,name,proxy_id,proxy_host').eq('active', true),
+  ]);
+
+  // Count assignments per proxy
+  const assignCount = {};
+  (mailboxes || []).forEach(mb => {
+    if (mb.proxy_id) assignCount[mb.proxy_id] = (assignCount[mb.proxy_id] || 0) + 1;
+  });
+
+  document.getElementById('topbar-actions').innerHTML =
+    `<button class="btn btn-primary" onclick="openProxyModal()">+ Add Proxy IP</button>
+     <button class="btn btn-secondary" onclick="openAssignProxiesModal()" style="margin-left:8px">Assign to Mailboxes</button>`;
+
+  document.getElementById('content').innerHTML = `
+    <div class="info-banner">ℹ️ Each proxy IP is assigned to a warm-up seed mailbox so every account connects from a unique, consistent IP address.</div>
+    ${!proxies || !proxies.length
+      ? '<div class="panel"><div class="empty">No proxy IPs yet. Add one to get started.</div></div>'
+      : `<table>
+          <thead><tr>
+            <th>Label</th><th>Host</th><th>Port</th><th>Username</th><th>Notes</th><th>Assigned</th><th>Active</th><th>Actions</th>
+          </tr></thead>
+          <tbody>
+            ${proxies.map(p => `<tr>
+              <td><strong>${esc(p.label)}</strong></td>
+              <td style="font-family:monospace;font-size:12px">${esc(p.host)}</td>
+              <td>${p.port}</td>
+              <td style="font-family:monospace;font-size:12px">${esc(p.username || '—')}</td>
+              <td style="color:var(--gray);font-size:12px">${esc(p.notes || '')}</td>
+              <td style="text-align:center">
+                <span style="background:var(--blue);color:#fff;border-radius:10px;padding:2px 8px;font-size:12px">
+                  ${assignCount[p.id] || 0} mailbox${(assignCount[p.id] || 0) !== 1 ? 'es' : ''}
+                </span>
+              </td>
+              <td>${p.active ? '<span style="color:var(--green)">Active</span>' : '<span style="color:var(--gray)">Off</span>'}</td>
+              <td>
+                <button class="btn btn-secondary btn-sm" onclick="openProxyModal('${p.id}','${esc(p.label)}','${esc(p.host)}',${p.port},'${esc(p.username||'')}','${esc(p.notes||'')}',${p.active})">Edit</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteProxy('${p.id}')">Delete</button>
+              </td>
+            </tr>`).join('')}
+          </tbody>
+        </table>`
+    }`;
+}
+
+function openProxyModal(id, label, host, port, username, notes, active) {
+  showModal(`
+    <h2>${id ? 'Edit' : 'Add'} Proxy IP</h2>
+    <div class="form-group"><label>Label <span style="color:var(--gray);font-weight:400">(e.g. "Yahoo seed 1")</span></label>
+      <input id="px-label" value="${label||''}" placeholder="Yahoo seed 1"></div>
+    <div class="form-group"><label>Host / IP Address</label>
+      <input id="px-host" value="${host||''}" placeholder="p.webshare.io or 1.2.3.4" style="font-family:monospace"></div>
+    <div class="form-group"><label>Port</label>
+      <input id="px-port" type="number" value="${port||1080}" placeholder="1080"></div>
+    <div class="form-group"><label>Username <span style="color:var(--gray);font-weight:400">(optional)</span></label>
+      <input id="px-user" value="${username||''}" placeholder="proxy username"></div>
+    <div class="form-group"><label>Password <span style="color:var(--gray);font-weight:400">(optional)</span></label>
+      <input id="px-pass" type="password" placeholder="${id ? '(unchanged)' : 'proxy password'}"></div>
+    <div class="form-group"><label>Notes <span style="color:var(--gray);font-weight:400">(optional)</span></label>
+      <input id="px-notes" value="${notes||''}" placeholder="Webshare US East #4"></div>
+    <div class="form-group" style="display:flex;align-items:center;gap:10px">
+      <label class="toggle"><input id="px-active" type="checkbox" ${active!==false?'checked':''}><span class="toggle-slider"></span></label>
+      <span style="font-size:14px">Active</span>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveProxy('${id||''}')">Save</button>
+    </div>`);
+}
+
+async function saveProxy(id) {
+  const label = document.getElementById('px-label').value.trim();
+  const host  = document.getElementById('px-host').value.trim();
+  const port  = parseInt(document.getElementById('px-port').value) || 1080;
+  const user  = document.getElementById('px-user').value.trim();
+  const pass  = document.getElementById('px-pass').value;
+  const notes = document.getElementById('px-notes').value.trim();
+  const active = document.getElementById('px-active').checked;
+  if (!label || !host) { alert('Label and host are required'); return; }
+  const payload = { label, host, port, username: user || null, notes: notes || null, active };
+  if (pass) payload.password = pass;
+  let error;
+  if (id) ({ error } = await sb.from('proxies').update(payload).eq('id', id));
+  else ({ error } = await sb.from('proxies').insert(payload));
+  if (error) { alert('Save failed: ' + error.message); return; }
+  closeModal(); renderProxies();
+}
+
+async function deleteProxy(id) {
+  if (!confirm('Delete this proxy IP? Any mailboxes using it will lose their assignment.')) return;
+  await sb.from('warmup_mailboxes').update({ proxy_id: null }).eq('proxy_id', id);
+  await sb.from('proxies').delete().eq('id', id);
+  renderProxies();
+}
+
+async function openAssignProxiesModal() {
+  const [{ data: mailboxes }, { data: proxies }] = await Promise.all([
+    sb.from('warmup_mailboxes').select('id,email,name,proxy_id,proxy_host,proxy_port,proxy_user').order('email'),
+    sb.from('proxies').select('id,label,host,port').eq('active', true).order('label'),
+  ]);
+
+  const proxyOpts = (proxies || []).map(p =>
+    `<option value="${p.id}">${esc(p.label)} — ${esc(p.host)}:${p.port}</option>`
+  ).join('');
+
+  const rows = (mailboxes || []).map(mb => {
+    const selected = mb.proxy_id || '';
+    return `<tr>
+      <td><strong>${esc(mb.name || mb.email)}</strong><br><span style="font-size:11px;color:var(--gray)">${esc(mb.email)}</span></td>
+      <td>
+        <select id="mbproxy-${mb.id}" style="width:100%;font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:6px">
+          <option value="">— No proxy (use global) —</option>
+          ${(proxies || []).map(p =>
+            `<option value="${p.id}" ${selected===p.id?'selected':''}>${esc(p.label)} — ${esc(p.host)}:${p.port}</option>`
+          ).join('')}
+        </select>
+        ${mb.proxy_host && !mb.proxy_id
+          ? `<div style="font-size:11px;color:var(--gray);margin-top:2px">Manual: ${mb.proxy_host}:${mb.proxy_port||1080}</div>`
+          : ''}
+      </td>
+    </tr>`;
+  }).join('');
+
+  showModal(`
+    <h2>Assign Proxy IPs to Seed Mailboxes</h2>
+    ${!mailboxes || !mailboxes.length
+      ? '<div class="empty">No active warm-up mailboxes found.</div>'
+      : `<table style="margin-bottom:8px">
+          <thead><tr><th>Mailbox</th><th>Assigned Proxy</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <div style="font-size:12px;color:var(--gray)">Selecting a proxy here writes both the proxy_id and the resolved host/port/credentials to the mailbox row so warmup_imap.py can use them immediately.</div>`
+    }
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveProxyAssignments(${JSON.stringify((mailboxes||[]).map(m=>m.id))})">Save Assignments</button>
+    </div>`);
+}
+
+async function saveProxyAssignments(mbIds) {
+  const { data: proxies } = await sb.from('proxies').select('*');
+  const proxyMap = {};
+  (proxies || []).forEach(p => { proxyMap[p.id] = p; });
+
+  const updates = mbIds.map(async mbId => {
+    const sel = document.getElementById('mbproxy-' + mbId);
+    if (!sel) return;
+    const proxyId = sel.value || null;
+    const proxy = proxyId ? proxyMap[proxyId] : null;
+    const payload = {
+      proxy_id: proxyId,
+      proxy_host: proxy ? proxy.host : null,
+      proxy_port: proxy ? proxy.port : null,
+      proxy_user: proxy ? (proxy.username || null) : null,
+      proxy_pass: proxy ? (proxy.password || null) : null,
+    };
+    return sb.from('warmup_mailboxes').update(payload).eq('id', mbId);
+  });
+
+  const results = await Promise.all(updates);
+  const err = results.find(r => r && r.error);
+  if (err) { alert('Save failed: ' + err.error.message); return; }
+  closeModal(); renderProxies();
+}
 </script>
 </body>
 </html>
