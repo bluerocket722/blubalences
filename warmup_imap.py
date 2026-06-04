@@ -458,7 +458,7 @@ def process_mailbox(mb, cfg, inbox_emails, min_m, max_m):
     reply_chance = 0.4 if reply_chance is None else float(reply_chance)
     do_rescue = mb.get('rescue_from_spam', True) is not False
 
-       prov = (mb.get('provider') or 'gmail').lower()
+    prov = (mb.get('provider') or 'gmail').lower()
     if prov == 'gmail':
         has_auth = bool(mb.get('gmail_client_id') and mb.get('gmail_client_secret') and mb.get('gmail_refresh_token'))
     elif prov in ('outlook', 'office365', 'microsoft'):
