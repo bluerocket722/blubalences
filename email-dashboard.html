@@ -130,6 +130,11 @@ textarea{resize:vertical;min-height:80px}
 .menu-btn svg{width:24px;height:24px;color:var(--blue)}
 #nav-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:90}
 #nav-overlay.show{display:block}
+.dash-drag{cursor:grab}
+.dash-drag:active{cursor:grabbing}
+.dash-dragging{opacity:.4}
+.help-btn{background:var(--blue-light);color:var(--blue-dark);border:none;border-radius:6px;padding:2px 9px;font-size:12px;font-weight:600;cursor:pointer;float:right}
+.help-btn:hover{opacity:.85}
 @media (max-width:768px){
   #sidebar{position:fixed;top:0;left:0;height:100vh;z-index:100;transform:translateX(-100%);transition:transform .25s ease}
   #sidebar.open{transform:translateX(0)}
@@ -449,11 +454,14 @@ async function renderDashboard() {
       <div id="recent-log"><div class="empty">Loading…</div></div>
     </div>`;
 
-      await refreshLog();
+            await refreshLog();
   startLiveLog();
   await loadBrevoStats(cfg.brevo_api_key || '');
   checkRunStatus();
   if (sendTime) startCountdown(sendTime, sendDays, tz);
+  document.getElementById('topbar-actions').innerHTML =
+    `<button class="btn btn-secondary btn-sm" onclick="resetDashboardLayout()">↕ Reset Layout</button>`;
+  makeSortable('content', 'dash_layout_order');
 }
 
 async function refreshLog() {
@@ -2319,15 +2327,17 @@ async function renderWarmupMailboxes() {
       </tr>`).join('')}</tbody></table></div>`}`;
 }
 
-function openWarmupMailboxModal(id) {
+async function openWarmupMailboxModal(id) {
   const m = (window._warmupMbs||[]).find(x => x.id === id) || {};
+  await loadWarmupProviders();
   showModal(`
     <h2>${m.id?'Edit':'Add'} Warm-Up Mailbox ⭐</h2>
     <div class="form-group"><label>Name</label><input id="wm-name" value="${esc(m.name||'')}" placeholder="Blu Balence Support"></div>
     <div class="form-group"><label>Email</label><input id="wm-email" value="${esc(m.email||'')}" placeholder="you@gmail.com"></div>
-    <div class="form-group"><label>Provider</label>
-      <select id="wm-prov" onchange="warmupProviderFill()">
-        ${['gmail','outlook','icloud','custom'].map(p=>`<option value="${p}" ${(m.provider||'gmail')===p?'selected':''}>${p}</option>`).join('')}
+        <div class="form-group"><label>Provider <button type="button" class="help-btn" onclick="showWarmupHelp()">📖 Setup help</button></label>
+      <select id="wm-prov" data-prev="${m.provider||'gmail'}" onchange="warmupProviderChanged()">
+        ${Object.keys(window._warmupProviders||DEFAULT_WARMUP_PROVIDERS).map(p=>`<option value="${p}" ${(m.provider||'gmail')===p?'selected':''}>${p}</option>`).join('')}
+        <option value="__add__">➕ Add new provider…</option>
       </select>
     </div>
     <div class="form-row-2">
@@ -2340,7 +2350,7 @@ function openWarmupMailboxModal(id) {
     </div>
     <div class="form-group"><label>App Password / Key</label><input id="wm-pass" value="${esc(m.app_password||'')}" placeholder="app password (spaces ok)"><p class="hint">Gmail: generate at myaccount.google.com/apppasswords</p></div>
         <div id="wm-gmail-oauth" class="form-group" style="border:1px solid #e5e7eb;border-radius:8px;padding:12px;background:#fafafa">
-      <label style="font-weight:600">Gmail API — for sending replies ⭐</label>
+      <label style="font-weight:600">Gmail API — for sending replies ⭐ <button type="button" class="help-btn" onclick="showWarmupHelp('gmail')">📖 How to get these</button></label>
       <p class="hint">Railway blocks SMTP, so replies go through the Gmail API over HTTPS. Get these 3 values from the OAuth Playground (one set per Gmail account).</p>
       <div class="form-group"><label>Client ID</label><input id="wm-gcid" value="${esc(m.gmail_client_id||'')}" placeholder="...apps.googleusercontent.com"></div>
       <div class="form-group"><label>Client Secret</label><input id="wm-gcsec" value="${esc(m.gmail_client_secret||'')}" placeholder="GOCSPX-..."></div>
@@ -2356,24 +2366,31 @@ function openWarmupMailboxModal(id) {
       <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
       <button class="btn btn-primary" onclick="saveWarmupMailbox('${m.id||''}')">Save</button>
     </div>`, true);
-    warmupProviderFill();
+    warmupProviderToggleOauth();
+}
+
+function warmupProviderToggleOauth() {
+  const p = document.getElementById('wm-prov')?.value;
+  const oauthBox = document.getElementById('wm-gmail-oauth');
+  if (oauthBox) oauthBox.style.display = (p === 'gmail') ? 'block' : 'none';
+}
+
+function warmupProviderChanged() {
+  const sel = document.getElementById('wm-prov');
+  if (sel.value === '__add__') { sel.value = sel.dataset.prev || 'gmail'; addWarmupProvider(); return; }
+  sel.dataset.prev = sel.value;
+  warmupProviderFill();
 }
 
 function warmupProviderFill() {
   const p = document.getElementById('wm-prov').value;
-  const map = {
-    gmail:   ['imap.gmail.com',993,'smtp.gmail.com',587],
-    outlook: ['outlook.office365.com',993,'smtp.office365.com',587],
-    icloud:  ['imap.mail.me.com',993,'smtp.mail.me.com',587],
-    custom:  ['',993,'',587],
-  };
-    const [ih,ip,sh,sp] = map[p] || map.custom;
-  const oauthBox = document.getElementById('wm-gmail-oauth');
-  if (oauthBox) oauthBox.style.display = (p === 'gmail') ? 'block' : 'none';
-  document.getElementById('wm-imaph').value = ih;
-  document.getElementById('wm-imapp').value = ip;
-  document.getElementById('wm-smtph').value = sh;
-  document.getElementById('wm-smtpp').value = sp;
+  const provs = window._warmupProviders || DEFAULT_WARMUP_PROVIDERS;
+  const cfg = provs[p] || provs.custom || { imap_host:'', imap_port:993, smtp_host:'', smtp_port:587 };
+  warmupProviderToggleOauth();
+  document.getElementById('wm-imaph').value = cfg.imap_host;
+  document.getElementById('wm-imapp').value = cfg.imap_port;
+  document.getElementById('wm-smtph').value = cfg.smtp_host;
+  document.getElementById('wm-smtpp').value = cfg.smtp_port;
 }
 
 async function saveWarmupMailbox(id) {
@@ -2482,6 +2499,197 @@ async function deleteWarmupMailbox(id) {
   if (!confirm('Delete this warm-up mailbox?')) return;
   await sb.from('warmup_mailboxes').delete().eq('id', id);
   renderWarmupMailboxes();
+}
+
+/* ─── WARM-UP PROVIDERS (editable presets) ─── */
+const DEFAULT_WARMUP_PROVIDERS = {
+  gmail:   { imap_host:'imap.gmail.com',        imap_port:993, smtp_host:'smtp.gmail.com',        smtp_port:587 },
+  outlook: { imap_host:'outlook.office365.com', imap_port:993, smtp_host:'smtp.office365.com',    smtp_port:587 },
+  yahoo:   { imap_host:'imap.mail.yahoo.com',   imap_port:993, smtp_host:'smtp.mail.yahoo.com',   smtp_port:587 },
+  aol:     { imap_host:'imap.aol.com',          imap_port:993, smtp_host:'smtp.aol.com',          smtp_port:587 },
+  icloud:  { imap_host:'imap.mail.me.com',      imap_port:993, smtp_host:'smtp.mail.me.com',      smtp_port:587 },
+  zoho:    { imap_host:'imap.zoho.com',         imap_port:993, smtp_host:'smtp.zoho.com',         smtp_port:587 },
+  custom:  { imap_host:'', imap_port:993, smtp_host:'', smtp_port:587 },
+};
+
+async function loadWarmupProviders() {
+  if (window._warmupProviders) return window._warmupProviders;
+  const { data } = await sb.from('settings').select('value').eq('key','warmup_providers').maybeSingle();
+  let stored = {};
+  try { stored = data && data.value ? JSON.parse(cfgVal(data.value)) : {}; } catch(e){ stored = {}; }
+  window._warmupProviders = { ...DEFAULT_WARMUP_PROVIDERS, ...stored };
+  return window._warmupProviders;
+}
+
+async function addWarmupProvider() {
+  const name = prompt('New provider name (e.g. "protonmail", "fastmail"):');
+  if (!name) return;
+  const key = name.trim().toLowerCase();
+  const imap_host = (prompt('IMAP host:', '') || '').trim();
+  const imap_port = parseInt(prompt('IMAP port:', '993')) || 993;
+  const smtp_host = (prompt('SMTP host:', '') || '').trim();
+  const smtp_port = parseInt(prompt('SMTP port:', '587')) || 587;
+  const provs = await loadWarmupProviders();
+  provs[key] = { imap_host, imap_port, smtp_host, smtp_port };
+  window._warmupProviders = provs;
+  await sb.from('settings').upsert({ key:'warmup_providers', value: JSON.stringify(provs) }, { onConflict:'key' });
+  const sel = document.getElementById('wm-prov');
+  if (sel) {
+    sel.innerHTML = Object.keys(provs).map(p=>`<option value="${p}" ${p===key?'selected':''}>${p}</option>`).join('')
+      + `<option value="__add__">➕ Add new provider…</option>`;
+    sel.dataset.prev = key;
+    warmupProviderFill();
+  }
+}
+
+/* ─── WARM-UP SETUP INSTRUCTIONS (editable popovers) ─── */
+const DEFAULT_WARMUP_HELP = {
+  gmail:
+`GMAIL — connect via Gmail API (Railway blocks SMTP).
+
+1. console.cloud.google.com → create/select a project.
+2. Enable the "Gmail API" (APIs & Services → Library).
+3. OAuth consent screen: External, keep in "Testing", scope https://mail.google.com/
+4. Add this Gmail address under Test users.
+5. Clients → Create client → "Web application".
+   Add redirect URI: https://developers.google.com/oauthplayground
+6. Copy Client ID + Client Secret into this mailbox.
+7. developers.google.com/oauthplayground → gear → Use your own credentials → paste ID/Secret.
+   Scope: https://mail.google.com/  → Authorize → sign in as THIS account →
+   Exchange authorization code → copy the Refresh token (starts with 1//).
+8. Paste Client ID / Secret / Refresh token in the Gmail API box.`,
+  outlook:
+`OUTLOOK / MICROSOFT — basic auth is disabled, use Graph API over HTTPS.
+
+1. entra.microsoft.com → App registrations → New registration.
+2. Redirect URI (Web): https://login.microsoftonline.com/common/oauth2/nativeclient
+3. API permissions → Microsoft Graph → Delegated:
+   IMAP.AccessAsUser.All, SMTP.Send, Mail.ReadWrite, offline_access → Grant.
+4. Certificates & secrets → New client secret → copy the VALUE.
+5. Generate a refresh token (OAuth flow) for this mailbox.
+6. Store client_id / client_secret / refresh_token on the mailbox row.`,
+  yahoo:
+`YAHOO — app password + replies routed through Brevo.
+
+1. login.yahoo.com → Account Security → turn on 2-step verification.
+2. "Generate app password" → name it "warmup" → copy the 16-char password.
+3. Paste it in "App Password / Key" (spaces are fine).
+4. IMAP host imap.mail.yahoo.com:993 is auto-filled.
+   Outbound replies go through Brevo (Railway blocks Yahoo SMTP).`,
+  aol:
+`AOL — app password + replies routed through Brevo.
+
+1. login.aol.com → Account Security → enable 2-step verification.
+2. "Generate app password" → copy it.
+3. Paste it in "App Password / Key".
+4. IMAP host imap.aol.com:993 is auto-filled.
+   Outbound replies go through Brevo (Railway blocks AOL SMTP).`,
+  icloud:
+`ICLOUD — app-specific password.
+
+1. account.apple.com → Sign-In & Security → App-Specific Passwords.
+2. Generate one named "warmup" → copy it.
+3. Paste it in "App Password / Key".
+4. IMAP host imap.mail.me.com:993 is auto-filled.`,
+  custom:
+`CUSTOM / OTHER PROVIDER.
+
+1. Get the provider's IMAP host + port (usually 993, SSL).
+2. Use an app password if the provider requires one.
+3. Fill IMAP/SMTP host + port manually, then the password.
+4. If their SMTP is blocked on Railway, replies fall back to Brevo.`,
+};
+
+async function loadWarmupHelp() {
+  if (window._warmupHelp) return window._warmupHelp;
+  const { data } = await sb.from('settings').select('value').eq('key','warmup_instructions').maybeSingle();
+  let stored = {};
+  try { stored = data && data.value ? JSON.parse(cfgVal(data.value)) : {}; } catch(e){ stored = {}; }
+  window._warmupHelp = { ...DEFAULT_WARMUP_HELP, ...stored };
+  return window._warmupHelp;
+}
+
+function showHelpPopover(html) {
+  closeHelpPopover();
+  const o = document.createElement('div');
+  o.id = 'help-popover';
+  o.className = 'modal-overlay';
+  o.style.zIndex = 150;
+  o.innerHTML = `<div class="modal" style="width:640px">${html}</div>`;
+  o.addEventListener('click', e => { if (e.target === o) closeHelpPopover(); });
+  document.body.appendChild(o);
+}
+function closeHelpPopover() { const e = document.getElementById('help-popover'); if (e) e.remove(); }
+
+async function showWarmupHelp(provider) {
+  const help = await loadWarmupHelp();
+  const p = provider || (document.getElementById('wm-prov')?.value) || 'gmail';
+  const text = help[p] || help.custom || '';
+  showHelpPopover(`
+    <h2>📖 ${p} — setup instructions</h2>
+    <div id="wh-view" style="white-space:pre-wrap;font-size:13px;line-height:1.6;background:var(--gray-light);border-radius:8px;padding:16px;max-height:55vh;overflow-y:auto"></div>
+    <textarea id="wh-edit" style="display:none;min-height:340px;font-size:13px;font-family:monospace"></textarea>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeHelpPopover()">Close</button>
+      <button class="btn btn-secondary" id="wh-editbtn" onclick="toggleWarmupHelpEdit()">✏️ Edit</button>
+      <button class="btn btn-primary" id="wh-savebtn" style="display:none" onclick="saveWarmupHelp('${p}')">Save</button>
+    </div>`);
+  document.getElementById('wh-view').textContent = text || 'No instructions yet — click Edit to add some.';
+  document.getElementById('wh-edit').value = text;
+}
+
+function toggleWarmupHelpEdit() {
+  document.getElementById('wh-view').style.display = 'none';
+  document.getElementById('wh-edit').style.display = 'block';
+  document.getElementById('wh-editbtn').style.display = 'none';
+  document.getElementById('wh-savebtn').style.display = 'inline-flex';
+}
+
+async function saveWarmupHelp(p) {
+  const val = document.getElementById('wh-edit').value;
+  const help = await loadWarmupHelp();
+  help[p] = val;
+  window._warmupHelp = help;
+  await sb.from('settings').upsert({ key:'warmup_instructions', value: JSON.stringify(help) }, { onConflict:'key' });
+  closeHelpPopover();
+  alert('✓ Instructions saved');
+}
+
+/* ─── DRAG-AND-DROP DASHBOARD LAYOUT ─── */
+function makeSortable(containerId, storageKey) {
+  const c = document.getElementById(containerId);
+  if (!c) return;
+  const keyOf = el => el.id || (el.querySelector('h2,.countdown-label')?.textContent || '').trim().slice(0,40) || el.className;
+  let kids = Array.from(c.children);
+  kids.forEach(el => { el.dataset.dk = keyOf(el); el.setAttribute('draggable','true'); el.classList.add('dash-drag'); });
+
+  let order = [];
+  try { order = JSON.parse(localStorage.getItem(storageKey) || '[]'); } catch(e){ order = []; }
+  if (order.length) order.forEach(k => { const el = kids.find(x => x.dataset.dk === k && x.parentNode === c); if (el) c.appendChild(el); });
+
+  let dragEl = null;
+  Array.from(c.children).forEach(el => {
+    el.addEventListener('dragstart', () => { dragEl = el; el.classList.add('dash-dragging'); });
+    el.addEventListener('dragend', () => {
+      el.classList.remove('dash-dragging');
+      const ks = Array.from(c.children).map(x => x.dataset.dk);
+      localStorage.setItem(storageKey, JSON.stringify(ks));
+    });
+  });
+  c.addEventListener('dragover', e => {
+    e.preventDefault();
+    if (!dragEl) return;
+    const after = [...c.children].filter(x => x !== dragEl).find(child => {
+      const box = child.getBoundingClientRect();
+      return e.clientY < box.top + box.height / 2;
+    });
+    if (after) c.insertBefore(dragEl, after); else c.appendChild(dragEl);
+  });
+}
+
+function resetDashboardLayout() {
+  localStorage.removeItem('dash_layout_order');
+  renderDashboard();
 }
 
 /* ─── SHARED ─── */
