@@ -161,13 +161,7 @@ def mailbox_imap_login(mb, host, port, proxy=None):
             mb.get('gmail_client_id', ''), mb.get('gmail_client_secret', ''),
             mb.get('gmail_refresh_token', ''))
         return imap_connect_oauth(host, port, email_addr, token, proxy=proxy)
-    if prov in ('outlook', 'office365', 'microsoft'):
-        token = outlook_imap_token(
-            mb.get('outlook_client_id', '') or mb.get('gmail_client_id', ''),
-            mb.get('outlook_client_secret', '') or mb.get('gmail_client_secret', ''),
-            mb.get('outlook_refresh_token', '') or mb.get('gmail_refresh_token', ''))
-        return imap_connect_oauth(host, port, email_addr, token, proxy=proxy)
-    # yahoo / aol / icloud / custom → app password basic auth
+    # outlook / yahoo / aol / icloud / custom → app password basic auth
     return imap_connect(host, port, email_addr, mb.get('app_password', ''), proxy=proxy)
 
 # ── Gmail reply (OAuth2 / Gmail API) ─────────────────────────────────────────
@@ -274,7 +268,7 @@ def send_reply_outlook_graph(client_id, client_secret, refresh_token,
         log_alert('error', from_addr, f"Outlook send failed to {to_addr}: {e}")
         return False
 
-# ── Yahoo / AOL / iCloud reply (via Brevo HTTPS — SMTP blocked on Railway) ────
+# ── Yahoo / AOL / iCloud / Outlook reply (via Brevo HTTPS — SMTP blocked on Railway) ────
 
 def send_reply_brevo(brevo_api_key, from_addr, from_name,
                      to_addr, subject, body, in_reply_to=None):
@@ -325,17 +319,7 @@ def send_reply(mb, cfg, to_addr, subject, body, in_reply_to=None, thread_id=None
             in_reply_to=in_reply_to, thread_id=thread_id,
         )
 
-    elif prov in ('outlook', 'office365', 'microsoft'):
-        return send_reply_outlook_graph(
-            mb.get('outlook_client_id', '') or mb.get('gmail_client_id', ''),
-            mb.get('outlook_client_secret', '') or mb.get('gmail_client_secret', ''),
-            mb.get('outlook_refresh_token', '') or mb.get('gmail_refresh_token', ''),
-            from_addr=mb.get('email', ''),
-            to_addr=to_addr, subject=subject, body=body,
-            in_reply_to=in_reply_to,
-        )
-
-    elif prov in ('yahoo', 'aol', 'icloud', 'custom'):
+    elif prov in ('outlook', 'office365', 'microsoft', 'yahoo', 'aol', 'icloud', 'custom'):
         # SMTP blocked on Railway — route through Brevo sender for this mailbox
         brevo_key = mb.get('brevo_api_key') or cfg.get('brevo_api_key', '')
         return send_reply_brevo(
@@ -483,11 +467,8 @@ def process_mailbox(mb, cfg, inbox_emails, min_m, max_m):
     prov = (mb.get('provider') or 'gmail').lower()
     if prov == 'gmail':
         has_auth = bool(mb.get('gmail_client_id') and mb.get('gmail_client_secret') and mb.get('gmail_refresh_token'))
-    elif prov in ('outlook', 'office365', 'microsoft'):
-        has_auth = bool((mb.get('outlook_client_id') or mb.get('gmail_client_id')) and
-                        (mb.get('outlook_client_secret') or mb.get('gmail_client_secret')) and
-                        (mb.get('outlook_refresh_token') or mb.get('gmail_refresh_token')))
     else:
+        # outlook/yahoo/aol/icloud/custom all use app password
         has_auth = bool(password)
     if not email_addr or not has_auth:
         print(f"  Skipping {email_addr} — missing auth (provider={prov})")
