@@ -1245,9 +1245,9 @@ async function saveSeq(id) {
   const send_days = checkedDays.length ? checkedDays.join(',') : null;
   const same_thread = document.getElementById('sq-thread').checked;
   const is_warmup = document.getElementById('sq-warmup').checked;
-  const warmup_min_minutes = parseInt(document.getElementById('sq-wmin').value) || 5;
-  const warmup_max_minutes = parseInt(document.getElementById('sq-wmax').value) || 15;
-  const payload = { name, description, send_time, send_days, same_thread, is_warmup, warmup_min_minutes, warmup_max_minutes };
+  const min_interval_minutes = parseInt(document.getElementById('sq-minint').value) || 5;
+  const max_interval_minutes = parseInt(document.getElementById('sq-maxint').value) || 15;
+  const payload = { name, description, send_time, send_days, same_thread, is_warmup, min_interval_minutes, max_interval_minutes };
   if (id) await sb.from('sequences').update(payload).eq('id', id);
   else await sb.from('sequences').insert({ ...payload, active: true });
   closeModal();
