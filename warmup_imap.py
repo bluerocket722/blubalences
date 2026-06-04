@@ -27,6 +27,8 @@ PROXY_PORT = int(os.environ.get('WEBSHARE_PORT', '1080'))
 PROXY_USER = os.environ.get('WEBSHARE_USER', '')
 PROXY_PASS = os.environ.get('WEBSHARE_PASS', '')
 
+LOOKBACK_HOURS = 6
+
 PROVIDER_HOSTS = {
     'gmail':     ('imap.gmail.com', 993, 'smtp.gmail.com', 587),
     'outlook':   ('outlook.office365.com', 993, 'smtp.office365.com', 587),
@@ -492,7 +494,13 @@ def process_mailbox(mb, cfg, inbox_emails, min_m, max_m):
             if rescued: print(f"  Rescued {rescued} emails from spam")
 
         M.select('INBOX')
-        _, nums = M.search(None, 'UNSEEN')
+        try:
+            lookback_hours = float(cfg.get('warmup_lookback_hours') or LOOKBACK_HOURS)
+        except (TypeError, ValueError):
+            lookback_hours = LOOKBACK_HOURS
+        cutoff_ts = time.time() - lookback_hours * 3600
+        since_str = time.strftime('%d-%b-%Y', time.gmtime(cutoff_ts))
+        _, nums = M.search(None, f'(UNSEEN SINCE {since_str})')
         ids = nums[0].split() if nums[0] else []
         random.shuffle(ids)
 
