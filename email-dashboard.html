@@ -2603,15 +2603,15 @@ async function deleteProxy(id) {
   renderProxies();
 }
 
+let _assignMailboxIds = [];
+
 async function openAssignProxiesModal() {
   const [{ data: mailboxes }, { data: proxies }] = await Promise.all([
     sb.from('warmup_mailboxes').select('id,email,name,proxy_id,proxy_host,proxy_port,proxy_user').order('email'),
     sb.from('proxies').select('id,label,host,port').eq('active', true).order('label'),
   ]);
 
-  const proxyOpts = (proxies || []).map(p =>
-    `<option value="${p.id}">${esc(p.label)} — ${esc(p.host)}:${p.port}</option>`
-  ).join('');
+  _assignMailboxIds = (mailboxes || []).map(m => m.id);
 
   const rows = (mailboxes || []).map(mb => {
     const selected = mb.proxy_id || '';
@@ -2625,7 +2625,7 @@ async function openAssignProxiesModal() {
           ).join('')}
         </select>
         ${mb.proxy_host && !mb.proxy_id
-          ? `<div style="font-size:11px;color:var(--gray);margin-top:2px">Manual: ${mb.proxy_host}:${mb.proxy_port||1080}</div>`
+          ? `<div style="font-size:11px;color:var(--gray);margin-top:2px">Manual: ${esc(mb.proxy_host)}:${mb.proxy_port||1080}</div>`
           : ''}
       </td>
     </tr>`;
@@ -2639,20 +2639,20 @@ async function openAssignProxiesModal() {
           <thead><tr><th>Mailbox</th><th>Assigned Proxy</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
-        <div style="font-size:12px;color:var(--gray)">Selecting a proxy here writes both the proxy_id and the resolved host/port/credentials to the mailbox row so warmup_imap.py can use them immediately.</div>`
+        <div style="font-size:12px;color:var(--gray)">Selecting a proxy writes the host/port/credentials to the mailbox row so warmup_imap.py can use them immediately.</div>`
     }
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="saveProxyAssignments(${JSON.stringify((mailboxes||[]).map(m=>m.id))})">Save Assignments</button>
-    </div>`);
+      <button class="btn btn-primary" onclick="saveProxyAssignments()">Save Assignments</button>
+    </div>`, true);
 }
 
-async function saveProxyAssignments(mbIds) {
+async function saveProxyAssignments() {
   const { data: proxies } = await sb.from('proxies').select('*');
   const proxyMap = {};
   (proxies || []).forEach(p => { proxyMap[p.id] = p; });
 
-  const updates = mbIds.map(async mbId => {
+  const updates = _assignMailboxIds.map(async mbId => {
     const sel = document.getElementById('mbproxy-' + mbId);
     if (!sel) return;
     const proxyId = sel.value || null;
@@ -2671,6 +2671,7 @@ async function saveProxyAssignments(mbIds) {
   const err = results.find(r => r && r.error);
   if (err) { alert('Save failed: ' + err.error.message); return; }
   closeModal(); renderProxies();
+  alert('✓ Proxy assignments saved');
 }
 
   function openImportProxiesModal() {
