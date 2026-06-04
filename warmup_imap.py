@@ -515,6 +515,15 @@ def process_mailbox(mb, cfg, inbox_emails, min_m, max_m):
                 from_name, from_addr = email.utils.parseaddr(msg.get('From', ''))
                 if from_addr.lower() not in inbox_emails: continue
 
+                date_hdr = msg.get('Date')
+                if date_hdr:
+                    try:
+                        msg_ts = email.utils.parsedate_to_datetime(date_hdr).timestamp()
+                        if msg_ts < cutoff_ts:
+                            continue
+                    except Exception:
+                        pass
+
                 subj = msg.get('Subject', '')
                 msg_id = msg.get('Message-ID', '')
                 warmup_type = msg.get('X-Warmup-Type', '').lower()
