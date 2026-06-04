@@ -127,6 +127,7 @@ def imap_connect(host, port, email_addr, password, proxy=None):
         return M
     except Exception as e:
         print(f"  IMAP connect failed for {email_addr}: {e}")
+        log_alert('error', email_addr, f"IMAP connect failed: {e}")
         return None
 
 def imap_connect_oauth(host, port, email_addr, access_token, proxy=None):
@@ -137,6 +138,7 @@ def imap_connect_oauth(host, port, email_addr, access_token, proxy=None):
         return M
     except Exception as e:
         print(f"  IMAP OAuth connect failed for {email_addr}: {e}")
+        log_alert('error', email_addr, f"IMAP OAuth connect failed: {e}")
         return None
 
 def outlook_imap_token(client_id, client_secret, refresh_token):
@@ -216,6 +218,7 @@ def send_reply_gmail_api(client_id, client_secret, refresh_token,
         return True
     except Exception as e:
         print(f"    Gmail API reply failed to {to_addr}: {e}")
+        log_alert('error', from_addr, f"Gmail send failed to {to_addr}: {e}")
         return False
 
 # ── Outlook reply (Microsoft Graph API / HTTPS — works on Railway) ────────────
@@ -268,6 +271,7 @@ def send_reply_outlook_graph(client_id, client_secret, refresh_token,
         return True
     except Exception as e:
         print(f"    Outlook Graph reply failed to {to_addr}: {e}")
+        log_alert('error', from_addr, f"Outlook send failed to {to_addr}: {e}")
         return False
 
 # ── Yahoo / AOL / iCloud reply (via Brevo HTTPS — SMTP blocked on Railway) ────
@@ -303,6 +307,7 @@ def send_reply_brevo(brevo_api_key, from_addr, from_name,
         return True
     except Exception as e:
         print(f"    Brevo reply failed to {to_addr}: {e}")
+        log_alert('error', from_addr, f"Brevo send failed to {to_addr}: {e}")
         return False
 
 # ── Route reply to the correct sender based on provider ──────────────────────
@@ -454,6 +459,19 @@ def send_queued_replies(mb, cfg):
                 print(f"    mark sent failed: {e}")
     return sent
 
+def log_alert(level, mailbox_email, message):
+    """Record a warm-up issue so the dashboard can surface it."""
+    try:
+        sb.table('warmup_alerts').insert({
+            'level': level,
+            'email': mailbox_email or '',
+            'message': (message or '')[:1000],
+            'created_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+            'resolved': False,
+        }).execute()
+    except Exception as e:
+        print(f"  alert log failed: {e}")
+
 def process_mailbox(mb, cfg, inbox_emails, min_m, max_m):
     email_addr = mb.get('email', '')
     password = mb.get('app_password', '')
@@ -473,6 +491,7 @@ def process_mailbox(mb, cfg, inbox_emails, min_m, max_m):
         has_auth = bool(password)
     if not email_addr or not has_auth:
         print(f"  Skipping {email_addr} — missing auth (provider={prov})")
+        log_alert('warn', email_addr, f"Skipped — missing auth (provider={prov})")
         return
 
     # Send any previously queued replies whose timer has elapsed
