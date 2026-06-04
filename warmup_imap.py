@@ -125,6 +125,45 @@ def imap_connect(host, port, email_addr, password, proxy=None):
         print(f"  IMAP connect failed for {email_addr}: {e}")
         return None
 
+def imap_connect_oauth(host, port, email_addr, access_token, proxy=None):
+    try:
+        M = ProxiedIMAP4_SSL(host, int(port), proxy=proxy)
+        auth_str = f"user={email_addr}\x01auth=Bearer {access_token}\x01\x01"
+        M.authenticate('XOAUTH2', lambda _: auth_str.encode())
+        return M
+    except Exception as e:
+        print(f"  IMAP OAuth connect failed for {email_addr}: {e}")
+        return None
+
+def outlook_imap_token(client_id, client_secret, refresh_token):
+    data = urllib.parse.urlencode({
+        'client_id': client_id, 'client_secret': client_secret,
+        'refresh_token': refresh_token, 'grant_type': 'refresh_token',
+        'scope': 'https://outlook.office365.com/IMAP.AccessAsUser.All offline_access',
+    }).encode()
+    req = urllib.request.Request(
+        'https://login.microsoftonline.com/common/oauth2/v2.0/token', data=data)
+    with urllib.request.urlopen(req, timeout=30) as r:
+        return json.loads(r.read().decode())['access_token']
+
+def mailbox_imap_login(mb, host, port, proxy=None):
+    """Connect to IMAP using the right auth for the mailbox's provider."""
+    prov = (mb.get('provider') or 'gmail').lower()
+    email_addr = mb.get('email', '')
+    if prov == 'gmail':
+        token = gmail_access_token(
+            mb.get('gmail_client_id', ''), mb.get('gmail_client_secret', ''),
+            mb.get('gmail_refresh_token', ''))
+        return imap_connect_oauth(host, port, email_addr, token, proxy=proxy)
+    if prov in ('outlook', 'office365', 'microsoft'):
+        token = outlook_imap_token(
+            mb.get('outlook_client_id', '') or mb.get('gmail_client_id', ''),
+            mb.get('outlook_client_secret', '') or mb.get('gmail_client_secret', ''),
+            mb.get('outlook_refresh_token', '') or mb.get('gmail_refresh_token', ''))
+        return imap_connect_oauth(host, port, email_addr, token, proxy=proxy)
+    # yahoo / aol / icloud / custom → app password basic auth
+    return imap_connect(host, port, email_addr, mb.get('app_password', ''), proxy=proxy)
+
 # ── Gmail reply (OAuth2 / Gmail API) ─────────────────────────────────────────
 
 def gmail_access_token(client_id, client_secret, refresh_token):
@@ -419,8 +458,17 @@ def process_mailbox(mb, cfg, inbox_emails, min_m, max_m):
     reply_chance = 0.4 if reply_chance is None else float(reply_chance)
     do_rescue = mb.get('rescue_from_spam', True) is not False
 
-    if not email_addr or not password:
-        print(f"  Skipping {email_addr} — missing email or app_password")
+        prov = (mb.get('provider') or 'gmail').lower()
+    if prov == 'gmail':
+        has_auth = bool(mb.get('gmail_client_id') and mb.get('gmail_client_secret') and mb.get('gmail_refresh_token'))
+    elif prov in ('outlook', 'office365', 'microsoft'):
+        has_auth = bool((mb.get('outlook_client_id') or mb.get('gmail_client_id')) and
+                        (mb.get('outlook_client_secret') or mb.get('gmail_client_secret')) and
+                        (mb.get('outlook_refresh_token') or mb.get('gmail_refresh_token')))
+    else:
+        has_auth = bool(password)
+    if not email_addr or not has_auth:
+        print(f"  Skipping {email_addr} — missing auth (provider={prov})")
         return
 
     # Send any previously queued replies whose timer has elapsed
@@ -432,7 +480,7 @@ def process_mailbox(mb, cfg, inbox_emails, min_m, max_m):
     is_gmail = 'gmail' in imap_host.lower()
 
     print(f"\n→ {name} <{email_addr}> [{mb.get('provider','gmail')}]")
-    M = imap_connect(imap_host, imap_port, email_addr, password, proxy=mailbox_proxy(mb))
+    M = mailbox_imap_login(mb, imap_host, imap_port, proxy=mailbox_proxy(mb))
     if not M: return
 
     opened = 0; queued = 0; rescued = 0
