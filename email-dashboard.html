@@ -206,14 +206,15 @@ textarea{resize:vertical;min-height:80px}
         </div>
         <span id="nav-replies-badge" style="display:none;background:var(--red);color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700"></span>
       </a>
-      <a onclick="navigate('warmup')" id="nav-warmup">
+            <a onclick="navigate('warmup')" id="nav-warmup">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
-         Warm-Up ⭐
-            <a onclick="navigate('lists')" id="nav-lists">
+        Warm-Up ⭐
+      </a>
+      <a onclick="navigate('lists')" id="nav-lists">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
         Lists
       </a>
-            <a onclick="navigate('copy')" id="nav-copy">
+      <a onclick="navigate('copy')" id="nav-copy">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
         Copy
       </a>
@@ -1233,23 +1234,7 @@ function openSeqModal(id, name, desc, seqTime, seqDays, sameThread, isWarmup, mi
     </div>`);
 }
 
-async function saveSeq(id) {
-  const name = document.getElementById('sq-name').value.trim();
-  const description = document.getElementById('sq-desc').value.trim();
-  if (!name) { alert('Name required'); return; }
-  const send_time = document.getElementById('sq-time').value || null;
-  const checkedDays = Array.from(document.querySelectorAll('.sq-day.on')).map(el => el.dataset.day);
-  const send_days = checkedDays.length ? checkedDays.join(',') : null;
-  const same_thread = document.getElementById('sq-thread').checked;
-  const is_warmup = document.getElementById('sq-warmup').checked;
-  const min_interval_minutes = parseInt(document.getElementById('sq-minint').value) || 5;
-  const max_interval_minutes = parseInt(document.getElementById('sq-maxint').value) || 15;
-  const payload = { name, description, send_time, send_days, same_thread, is_warmup, min_interval_minutes, max_interval_minutes };
-  if (id) await sb.from('sequences').update(payload).eq('id', id);
-  else await sb.from('sequences').insert({ ...payload, active: true });
-  closeModal();
-  renderSequences();
-}
+
 
 async function saveSeq(id) {
   const name = document.getElementById('sq-name').value.trim();
@@ -1714,6 +1699,38 @@ async function renderSettings() {
           <p class="hint">Brevo free plan: 300/day.</p>
         </div>
       </div>
+            <div class="panel" style="margin-bottom:20px">
+        <div class="panel-header"><h2>Warm-Up Campaign</h2></div>
+        <div style="padding:20px">
+          <p style="font-size:13px;color:var(--gray);margin-bottom:14px">Track campaign progress and automatically ramp up daily send volume per seed mailbox over time.</p>
+          <div class="form-row-2">
+            <div class="form-group"><label>Campaign Start Date</label><input id="s-wstart" type="date" value="${cfg.warmup_campaign_start||''}"><p class="hint">Day 1 of warm-up. Used to calculate today's send rate.</p></div>
+            <div class="form-group"><label>Campaign Duration (days)</label><input id="s-wdur" type="number" min="7" max="365" value="${cfg.warmup_duration_days||'30'}"></div>
+          </div>
+          <div class="form-row-2">
+            <div class="form-group"><label>Starting Daily Sends (per mailbox)</label><input id="s-wrsend" type="number" min="1" value="${cfg.warmup_start_sends||'5'}"><p class="hint">Emails per day on Day 1.</p></div>
+            <div class="form-group"><label>Target Daily Sends (per mailbox)</label><input id="s-wrsend2" type="number" min="1" value="${cfg.warmup_end_sends||'40'}"><p class="hint">Emails per day at campaign end.</p></div>
+          </div>
+          ${cfg.warmup_campaign_start ? (() => {
+            const start = new Date(cfg.warmup_campaign_start);
+            const today = new Date();
+            const day = Math.max(1, Math.floor((today - start) / 86400000) + 1);
+            const dur = parseInt(cfg.warmup_duration_days)||30;
+            const startS = parseInt(cfg.warmup_start_sends)||5;
+            const endS = parseInt(cfg.warmup_end_sends)||40;
+            const todayLimit = Math.round(startS + (endS - startS) * Math.min(day / dur, 1));
+            const pct = Math.min(100, Math.round((day / dur) * 100));
+            return `<div style="background:var(--blue-light);border-radius:8px;padding:14px 16px;margin-top:8px">
+              <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+                <strong>Day ${day} of ${dur}</strong>
+                <span style="color:var(--blue)">Today's limit: <strong>${todayLimit} sends/mailbox</strong></span>
+              </div>
+              <div style="height:8px;background:#dbeafe;border-radius:4px"><div style="height:8px;background:var(--blue);border-radius:4px;width:${pct}%"></div></div>
+              <div style="font-size:11px;color:var(--gray);margin-top:6px">${pct}% complete · ${Math.max(0, dur - day)} days remaining</div>
+            </div>`;
+          })() : '<p class="hint">Set a start date to track campaign progress and enable auto ramp-up.</p>'}
+        </div>
+      </div>
       <div class="panel" style="margin-bottom:20px">
         <div class="panel-header"><h2>Warm-Up Interval</h2></div>
         <div style="padding:20px">
@@ -1749,6 +1766,10 @@ async function saveSettings() {
     ['warmup_min_minutes', document.getElementById('s-wmin').value],
     ['warmup_max_minutes', document.getElementById('s-wmax').value],
     ['warmup_lookback_hours', document.getElementById('s-lookback').value],
+    ['warmup_campaign_start', document.getElementById('s-wstart').value],
+    ['warmup_duration_days', document.getElementById('s-wdur').value],
+    ['warmup_start_sends', document.getElementById('s-wrsend').value],
+    ['warmup_end_sends', document.getElementById('s-wrsend2').value],
   ];
   for (const [key, value] of kvs) await sb.from('settings').upsert({ key, value }, { onConflict: 'key' });
   alert('Settings saved!');
