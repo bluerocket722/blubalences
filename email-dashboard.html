@@ -2320,7 +2320,7 @@ async function renderWarmupMailboxes() {
         <td><span class="badge badge-blue">${provLabel[m.provider]||m.provider}</span></td>
         <td>${Math.round((m.reply_chance==null?0.4:m.reply_chance)*100)}%</td>
         <td>${m.rescue_from_spam!==false?'<span class="badge badge-green">On</span>':'<span class="badge badge-gray">Off</span>'}</td>
-        <td>${(m.provider==='gmail'?(m.gmail_client_id&&m.gmail_client_secret&&m.gmail_refresh_token):m.provider==='outlook'?(m.outlook_client_id&&m.outlook_client_secret&&m.outlook_refresh_token):m.app_password)?'<span class="badge badge-green">✓ set</span>':'<span class="badge badge-red">missing</span>'}</td>
+        <td>${(m.provider==='gmail'?(m.gmail_client_id&&m.gmail_client_secret&&m.gmail_refresh_token):m.app_password)?'<span class="badge badge-green">✓ set</span>':'<span class="badge badge-red">missing</span>'}</td>
         <td><label class="toggle"><input type="checkbox" ${m.active?'checked':''} onchange="toggleWarmupMailbox('${m.id}',this.checked)"><span class="toggle-slider"></span></label></td>
         <td><div class="actions">
           <button class="btn btn-primary btn-sm" onclick="openWarmupEnroll('${m.id}')">Enroll</button>
