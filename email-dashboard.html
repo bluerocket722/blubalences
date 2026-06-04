@@ -1717,10 +1717,11 @@ async function renderSettings() {
         <div class="panel-header"><h2>Warm-Up Interval</h2></div>
         <div style="padding:20px">
           <p style="font-size:13px;color:var(--gray);margin-bottom:14px">How many minutes between each warm-up send. Fires on a bell curve so timing looks human.</p>
-          <div class="form-row-2">
+                    <div class="form-row-2">
             <div class="form-group"><label>Min Minutes</label><input id="s-wmin" type="number" min="1" value="${cfg.warmup_min_minutes||'5'}"></div>
             <div class="form-group"><label>Max Minutes</label><input id="s-wmax" type="number" min="1" value="${cfg.warmup_max_minutes||'15'}"></div>
           </div>
+          <div class="form-group" style="margin-top:14px"><label>Lookback Hours <span style="color:var(--gray);font-weight:400">(how far back to scan for unopened mail)</span></label><input id="s-lookback" type="number" min="1" max="168" value="${cfg.warmup_lookback_hours||'6'}"><p class="hint">The reply runner only opens & replies to warm-up mail received within this many hours.</p></div>
           ${cfg.warmup_next_run_at ? `<p class="hint">Next scheduled run: <strong>${new Date(cfg.warmup_next_run_at).toLocaleString()}</strong></p>` : ''}
         </div>
       </div>
@@ -1746,6 +1747,7 @@ async function saveSettings() {
     ['send_days', sendDays],
     ['warmup_min_minutes', document.getElementById('s-wmin').value],
     ['warmup_max_minutes', document.getElementById('s-wmax').value],
+    ['warmup_lookback_hours', document.getElementById('s-lookback').value],
   ];
   for (const [key, value] of kvs) await sb.from('settings').upsert({ key, value }, { onConflict: 'key' });
   alert('Settings saved!');
