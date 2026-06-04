@@ -2519,6 +2519,7 @@ async function renderProxies() {
 
   document.getElementById('topbar-actions').innerHTML =
     `<button class="btn btn-primary" onclick="openProxyModal()">+ Add Proxy IP</button>
+     <button class="btn btn-secondary" onclick="openImportProxiesModal()" style="margin-left:8px">Import .txt</button>
      <button class="btn btn-secondary" onclick="openAssignProxiesModal()" style="margin-left:8px">Assign to Mailboxes</button>`;
 
   document.getElementById('content').innerHTML = `
@@ -2670,6 +2671,96 @@ async function saveProxyAssignments(mbIds) {
   const err = results.find(r => r && r.error);
   if (err) { alert('Save failed: ' + err.error.message); return; }
   closeModal(); renderProxies();
+}
+
+  function openImportProxiesModal() {
+  showModal(`
+    <h2>Import Proxies from .txt</h2>
+    <div style="font-size:13px;color:var(--gray);margin-bottom:12px">
+      Paste the contents of your Webshare .txt file or upload it directly.<br>
+      Format expected: <code style="background:#f4f4f4;padding:2px 6px;border-radius:4px">IP:PORT:USERNAME:PASSWORD</code> — one per line.
+    </div>
+    <div class="form-group">
+      <label>Upload .txt file</label>
+      <input type="file" id="px-import-file" accept=".txt,.csv" onchange="loadProxyFile(event)" style="font-size:13px">
+    </div>
+    <div class="form-group">
+      <label>Or paste proxy list</label>
+      <textarea id="px-import-text" rows="10" placeholder="45.56.161.194:9070:lehalgeostaticresidential:afc4r2a67k91&#10;45.56.180.139:8373:lehalgeostaticresidential:afc4r2a67k91&#10;..." style="font-family:monospace;font-size:12px;width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;resize:vertical"></textarea>
+    </div>
+    <div class="form-group">
+      <label>Label prefix <span style="color:var(--gray);font-weight:400">(each proxy gets numbered, e.g. "Seed 1", "Seed 2"...)</span></label>
+      <input id="px-import-label" value="Seed" placeholder="Seed">
+    </div>
+    <div id="px-import-preview" style="font-size:12px;color:var(--gray);margin-top:4px"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="importProxies()">Import All</button>
+    </div>`);
+}
+
+function loadProxyFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('px-import-text').value = e.target.result;
+    previewProxyImport();
+  };
+  reader.readAsText(file);
+}
+
+function parseProxyLines(text) {
+  return (text || '').split('\n')
+    .map(l => l.trim())
+    .filter(l => l && l.includes(':'))
+    .map(l => {
+      const parts = l.split(':');
+      if (parts.length < 2) return null;
+      return {
+        host: parts[0].trim(),
+        port: parseInt(parts[1]) || 1080,
+        username: parts[2] ? parts[2].trim() : '',
+        password: parts[3] ? parts[3].trim() : '',
+      };
+    })
+    .filter(Boolean);
+}
+
+function previewProxyImport() {
+  const lines = parseProxyLines(document.getElementById('px-import-text').value);
+  const el = document.getElementById('px-import-preview');
+  if (el) el.textContent = lines.length ? `✓ ${lines.length} proxies detected` : '';
+}
+
+async function importProxies() {
+  const text = document.getElementById('px-import-text').value;
+  const labelPrefix = document.getElementById('px-import-label').value.trim() || 'Seed';
+  const lines = parseProxyLines(text);
+  if (!lines.length) { alert('No valid proxy lines found. Format must be IP:PORT:USER:PASS'); return; }
+
+  // Find the current highest number for this label prefix so we don't re-number existing ones
+  const { data: existing } = await sb.from('proxies').select('label').ilike('label', `${labelPrefix} %`);
+  const usedNums = (existing || []).map(r => {
+    const m = r.label.match(/(\d+)$/);
+    return m ? parseInt(m[1]) : 0;
+  });
+  let startNum = usedNums.length ? Math.max(...usedNums) + 1 : 1;
+
+  const rows = lines.map((p, i) => ({
+    label: `${labelPrefix} ${startNum + i}`,
+    host: p.host,
+    port: p.port,
+    username: p.username || null,
+    password: p.password || null,
+    active: true,
+  }));
+
+  const { error } = await sb.from('proxies').insert(rows);
+  if (error) { alert('Import failed: ' + error.message); return; }
+  closeModal();
+  renderProxies();
+  alert(`✓ Imported ${rows.length} proxies`);
 }
 </script>
 </body>
