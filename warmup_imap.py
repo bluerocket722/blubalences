@@ -493,10 +493,14 @@ def log_alert(level, mailbox_email, message):
     except Exception as e:
         print(f"  alert log failed: {e}")
 
-# ── OUTBOUND warm-up send phase (7 inboxes → active seeds) ────────────────────
+# ── OUTBOUND warm-up send phase (inboxes → active seeds) ──────────────────────
 
 def load_senders():
-    rows = sb.table('inboxes').select('id,name,email,brevo_api_key').eq('active', True).execute().data or []
+    """Active inboxes with a Brevo key. Includes per-inbox warm-up settings."""
+    rows = sb.table('inboxes').select(
+        'id,name,email,brevo_api_key,warmup_enabled,warmup_daily_limit,'
+        'warmup_start_sends,warmup_target_sends,warmup_ramp_days,warmup_started_at'
+    ).eq('active', True).execute().data or []
     return [r for r in rows if r.get('brevo_api_key')]
 
 def count_warmup_sent_today(inbox_id, day_start_iso):
@@ -506,6 +510,46 @@ def count_warmup_sent_today(inbox_id, day_start_iso):
         return len(res.data or [])
     except Exception:
         return 0
+
+def compute_inbox_limit(inbox):
+    """Per-inbox daily limit. Hard limit > 0 overrides everything. Else ramp by days."""
+    hard = int(inbox.get('warmup_daily_limit') or 0)
+    if hard > 0:
+        return hard
+    start = int(inbox.get('warmup_start_sends') or 0)
+    target = int(inbox.get('warmup_target_sends') or 0)
+    ramp = int(inbox.get('warmup_ramp_days') or 30) or 30
+    started = inbox.get('warmup_started_at')
+    if not started:
+        return target or start
+    try:
+        d0 = dt.date.fromisoformat(str(started)[:10])
+        day = (dt.date.today() - d0).days + 1
+    except Exception:
+        day = 1
+    if day < 1:
+        return 0
+    frac = min(day / ramp, 1.0)
+    return round(start + (target - start) * frac)
+
+def has_outstanding_send(inbox, seed):
+    """True if inbox already sent to this seed and is still WAITING for the seed's reply.
+    Blocks sending the next email until the conversation gets a reply back."""
+    try:
+        res = sb.table('send_log').select('sent_at')\
+            .eq('inbox_id', inbox['id']).eq('kind', 'warmup')\
+            .eq('recipient_email', seed['email'])\
+            .order('sent_at', desc=True).limit(1).execute()
+        rows = res.data or []
+        if not rows:
+            return False                      # never sent → free to send
+        last_send = rows[0]['sent_at']
+        rep = sb.table('warmup_pending').select('id')\
+            .eq('mailbox_id', seed['id']).eq('to_addr', inbox['email'])\
+            .eq('sent', True).gt('sent_at', last_send).limit(1).execute()
+        return not bool(rep.data)             # outstanding if no reply yet
+    except Exception:
+        return False
 
 def brevo_send_outbound(api_key, from_email, from_name, to_email, subject, body):
     html = "<html><body>" + body.replace("\n", "<br>") + "</body></html>"
@@ -526,39 +570,55 @@ def brevo_send_outbound(api_key, from_email, from_name, to_email, subject, body)
     return out.get('messageId', '')
 
 def run_outbound_warmup(cfg, min_m, max_m):
-    senders = load_senders()
+    senders = [s for s in load_senders() if s.get('warmup_enabled')]
     recips = sb.table('warmup_mailboxes').select('id,email,name').eq('active', True).execute().data or []
     recips = [r for r in recips if r.get('email')]
     if not senders or not recips:
-        print(f"Outbound: nothing to do (senders={len(senders)}, recipients={len(recips)})")
+        print(f"Outbound: nothing to do (warmup senders={len(senders)}, recipients={len(recips)})")
         return 0
 
-    daily_cap = int(cfg.get('warmup_daily_per_inbox') or 0)  # 0 = unlimited
-    print(f"Outbound: {len(senders)} senders → {len(recips)} seeds | per-inbox cap: {daily_cap or 'none'}")
-
+    print(f"Outbound: {len(senders)} warm-up senders → {len(recips)} seeds")
     day_start = dt.datetime.now(dt.timezone.utc).replace(
         hour=0, minute=0, second=0, microsecond=0).isoformat().replace('+00:00', 'Z')
 
-    pairs = []
+    # Build a per-sender queue of seeds it MAY email this run:
+    #   - within its own daily limit (hard limit overrides everything, else ramp)
+    #   - not waiting on a reply from that seed (conversation gating)
+    queues = {}
     for s in senders:
-        already = count_warmup_sent_today(s['id'], day_start) if daily_cap else 0
-        for r in recips:
-            if s['email'].lower() == r['email'].lower():
-                continue
-            if daily_cap and already >= daily_cap:
-                continue
-            pairs.append((s, r))
-            already += 1
+        limit = compute_inbox_limit(s)
+        already = count_warmup_sent_today(s['id'], day_start)
+        remaining = max(limit - already, 0)
+        eligible = [r for r in recips
+                    if r['email'].lower() != s['email'].lower()
+                    and not has_outstanding_send(s, r)]
+        random.shuffle(eligible)
+        queues[s['id']] = eligible[:remaining]
+        print(f"  {s['email']}: limit {limit}/day, sent {already}, "
+              f"eligible {len(eligible)}, queued {len(queues[s['id']])}")
 
-    print(f"Outbound sends this run: {len(pairs)}")
+    # Round-robin / lockstep: round 1 = each sender's 1st, round 2 = each sender's 2nd, ...
+    sender_by_id = {s['id']: s for s in senders}
+    ordered = []
+    while True:
+        progressed = False
+        for s in senders:
+            q = queues.get(s['id'])
+            if q:
+                ordered.append((s, q.pop(0)))
+                progressed = True
+        if not progressed:
+            break
+
+    print(f"Outbound sends this run: {len(ordered)}")
     sent = 0
-    for idx, (s, r) in enumerate(pairs):
+    for idx, (s, r) in enumerate(ordered):
         subj = OUT_SUBJECTS[idx % len(OUT_SUBJECTS)]
         body = OUT_BODIES[idx % len(OUT_BODIES)]
         try:
             mid = brevo_send_outbound(s['brevo_api_key'], s['email'],
                                       s.get('name') or s['email'], r['email'], subj, body)
-            print(f"  [{idx+1}/{len(pairs)}] {s['email']} → {r['email']} ✓ ({mid})")
+            print(f"  [{idx+1}/{len(ordered)}] {s['email']} → {r['email']} ✓ ({mid})")
             try:
                 sb.table('send_log').insert({
                     'inbox_id': s['id'],
@@ -572,10 +632,10 @@ def run_outbound_warmup(cfg, min_m, max_m):
             except Exception as e:
                 print(f"    send_log insert failed: {e}")
         except Exception as e:
-            print(f"  [{idx+1}/{len(pairs)}] {s['email']} → {r['email']} FAILED: {e}")
+            print(f"  [{idx+1}/{len(ordered)}] {s['email']} → {r['email']} FAILED: {e}")
             log_alert('error', s['email'], f"Warmup send failed to {r['email']}: {e}")
 
-        if idx < len(pairs) - 1:
+        if idx < len(ordered) - 1:
             wait_min = bell_minutes(min_m, max_m)
             print(f"  sleeping {wait_min} min")
             time.sleep(wait_min * 60)
@@ -726,7 +786,7 @@ def main():
     max_m = int(cfg.get('warmup_max_minutes') or 15)
     print(f"Bell curve: {min_m}–{max_m} min")
 
-    # PHASE 1 — outbound: 7 inboxes → active seeds (logs to send_log for counts)
+    # PHASE 1 — outbound: inboxes → active seeds (round-robin, gated, logs to send_log)
     try:
         total_sent = run_outbound_warmup(cfg, min_m, max_m)
         print(f"Outbound complete — {total_sent} sent")
