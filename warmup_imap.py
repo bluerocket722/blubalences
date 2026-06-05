@@ -40,56 +40,10 @@ PROVIDER_HOSTS = {
 }
 
 REPLY_TEMPLATES = [
-    "Got it, thanks!",
-    "Thanks, received it.",
-    "Yep, got it!",
-    "Perfect, thank you.",
-    "Yes, came through.",
-    "Thanks so much!",
-    "Awesome, got it.",
-    "Received it, thanks!",
-    "Yep, looks good.",
-    "Thanks, all set!",
-    "Got it — thanks!",
-    "Yes, received. Thanks!",
-    "Sounds good, thanks!",
-    "Noted, appreciate it.",
-    "Will do, thanks!",
-    "Good to hear from you.",
-    "Thanks for the note.",
-    "Appreciate you reaching out.",
-    "Got your message, thanks!",
-    "All good on my end.",
-    "Thanks for the heads up.",
-    "Received, thank you!",
-    "That works for me.",
-    "Understood, thank you.",
-    "Makes sense, thanks!",
-    "Helpful, thank you.",
-    "Glad to hear it.",
-    "Thanks for keeping me posted.",
-    "Good to know, thanks!",
-    "Appreciate the update.",
-    "Got it, much appreciated.",
-    "Thanks for the info.",
-    "Sure thing, thank you.",
-    "Sounds great!",
-    "All noted, thanks.",
-    "That's really helpful.",
-    "Thanks for sharing that.",
-    "Appreciate you letting me know.",
-    "Yes, that checks out.",
-    "Understood, I'll follow up if needed.",
-    "Thanks, this is helpful.",
-    "Got it, I'll take a look.",
-    "Noted — appreciate the context.",
-    "Thanks for clarifying.",
-    "That makes sense to me.",
-    "Good to go on my end.",
-    "Received loud and clear.",
-    "Thanks for the quick reply.",
-    "Much appreciated!",
-    "All clear, thank you.",
+    "Yep, got it!", "Thanks, received it.", "Got it, thanks!",
+    "Perfect, thank you.", "Yes, came through.", "Thanks so much!",
+    "Awesome, got it.", "Received it, thanks!", "Yep, looks good.",
+    "Thanks, all set!", "Got it — thanks!", "Yes, received. Thanks!",
 ]
 
 sb = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -112,38 +66,8 @@ def bell_minutes(min_m, max_m):
     total = sum(random.random() for _ in range(6))
     return round(min_m + (total / 6) * (max_m - min_m))
 
-def compute_daily_limit(cfg):
-    """Compute today's per-mailbox send limit based on ramp-up curve."""
-    start_str = cfg.get('warmup_campaign_start', '')
-    if not start_str:
-        return None  # No campaign configured — no cap
-    try:
-        import datetime
-        start_date = datetime.date.fromisoformat(start_str.strip())
-        today = datetime.date.today()
-        day = max(1, (today - start_date).days + 1)
-        duration = int(cfg.get('warmup_duration_days') or 30)
-        start_sends = int(cfg.get('warmup_start_sends') or 5)
-        end_sends = int(cfg.get('warmup_end_sends') or 40)
-        progress = min(1.0, day / duration)
-        limit = round(start_sends + (end_sends - start_sends) * progress)
-        print(f"  Ramp-up: Day {day}/{duration} — today's limit: {limit} sends/mailbox")
-        return limit
-    except Exception as e:
-        print(f"  Ramp-up calc failed: {e}")
-        return None
-
-def count_sent_today(mailbox_id):
-    """Count how many pending replies were inserted today for this mailbox."""
-    try:
-        import datetime
-        today = datetime.date.today().isoformat()
-        res = sb.table('warmup_pending').select('id', count='exact').eq('mailbox_id', mailbox_id).gte('reply_after', today + 'T00:00:00').execute()
-        return res.count or 0
-    except Exception:
-        return 0
-
 def mailbox_proxy(mb):
+    """Return per-mailbox dedicated proxy dict, or None to use global env proxy."""
     if mb.get('proxy_host'):
         return {
             'host': mb.get('proxy_host'),
@@ -203,7 +127,6 @@ def imap_connect(host, port, email_addr, password, proxy=None):
         return M
     except Exception as e:
         print(f"  IMAP connect failed for {email_addr}: {e}")
-        log_alert('error', email_addr, f"IMAP connect failed: {e}")
         return None
 
 def imap_connect_oauth(host, port, email_addr, access_token, proxy=None):
@@ -214,10 +137,21 @@ def imap_connect_oauth(host, port, email_addr, access_token, proxy=None):
         return M
     except Exception as e:
         print(f"  IMAP OAuth connect failed for {email_addr}: {e}")
-        log_alert('error', email_addr, f"IMAP OAuth connect failed: {e}")
         return None
 
+def outlook_imap_token(client_id, client_secret, refresh_token):
+    data = urllib.parse.urlencode({
+        'client_id': client_id, 'client_secret': client_secret,
+        'refresh_token': refresh_token, 'grant_type': 'refresh_token',
+        'scope': 'https://outlook.office365.com/IMAP.AccessAsUser.All offline_access',
+    }).encode()
+    req = urllib.request.Request(
+        'https://login.microsoftonline.com/common/oauth2/v2.0/token', data=data)
+    with urllib.request.urlopen(req, timeout=30) as r:
+        return json.loads(r.read().decode())['access_token']
+
 def mailbox_imap_login(mb, host, port, proxy=None):
+    """Connect to IMAP using the right auth for the mailbox's provider."""
     prov = (mb.get('provider') or 'gmail').lower()
     email_addr = mb.get('email', '')
     if prov == 'gmail':
@@ -225,7 +159,13 @@ def mailbox_imap_login(mb, host, port, proxy=None):
             mb.get('gmail_client_id', ''), mb.get('gmail_client_secret', ''),
             mb.get('gmail_refresh_token', ''))
         return imap_connect_oauth(host, port, email_addr, token, proxy=proxy)
-    # outlook / yahoo / aol / icloud / custom → app password basic auth
+    if prov in ('outlook', 'office365', 'microsoft'):
+        token = outlook_imap_token(
+            mb.get('outlook_client_id', '') or mb.get('gmail_client_id', ''),
+            mb.get('outlook_client_secret', '') or mb.get('gmail_client_secret', ''),
+            mb.get('outlook_refresh_token', '') or mb.get('gmail_refresh_token', ''))
+        return imap_connect_oauth(host, port, email_addr, token, proxy=proxy)
+    # yahoo / aol / icloud / custom → app password basic auth
     return imap_connect(host, port, email_addr, mb.get('app_password', ''), proxy=proxy)
 
 # ── Gmail reply (OAuth2 / Gmail API) ─────────────────────────────────────────
@@ -276,10 +216,61 @@ def send_reply_gmail_api(client_id, client_secret, refresh_token,
         return True
     except Exception as e:
         print(f"    Gmail API reply failed to {to_addr}: {e}")
-        log_alert('error', from_addr, f"Gmail send failed to {to_addr}: {e}")
         return False
 
-# ── Brevo reply (Outlook / Yahoo / AOL / iCloud — SMTP blocked on Railway) ────
+# ── Outlook reply (Microsoft Graph API / HTTPS — works on Railway) ────────────
+
+def outlook_access_token(client_id, client_secret, refresh_token):
+    data = urllib.parse.urlencode({
+        'client_id': client_id,
+        'client_secret': client_secret,
+        'refresh_token': refresh_token,
+        'grant_type': 'refresh_token',
+        'scope': 'https://graph.microsoft.com/Mail.Send offline_access',
+    }).encode()
+    req = urllib.request.Request(
+        'https://login.microsoftonline.com/common/oauth2/v2.0/token', data=data)
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return json.loads(r.read().decode())['access_token']
+    except urllib.error.HTTPError as e:
+        body = e.read().decode(errors='replace')
+        print(f"    Outlook token {e.code}: {body}")
+        raise
+
+def send_reply_outlook_graph(client_id, client_secret, refresh_token,
+                              from_addr, to_addr, subject, body,
+                              in_reply_to=None):
+    if not (client_id and client_secret and refresh_token):
+        print("    Outlook Graph API not configured for this mailbox")
+        return False
+    try:
+        token = outlook_access_token(client_id, client_secret, refresh_token)
+        message = {
+            "subject": subject,
+            "body": {"contentType": "Text", "content": body},
+            "toRecipients": [{"emailAddress": {"address": to_addr}}],
+        }
+        if in_reply_to:
+            message["internetMessageHeaders"] = [
+                {"name": "In-Reply-To", "value": in_reply_to},
+                {"name": "References",  "value": in_reply_to},
+            ]
+        payload = json.dumps({"message": message, "saveToSentItems": True}).encode()
+        req = urllib.request.Request(
+            'https://graph.microsoft.com/v1.0/me/sendMail',
+            data=payload,
+            headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'},
+        )
+        with urllib.request.urlopen(req, timeout=30) as r:
+            r.read()
+        print(f"    ✓ Outlook replied to {to_addr}")
+        return True
+    except Exception as e:
+        print(f"    Outlook Graph reply failed to {to_addr}: {e}")
+        return False
+
+# ── Yahoo / AOL / iCloud reply (via Brevo HTTPS — SMTP blocked on Railway) ────
 
 def send_reply_brevo(brevo_api_key, from_addr, from_name,
                      to_addr, subject, body, in_reply_to=None):
@@ -312,10 +303,9 @@ def send_reply_brevo(brevo_api_key, from_addr, from_name,
         return True
     except Exception as e:
         print(f"    Brevo reply failed to {to_addr}: {e}")
-        log_alert('error', from_addr, f"Brevo send failed to {to_addr}: {e}")
         return False
 
-# ── Route reply based on provider ────────────────────────────────────────────
+# ── Route reply to the correct sender based on provider ──────────────────────
 
 def send_reply(mb, cfg, to_addr, subject, body, in_reply_to=None, thread_id=None):
     prov = (mb.get('provider') or 'gmail').lower()
@@ -330,7 +320,18 @@ def send_reply(mb, cfg, to_addr, subject, body, in_reply_to=None, thread_id=None
             in_reply_to=in_reply_to, thread_id=thread_id,
         )
 
-    elif prov in ('outlook', 'office365', 'microsoft', 'yahoo', 'aol', 'icloud', 'custom'):
+    elif prov in ('outlook', 'office365', 'microsoft'):
+        return send_reply_outlook_graph(
+            mb.get('outlook_client_id', '') or mb.get('gmail_client_id', ''),
+            mb.get('outlook_client_secret', '') or mb.get('gmail_client_secret', ''),
+            mb.get('outlook_refresh_token', '') or mb.get('gmail_refresh_token', ''),
+            from_addr=mb.get('email', ''),
+            to_addr=to_addr, subject=subject, body=body,
+            in_reply_to=in_reply_to,
+        )
+
+    elif prov in ('yahoo', 'aol', 'icloud', 'custom'):
+        # SMTP blocked on Railway — route through Brevo sender for this mailbox
         brevo_key = mb.get('brevo_api_key') or cfg.get('brevo_api_key', '')
         return send_reply_brevo(
             brevo_key,
@@ -376,9 +377,12 @@ def already_queued(message_id):
         return bool(res.data)
     except Exception: return False
 
+# --- spam rescue ---------------------------------------------------------
 SPAM_FOLDERS = ["[Gmail]/Spam", "Spam", "Junk", "Junk E-mail", "Junk Email", "Bulk Mail"]
 
 def rescue_from_spam(M, inbox_emails, inbox_name="INBOX"):
+    """Move warm-up mail out of Spam/Junk into INBOX; leaves it UNSEEN so the
+    reply loop can pick it up. Only rescues mail from our sending inboxes."""
     rescued = 0
     for folder in SPAM_FOLDERS:
         try:
@@ -450,19 +454,7 @@ def send_queued_replies(mb, cfg):
                 print(f"    mark sent failed: {e}")
     return sent
 
-def log_alert(level, mailbox_email, message):
-    try:
-        sb.table('warmup_alerts').insert({
-            'level': level,
-            'email': mailbox_email or '',
-            'message': (message or '')[:1000],
-            'created_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
-            'resolved': False,
-        }).execute()
-    except Exception as e:
-        print(f"  alert log failed: {e}")
-
-def process_mailbox(mb, cfg, inbox_emails, min_m, max_m, daily_limit=None):
+def process_mailbox(mb, cfg, inbox_emails, min_m, max_m):
     email_addr = mb.get('email', '')
     password = mb.get('app_password', '')
     name = mb.get('name', email_addr)
@@ -473,20 +465,17 @@ def process_mailbox(mb, cfg, inbox_emails, min_m, max_m, daily_limit=None):
     prov = (mb.get('provider') or 'gmail').lower()
     if prov == 'gmail':
         has_auth = bool(mb.get('gmail_client_id') and mb.get('gmail_client_secret') and mb.get('gmail_refresh_token'))
+    elif prov in ('outlook', 'office365', 'microsoft'):
+        has_auth = bool((mb.get('outlook_client_id') or mb.get('gmail_client_id')) and
+                        (mb.get('outlook_client_secret') or mb.get('gmail_client_secret')) and
+                        (mb.get('outlook_refresh_token') or mb.get('gmail_refresh_token')))
     else:
         has_auth = bool(password)
     if not email_addr or not has_auth:
         print(f"  Skipping {email_addr} — missing auth (provider={prov})")
-        log_alert('warn', email_addr, f"Skipped — missing auth (provider={prov})")
         return
 
-    # Check ramp-up daily limit
-    if daily_limit is not None:
-        sent_today = count_sent_today(mb.get('id'))
-        if sent_today >= daily_limit:
-            print(f"  Skipping {email_addr} — daily limit reached ({sent_today}/{daily_limit})")
-            return
-
+    # Send any previously queued replies whose timer has elapsed
     sent_queued = send_queued_replies(mb, cfg)
     if sent_queued:
         print(f"  Sent {sent_queued} queued replies")
@@ -515,17 +504,9 @@ def process_mailbox(mb, cfg, inbox_emails, min_m, max_m, daily_limit=None):
         ids = nums[0].split() if nums[0] else []
         random.shuffle(ids)
 
-        # Cap how many new replies we'll queue based on remaining daily budget
-        remaining = None
-        if daily_limit is not None:
-            sent_today = count_sent_today(mb.get('id'))
-            remaining = max(0, daily_limit - sent_today)
-
         for num in ids[:20]:
-            if remaining is not None and queued >= remaining:
-                print(f"  Daily limit reached mid-run — stopping queue")
-                break
             try:
+                # Gmail exposes X-GM-THRID for threading; other providers don't
                 if is_gmail:
                     _, data = M.fetch(num, '(X-GM-THRID RFC822)')
                 else:
@@ -614,7 +595,6 @@ def main():
     min_m = int(cfg.get('warmup_min_minutes') or 5)
     max_m = int(cfg.get('warmup_max_minutes') or 15)
     print(f"Bell curve: {min_m}–{max_m} min")
-    daily_limit = compute_daily_limit(cfg)
     inbox_emails = load_inbox_emails()
     print(f"Watching for emails from: {inbox_emails}")
     res = sb.table('warmup_mailboxes').select('*').eq('active', True).execute()
@@ -624,7 +604,7 @@ def main():
         return
     random.shuffle(mailboxes)
     for mb in mailboxes:
-        process_mailbox(mb, cfg, inbox_emails, min_m, max_m, daily_limit=daily_limit)
+        process_mailbox(mb, cfg, inbox_emails, min_m, max_m)
     print("\n=== Done ===")
 
 def run_loop():
