@@ -2054,7 +2054,8 @@ async function renderInboxes() {
         <div class="inbox-info" style="flex:1;min-width:160px">
           <div class="inbox-name">${inbox.name}</div>
           <div class="inbox-email">${inbox.email}${inbox.reply_to?` · Reply-To: ${inbox.reply_to}`:''}</div>
-          <div class="inbox-hint">API Key: ${inbox.brevo_api_key ? '••••••••' + inbox.brevo_api_key.slice(-4) : 'not set'} · ${inbox.active?'<span style="color:var(--green)">Active</span>':'<span style="color:var(--gray)">Inactive</span>'}</div>
+            <div class="inbox-hint">API Key: ${inbox.brevo_api_key ? '••••••••' + inbox.brevo_api_key.slice(-4) : 'not set'} · ${inbox.active?'<span style="color:var(--green)">Active</span>':'<span style="color:var(--gray)">Inactive</span>'}</div>
+          <div class="inbox-hint">${inbox.warmup_enabled ? `🔥 Warm-Up <strong>ON</strong> · today's limit <strong>${computeInboxWarmupLimit(inbox)}</strong>/day${inbox.warmup_daily_limit>0?' (hard cap)':''}` : '<span style="color:var(--gray)">Warm-Up off</span>'}</div>
         </div>
         <div style="display:flex;gap:20px;align-items:center;flex-shrink:0;padding:0 4px">
           <div style="text-align:center">
@@ -2067,31 +2068,64 @@ async function renderInboxes() {
           </div>
         </div>
         <div class="actions" style="flex-shrink:0">
-          <button class="btn btn-secondary btn-sm" onclick="openInboxModal('${inbox.id}','${esc(inbox.name)}','${esc(inbox.email)}','${esc(inbox.reply_to||'')}','${esc(inbox.brevo_api_key||'')}',${inbox.active},'${esc(inbox.imap_host||'')}',${inbox.imap_port||993},'${esc(inbox.imap_password||'')}')">Edit</button>
+          <button class="btn btn-secondary btn-sm" onclick="openInboxModal('${inbox.id}')">Edit</button>
           <button class="btn btn-danger btn-sm" onclick="deleteInbox('${inbox.id}')">Delete</button>
         </div>
       </div>`;
     }).join(''))}`;
 }
 
-function openInboxModal(id, name, email, replyTo, apiKey, active, im_host, im_port, im_pass) {
+function computeInboxWarmupLimit(ib) {
+  const hard = parseInt(ib.warmup_daily_limit) || 0;
+  if (hard > 0) return hard;                      // hard cap overrides everything
+  const start = parseInt(ib.warmup_start_sends) || 0;
+  const target = parseInt(ib.warmup_target_sends) || 0;
+  const ramp = parseInt(ib.warmup_ramp_days) || 30;
+  if (!ib.warmup_started_at) return target || start;
+  const d0 = new Date(ib.warmup_started_at);
+  const day = Math.floor((Date.now() - d0.getTime()) / 86400000) + 1;
+  if (day < 1) return 0;
+  const frac = Math.min(day / ramp, 1);
+  return Math.round(start + (target - start) * frac);
+}
+
+async function openInboxModal(id) {
+  let ib = {};
+  if (id) { const { data } = await sb.from('inboxes').select('*').eq('id', id).single(); ib = data || {}; }
   showModal(`
     <h2>${id ? 'Edit' : 'New'} Inbox</h2>
-    <div class="form-group"><label>Display Name</label><input id="ib-name" value="${name||''}" placeholder="Aaron — Blu Balence"></div>
-    <div class="form-group"><label>From Email</label><input id="ib-email" value="${email||''}" placeholder="aaron@blubalencebookkeeping.com"></div>
-    <div class="form-group"><label>Reply-To <span style="color:var(--gray);font-weight:400">(optional)</span></label><input id="ib-replyto" value="${replyTo||''}" placeholder="replies@yourdomain.com"></div>
-    <div class="form-group"><label>Brevo API Key <span style="color:var(--gray);font-weight:400">(leave blank to use global)</span></label><input id="ib-apikey" type="password" value="${apiKey||''}" placeholder="xkeysib-..."></div>
-        <div class="form-group" style="border:1px solid #e5e7eb;border-radius:8px;padding:12px;background:#fafafa">
+    <div class="form-group"><label>Display Name</label><input id="ib-name" value="${esc(ib.name||'')}" placeholder="Aaron — Blu Balence"></div>
+    <div class="form-group"><label>From Email</label><input id="ib-email" value="${esc(ib.email||'')}" placeholder="aaron@blubalencebookkeeping.com"></div>
+    <div class="form-group"><label>Reply-To <span style="color:var(--gray);font-weight:400">(optional)</span></label><input id="ib-replyto" value="${esc(ib.reply_to||'')}" placeholder="replies@yourdomain.com"></div>
+    <div class="form-group"><label>Brevo API Key <span style="color:var(--gray);font-weight:400">(leave blank to use global)</span></label><input id="ib-apikey" type="password" value="${esc(ib.brevo_api_key||'')}" placeholder="xkeysib-..."></div>
+
+    <div class="form-group" style="border:1px solid #fde68a;border-radius:8px;padding:12px;background:#fffbeb">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <label class="toggle" style="margin:0"><input id="ib-wenabled" type="checkbox" ${ib.warmup_enabled?'checked':''}><span class="toggle-slider"></span></label>
+        <strong>🔥 Include this inbox in Warm-Up</strong>
+      </div>
+      <div class="form-row-2">
+        <div class="form-group" style="margin:0"><label>Hard Daily Limit</label><input id="ib-wlimit" type="number" min="0" value="${ib.warmup_daily_limit||0}"><p class="hint">0 = use ramp. Any number here <strong>overrides every other limit</strong>.</p></div>
+        <div class="form-group" style="margin:0"><label>Warm-Up Start Date</label><input id="ib-wstarted" type="date" value="${ib.warmup_started_at||''}"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="margin:0"><label>Start /day</label><input id="ib-wstart" type="number" min="0" value="${ib.warmup_start_sends??2}"></div>
+        <div class="form-group" style="margin:0"><label>Target /day</label><input id="ib-wtarget" type="number" min="0" value="${ib.warmup_target_sends??20}"></div>
+        <div class="form-group" style="margin:0"><label>Ramp Days</label><input id="ib-wramp" type="number" min="1" value="${ib.warmup_ramp_days??30}"></div>
+      </div>
+    </div>
+
+    <div class="form-group" style="border:1px solid #e5e7eb;border-radius:8px;padding:12px;background:#fafafa">
       <label style="font-weight:600">Inbound (catch replies via IMAP)</label>
       <p class="hint">So prospect replies show in the Replies tab. Gmail/Workspace: host imap.gmail.com, use an app password.</p>
       <div class="form-row-2">
-        <div class="form-group"><label>IMAP Host</label><input id="ib-imaph" value="${esc(im_host||'')}" placeholder="imap.gmail.com"></div>
-        <div class="form-group"><label>IMAP Port</label><input id="ib-imapp" type="number" value="${im_port||993}"></div>
+        <div class="form-group"><label>IMAP Host</label><input id="ib-imaph" value="${esc(ib.imap_host||'')}" placeholder="imap.gmail.com"></div>
+        <div class="form-group"><label>IMAP Port</label><input id="ib-imapp" type="number" value="${ib.imap_port||993}"></div>
       </div>
-      <div class="form-group"><label>IMAP Password / App Password</label><input id="ib-imappass" type="password" value="${esc(im_pass||'')}" placeholder="app password"></div>
+      <div class="form-group"><label>IMAP Password / App Password</label><input id="ib-imappass" type="password" value="${esc(ib.imap_password||'')}" placeholder="app password"></div>
     </div>
     <div class="form-group" style="display:flex;align-items:center;gap:10px">
-      <label class="toggle"><input id="ib-active" type="checkbox" ${active!==false?'checked':''}><span class="toggle-slider"></span></label>
+      <label class="toggle"><input id="ib-active" type="checkbox" ${ib.active!==false?'checked':''}><span class="toggle-slider"></span></label>
       <span style="font-size:14px">Active</span>
     </div>
     <div class="modal-footer">
@@ -2110,6 +2144,12 @@ async function saveInbox(id) {
     imap_host: document.getElementById('ib-imaph').value.trim() || null,
     imap_port: parseInt(document.getElementById('ib-imapp').value) || 993,
     imap_password: document.getElementById('ib-imappass').value.replace(/\s+/g,'') || null,
+    warmup_enabled: document.getElementById('ib-wenabled').checked,
+    warmup_daily_limit: parseInt(document.getElementById('ib-wlimit').value) || 0,
+    warmup_start_sends: parseInt(document.getElementById('ib-wstart').value) || 0,
+    warmup_target_sends: parseInt(document.getElementById('ib-wtarget').value) || 0,
+    warmup_ramp_days: parseInt(document.getElementById('ib-wramp').value) || 30,
+    warmup_started_at: document.getElementById('ib-wstarted').value || null,
   };
   if (!payload.name || !payload.email) { alert('Name and email are required'); return; }
   let error;
