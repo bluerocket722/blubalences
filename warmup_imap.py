@@ -10,6 +10,7 @@ import ssl
 import json
 import base64
 import re
+import datetime as dt
 import urllib.request
 import urllib.parse
 import urllib.error
@@ -44,6 +45,26 @@ REPLY_TEMPLATES = [
     "Perfect, thank you.", "Yes, came through.", "Thanks so much!",
     "Awesome, got it.", "Received it, thanks!", "Yep, looks good.",
     "Thanks, all set!", "Got it — thanks!", "Yes, received. Thanks!",
+]
+
+# ── Outbound warm-up content (sender → seed) ─────────────────────────────────
+OUT_SUBJECTS = [
+    "Quick question for you", "Hey, checking in", "Thought you'd find this useful",
+    "One thing I wanted to share", "Can I get your take on something?",
+    "Following up from earlier", "Short note from me", "Just wanted to reach out",
+    "Worth a quick read", "Circling back on this",
+]
+OUT_BODIES = [
+    "Hope you're having a great week. Just wanted to touch base and see how things are going.",
+    "I've been meaning to reach out. Let me know if you have a few minutes to connect.",
+    "Wanted to share a quick thought. Would love your feedback when you get a chance.",
+    "Following up from our last chat. Let me know if anything has changed on your side.",
+    "Just a quick note to say hello and check in. Hope everything is going well.",
+    "Saw something that made me think of you. Let me know if you want to chat about it.",
+    "Things have been moving fast on our end. Would love to catch up soon.",
+    "Wanted to loop back on something we discussed. What are your thoughts?",
+    "Hope this finds you well. Just reaching out to stay in touch.",
+    "Short one today — just making sure we're still connected.",
 ]
 
 sb = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -127,6 +148,7 @@ def imap_connect(host, port, email_addr, password, proxy=None):
         return M
     except Exception as e:
         print(f"  IMAP connect failed for {email_addr}: {e}")
+        log_alert('error', email_addr, f"IMAP connect failed: {e}")
         return None
 
 def imap_connect_oauth(host, port, email_addr, access_token, proxy=None):
@@ -137,6 +159,7 @@ def imap_connect_oauth(host, port, email_addr, access_token, proxy=None):
         return M
     except Exception as e:
         print(f"  IMAP OAuth connect failed for {email_addr}: {e}")
+        log_alert('error', email_addr, f"IMAP OAuth connect failed: {e}")
         return None
 
 def outlook_imap_token(client_id, client_secret, refresh_token):
@@ -216,6 +239,7 @@ def send_reply_gmail_api(client_id, client_secret, refresh_token,
         return True
     except Exception as e:
         print(f"    Gmail API reply failed to {to_addr}: {e}")
+        log_alert('error', from_addr, f"Gmail send failed to {to_addr}: {e}")
         return False
 
 # ── Outlook reply (Microsoft Graph API / HTTPS — works on Railway) ────────────
@@ -268,6 +292,7 @@ def send_reply_outlook_graph(client_id, client_secret, refresh_token,
         return True
     except Exception as e:
         print(f"    Outlook Graph reply failed to {to_addr}: {e}")
+        log_alert('error', from_addr, f"Outlook send failed to {to_addr}: {e}")
         return False
 
 # ── Yahoo / AOL / iCloud reply (via Brevo HTTPS — SMTP blocked on Railway) ────
@@ -303,6 +328,7 @@ def send_reply_brevo(brevo_api_key, from_addr, from_name,
         return True
     except Exception as e:
         print(f"    Brevo reply failed to {to_addr}: {e}")
+        log_alert('error', from_addr, f"Brevo send failed to {to_addr}: {e}")
         return False
 
 # ── Route reply to the correct sender based on provider ──────────────────────
@@ -454,6 +480,109 @@ def send_queued_replies(mb, cfg):
                 print(f"    mark sent failed: {e}")
     return sent
 
+def log_alert(level, mailbox_email, message):
+    """Record a warm-up issue so the dashboard can surface it."""
+    try:
+        sb.table('warmup_alerts').insert({
+            'level': level,
+            'email': mailbox_email or '',
+            'message': (message or '')[:1000],
+            'created_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+            'resolved': False,
+        }).execute()
+    except Exception as e:
+        print(f"  alert log failed: {e}")
+
+# ── OUTBOUND warm-up send phase (7 inboxes → active seeds) ────────────────────
+
+def load_senders():
+    rows = sb.table('inboxes').select('id,name,email,brevo_api_key').eq('active', True).execute().data or []
+    return [r for r in rows if r.get('brevo_api_key')]
+
+def count_warmup_sent_today(inbox_id, day_start_iso):
+    try:
+        res = sb.table('send_log').select('id').eq('inbox_id', inbox_id)\
+            .eq('kind', 'warmup').gte('sent_at', day_start_iso).execute()
+        return len(res.data or [])
+    except Exception:
+        return 0
+
+def brevo_send_outbound(api_key, from_email, from_name, to_email, subject, body):
+    html = "<html><body>" + body.replace("\n", "<br>") + "</body></html>"
+    payload = {
+        "sender": {"email": from_email, "name": from_name or from_email},
+        "to": [{"email": to_email}],
+        "subject": subject,
+        "htmlContent": html,
+        "tags": ["warmup"],
+    }
+    req = urllib.request.Request(
+        'https://api.brevo.com/v3/smtp/email',
+        data=json.dumps(payload).encode(),
+        headers={'api-key': api_key, 'Content-Type': 'application/json'},
+    )
+    with urllib.request.urlopen(req, timeout=30) as r:
+        out = json.loads(r.read().decode() or '{}')
+    return out.get('messageId', '')
+
+def run_outbound_warmup(cfg, min_m, max_m):
+    senders = load_senders()
+    recips = sb.table('warmup_mailboxes').select('id,email,name').eq('active', True).execute().data or []
+    recips = [r for r in recips if r.get('email')]
+    if not senders or not recips:
+        print(f"Outbound: nothing to do (senders={len(senders)}, recipients={len(recips)})")
+        return 0
+
+    daily_cap = int(cfg.get('warmup_daily_per_inbox') or 0)  # 0 = unlimited
+    print(f"Outbound: {len(senders)} senders → {len(recips)} seeds | per-inbox cap: {daily_cap or 'none'}")
+
+    day_start = dt.datetime.now(dt.timezone.utc).replace(
+        hour=0, minute=0, second=0, microsecond=0).isoformat().replace('+00:00', 'Z')
+
+    pairs = []
+    for s in senders:
+        already = count_warmup_sent_today(s['id'], day_start) if daily_cap else 0
+        for r in recips:
+            if s['email'].lower() == r['email'].lower():
+                continue
+            if daily_cap and already >= daily_cap:
+                continue
+            pairs.append((s, r))
+            already += 1
+
+    print(f"Outbound sends this run: {len(pairs)}")
+    sent = 0
+    for idx, (s, r) in enumerate(pairs):
+        subj = OUT_SUBJECTS[idx % len(OUT_SUBJECTS)]
+        body = OUT_BODIES[idx % len(OUT_BODIES)]
+        try:
+            mid = brevo_send_outbound(s['brevo_api_key'], s['email'],
+                                      s.get('name') or s['email'], r['email'], subj, body)
+            print(f"  [{idx+1}/{len(pairs)}] {s['email']} → {r['email']} ✓ ({mid})")
+            try:
+                sb.table('send_log').insert({
+                    'inbox_id': s['id'],
+                    'recipient_email': r['email'],
+                    'brevo_message_id': mid,
+                    'status': 'sent',
+                    'kind': 'warmup',
+                    'sent_at': dt.datetime.now(dt.timezone.utc).isoformat(),
+                }).execute()
+                sent += 1
+            except Exception as e:
+                print(f"    send_log insert failed: {e}")
+        except Exception as e:
+            print(f"  [{idx+1}/{len(pairs)}] {s['email']} → {r['email']} FAILED: {e}")
+            log_alert('error', s['email'], f"Warmup send failed to {r['email']}: {e}")
+
+        if idx < len(pairs) - 1:
+            wait_min = bell_minutes(min_m, max_m)
+            print(f"  sleeping {wait_min} min")
+            time.sleep(wait_min * 60)
+    return sent
+
+# ── INBOUND reply phase (seeds read mail, rescue, reply) ──────────────────────
+
 def process_mailbox(mb, cfg, inbox_emails, min_m, max_m):
     email_addr = mb.get('email', '')
     password = mb.get('app_password', '')
@@ -473,6 +602,7 @@ def process_mailbox(mb, cfg, inbox_emails, min_m, max_m):
         has_auth = bool(password)
     if not email_addr or not has_auth:
         print(f"  Skipping {email_addr} — missing auth (provider={prov})")
+        log_alert('warn', email_addr, f"Skipped — missing auth (provider={prov})")
         return
 
     # Send any previously queued replies whose timer has elapsed
@@ -590,11 +720,20 @@ def process_mailbox(mb, cfg, inbox_emails, min_m, max_m):
         except Exception: pass
 
 def main():
-    print("=== Warm-up reply runner ===")
+    print("=== Warm-up runner (send + reply) ===")
     cfg = load_settings()
     min_m = int(cfg.get('warmup_min_minutes') or 5)
     max_m = int(cfg.get('warmup_max_minutes') or 15)
     print(f"Bell curve: {min_m}–{max_m} min")
+
+    # PHASE 1 — outbound: 7 inboxes → active seeds (logs to send_log for counts)
+    try:
+        total_sent = run_outbound_warmup(cfg, min_m, max_m)
+        print(f"Outbound complete — {total_sent} sent")
+    except Exception as e:
+        print(f"!! outbound phase error: {e}")
+
+    # PHASE 2 — inbound: seeds open, rescue from spam, reply back
     inbox_emails = load_inbox_emails()
     print(f"Watching for emails from: {inbox_emails}")
     res = sb.table('warmup_mailboxes').select('*').eq('active', True).execute()
