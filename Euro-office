@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Euro Office | Free Business Tools for Blue-Collar Workers</title>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue:      #1a73e8;
+      --blue-dark: #1557b0;
+      --blue-soft: #e8f0fe;
+      --red:       #ea4335;
+      --yellow:    #fbbc04;
+      --green:     #34a853;
+      --text:      #202124;
+      --text-sub:  #5f6368;
+      --text-dim:  #80868b;
+      --border:    #dadce0;
+      --surface:   #ffffff;
+      --bg:        #f8f9fa;
+      --shadow-sm: 0 1px 3px rgba(60,64,67,.15), 0 1px 2px rgba(60,64,67,.1);
+      --shadow-md: 0 2px 6px rgba(60,64,67,.15), 0 1px 3px rgba(60,64,67,.1);
+      --shadow-lg: 0 4px 16px rgba(60,64,67,.18), 0 2px 6px rgba(60,64,67,.1);
+      --shadow-hover: 0 6px 20px rgba(26,115,232,.22), 0 2px 8px rgba(26,115,232,.12);
+      --radius:    12px;
+      --radius-lg: 20px;
+      --radius-xl: 28px;
+    }
+
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Roboto', 'Google Sans', Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      box-shadow: var(--shadow-sm);
+    }
+    .nav-inner {
+      max-width: 1200px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+      height: 64px;
+    }
+    .logo {
+      display: flex; align-items: center; gap: 10px;
+      text-decoration: none;
+    }
+    .logo-icon {
+      width: 36px; height: 36px; border-radius: 8px;
+      background: linear-gradient(135deg, var(--blue) 0%, #4285f4 100%);
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-family: 'Google Sans', sans-serif;
+      font-weight: 700; font-size: 16px; letter-spacing: -0.5px;
+    }
+    .logo-text {
+      font-family: 'Google Sans', sans-serif;
+      font-size: 20px; font-weight: 700; color: var(--text);
+    }
+    .logo-text span { color: var(--blue); }
+    .nav-links {
+      display: flex; gap: 4px; list-style: none; align-items: center;
+    }
+    .nav-links a {
+      color: var(--text-sub); text-decoration: none;
+      font-size: 14px; font-weight: 500;
+      padding: 8px 14px; border-radius: 20px;
+      transition: background 0.15s, color 0.15s;
+    }
+    .nav-links a:hover { background: var(--bg); color: var(--text); }
+    .nav-cta {
+      background: var(--blue); color: #fff !important;
+      padding: 10px 22px !important; border-radius: 24px !important;
+      font-weight: 600 !important; box-shadow: var(--shadow-sm);
+      transition: background 0.2s, box-shadow 0.2s !important;
+    }
+    .nav-cta:hover {
+      background: var(--blue-dark) !important;
+      box-shadow: var(--shadow-hover) !important;
+    }
+    .hamburger {
+      display: none; background: none; border: none;
+      cursor: pointer; padding: 8px;
+    }
+    .hamburger .material-icons-round { font-size: 24px; color: var(--text-sub); }
+
+    .hero {
+      max-width: 1200px; margin: 0 auto;
+      padding: 80px 24px 72px;
+      display: grid; grid-template-columns: 1fr 440px; gap: 80px;
+      align-items: center;
+    }
+    .hero-eyebrow {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--blue-soft); color: var(--blue);
+      font-size: 12px; font-weight: 600; letter-spacing: 1.2px;
+      text-transform: uppercase; padding: 6px 14px; border-radius: 20px;
+      margin-bottom: 24px;
+    }
+    .hero-eyebrow .material-icons-round { font-size: 14px; }
+    h1 {
+      font-family: 'Google Sans', sans-serif;
+      font-size: clamp(36px, 4.5vw, 56px);
+      font-weight: 700; line-height: 1.12;
+      letter-spacing: -1.5px; color: var(--text);
+      margin-bottom: 20px;
+    }
+    h1 .accent-g { color: var(--blue); }
+    h1 .accent-r { color: var(--red); }
+    h1 .accent-y { color: var(--yellow); }
+    h1 .accent-gr { color: var(--green); }
+    .hero-sub {
+      font-size: 18px; color: var(--text-sub);
+      line-height: 1.8; margin-bottom: 36px; max-width: 520px;
+    }
+    .hero-actions { display: flex; gap: 14px; flex-wrap: wrap; }
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--blue); color: #fff;
+      padding: 14px 28px; border-radius: 28px;
+      font-size: 15px; font-weight: 600; text-decoration: none;
+      box-shadow: var(--shadow-md);
+      transition: background 0.2s, box-shadow 0.2s;
+    }
+    .btn-primary:hover { background: var(--blue-dark); box-shadow: var(--shadow-hover); }
+    .btn-secondary {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--surface); color: var(--blue);
+      padding: 13px 26px; border-radius: 28px; border: 1.5px solid var(--border);
+      font-size: 15px; font-weight: 600; text-decoration: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .btn-secondary:hover { border-color: var(--blue); box-shadow: var(--shadow-sm); }
+    .hero-trust {
+      display: flex; flex-direction: column; gap: 10px;
+      margin-top: 36px;
+    }
+    .trust-item {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 14px; color: var(--text-sub); font-weight: 500;
+    }
+    .trust-dot {
+      width: 20px; height: 20px; border-radius: 50%;
+      background: #e6f4ea; display: flex; align-items: center;
+      justify-content: center; flex-shrink: 0;
+    }
+    .trust-dot .material-icons-round { font-size: 12px; color: var(--green); }
+
+    .search-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-xl); padding: 36px 28px;
+      box-shadow: var(--shadow-lg);
+      transition: box-shadow 0.25s;
+    }
+    .search-card:hover { box-shadow: 0 8px 28px rgba(60,64,67,.2); }
+    .card-headline {
+      font-family: 'Google Sans', sans-serif;
+      font-size: 20px; font-weight: 700; color: var(--text);
+      margin-bottom: 6px;
+    }
+    .card-sub { font-size: 14px; color: var(--text-sub); margin-bottom: 24px; }
+    .form-group { margin-bottom: 16px; }
+    .form-label {
+      display: block; font-size: 12px; font-weight: 500;
+      color: var(--text-sub); margin-bottom: 6px; letter-spacing: 0.2px;
+    }
+    .form-input {
+      width: 100%; height: 52px; padding: 0 16px;
+      background: var(--bg); border: 1.5px solid var(--border);
+      border-radius: 10px; font-size: 15px; color: var(--text);
+      font-family: 'Roboto', sans-serif;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      outline: none;
+    }
+    .form-input::placeholder { color: var(--text-dim); }
+    .form-input:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(26,115,232,.12);
+      background: var(--surface);
+    }
+    .form-select {
+      width: 100%; height: 52px; padding: 0 16px;
+      background: var(--bg); border: 1.5px solid var(--border);
+      border-radius: 10px; font-size: 15px; color: var(--text);
+      font-family: 'Roboto', sans-serif;
+      appearance: none; cursor: pointer; outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='%235f6368'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 12px center;
+    }
+    .form-select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(26,115,232,.12); }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .submit-btn {
+      width: 100%; height: 52px; background: var(--blue); color: #fff;
+      border: none; border-radius: 10px; font-size: 15px; font-weight: 600;
+      font-family: 'Google Sans', sans-serif; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      box-shadow: var(--shadow-sm);
+      transition: background 0.2s, box-shadow 0.2s; margin-top: 8px;
+    }
+    .submit-btn:hover { background: var(--blue-dark); box-shadow: var(--shadow-hover); }
+    .form-note {
+      text-align: center; font-size: 12px; color: var(--text-dim);
+      margin-top: 12px; display: flex; align-items: center;
+      justify-content: center; gap: 4px;
+    }
+    .form-note .material-icons-round { font-size: 14px; color: var(--green); }
+
+    .section {
+      max-width: 1200px; margin: 0 auto;
+      padding: 64px 24px;
+    }
+    .section-header { text-align: center; margin-bottom: 48px; }
+    .section-eyebrow {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 12px; font-weight: 600; letter-spacing: 1.2px;
+      text-transform: uppercase; color: var(--blue); margin-bottom: 14px;
+    }
+    h2 {
+      font-family: 'Google Sans', sans-serif;
+      font-size: clamp(28px, 3.5vw, 40px);
+      font-weight: 700; letter-spacing: -1px;
+      color: var(--text); margin-bottom: 14px;
+    }
+    .section-sub { font-size: 17px; color: var(--text-sub); max-width: 560px; margin: 0 auto; }
+
+    .apps-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 20px;
+    }
+    .app-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 28px 24px;
+      text-decoration: none; color: inherit;
+      transition: box-shadow 0.2s, transform 0.2s, border-color 0.2s;
+      display: flex; flex-direction: column; gap: 14px;
+    }
+    .app-card:hover {
+      box-shadow: var(--shadow-hover);
+      transform: translateY(-2px);
+      border-color: rgba(26,115,232,.3);
+    }
+    .app-icon {
+      width: 52px; height: 52px; border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .app-icon .material-icons-round { font-size: 26px; color: #fff; }
+    .app-icon.blue   { background: linear-gradient(135deg, #1a73e8, #4285f4); }
+    .app-icon.green  { background: linear-gradient(135deg, #34a853, #0f9d58); }
+    .app-icon.yellow { background: linear-gradient(135deg, #f9ab00, #fbbc04); }
+    .app-icon.red    { background: linear-gradient(135deg, #ea4335, #d93025); }
+    .app-icon.indigo { background: linear-gradient(135deg, #4285f4, #7c4dff); }
+    .app-icon.teal   { background: linear-gradient(135deg, #00897b, #26a69a); }
+    .app-icon.orange { background: linear-gradient(135deg, #ff7043, #ff5722); }
+    .app-icon.pink   { background: linear-gradient(135deg, #e91e63, #f06292); }
+
+    .app-name {
+      font-family: 'Google Sans', sans-serif;
+      font-size: 15px; font-weight: 700; color: var(--text);
+    }
+    .app-desc { font-size: 13px; color: var(--text-sub); line-height: 1.6; }
+    .app-tag {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 11px; font-weight: 600; letter-spacing: 0.3px;
+      padding: 3px 10px; border-radius: 12px; align-self: flex-start;
+      margin-top: auto;
+    }
+    .tag-free { background: #e6f4ea; color: #137333; }
+    .tag-new  { background: #e8f0fe; color: #1a73e8; }
+
+    .steps-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px;
+    }
+    .step-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 32px 28px;
+      position: relative; text-align: center;
+    }
+    .step-number {
+      width: 48px; height: 48px; border-radius: 50%;
+      background: var(--blue-soft); color: var(--blue);
+      font-family: 'Google Sans', sans-serif;
+      font-size: 20px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 20px;
+    }
+    .step-title {
+      font-family: 'Google Sans', sans-serif;
+      font-size: 17px; font-weight: 700; color: var(--text);
+      margin-bottom: 10px;
+    }
+    .step-desc { font-size: 14px; color: var(--text-sub); line-height: 1.7; }
+
+    .stats-bar {
+      background: linear-gradient(135deg, #1a73e8 0%, #1557b0 100%);
+      padding: 56px 24px; margin: 0;
+    }
+    .stats-inner {
+      max-width: 1200px; margin: 0 auto;
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px;
+      text-align: center;
+    }
+    .stat-value {
+      font-family: 'Google Sans', sans-serif;
+      font-size: 40px; font-weight: 700; color: #fff;
+      letter-spacing: -1px; line-height: 1;
+      margin-bottom: 8px;
+    }
+    .stat-label { font-size: 14px; color: rgba(255,255,255,.75); font-weight: 500; }
+
+    .testimonials-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;
+    }
+    .testimonial-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 28px 24px;
+      box-shadow: var(--shadow-sm);
+    }
+    .stars { display: flex; gap: 2px; margin-bottom: 14px; }
+    .stars .material-icons-round { font-size: 18px; color: var(--yellow); }
+    .testimonial-text {
+      font-size: 14px; color: var(--text); line-height: 1.75;
+      margin-bottom: 20px; font-style: italic;
+    }
+    .testimonial-author { display: flex; align-items: center; gap: 12px; }
+    .author-avatar {
+      width: 40px; height: 40px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Google Sans', sans-serif;
+      font-size: 16px; font-weight: 700; color: #fff; flex-shrink: 0;
+    }
+    .author-name { font-size: 14px; font-weight: 600; color: var(--text); }
+    .author-trade { font-size: 12px; color: var(--text-sub); }
+
+    .cta-section { max-width: 1200px; margin: 0 auto; padding: 64px 24px; }
+    .cta-card {
+      background: var(--surface); border: 1.5px solid var(--border);
+      border-radius: var(--radius-xl); padding: 60px 48px;
+      display: grid; grid-template-columns: 1fr auto; gap: 48px;
+      align-items: center; box-shadow: var(--shadow-lg);
+      position: relative; overflow: hidden;
+    }
+    .cta-card::before {
+      content: ''; position: absolute;
+      top: -60px; right: -60px;
+      width: 280px; height: 280px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(26,115,232,.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .cta-eyebrow {
+      font-size: 12px; font-weight: 600; letter-spacing: 1.2px;
+      text-transform: uppercase; color: var(--green); margin-bottom: 14px;
+    }
+    .cta-headline {
+      font-family: 'Google Sans', sans-serif;
+      font-size: 32px; font-weight: 700; letter-spacing: -0.8px;
+      color: var(--text); margin-bottom: 14px; line-height: 1.2;
+    }
+    .cta-body { font-size: 16px; color: var(--text-sub); line-height: 1.75; }
+    .cta-actions { display: flex; flex-direction: column; gap: 12px; min-width: 220px; }
+
+    footer {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 40px 24px 24px;
+    }
+    .footer-inner { max-width: 1200px; margin: 0 auto; }
+    .footer-top {
+      display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 48px;
+      margin-bottom: 40px;
+    }
+    .footer-brand-desc {
+      font-size: 14px; color: var(--text-sub);
+      line-height: 1.75; margin-top: 12px; max-width: 280px;
+    }
+    .footer-col h4 {
+      font-family: 'Google Sans', sans-serif;
+      font-size: 13px; font-weight: 700; color: var(--text);
+      margin-bottom: 14px; letter-spacing: 0.3px;
+    }
+    .footer-col ul { list-style: none; display: flex; flex-direction: column; gap: 9px; }
+    .footer-col a { font-size: 13px; color: var(--text-sub); text-decoration: none; transition: color 0.15s; }
+    .footer-col a:hover { color: var(--blue); }
+    .footer-bottom {
+      border-top: 1px solid var(--border);
+      padding-top: 20px; display: flex;
+      align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 12px;
+    }
+    .footer-copy { font-size: 13px; color: var(--text-dim); }
+    .footer-links { display: flex; gap: 20px; }
+    .footer-links a { font-size: 13px; color: var(--text-dim); text-decoration: none; }
+    .footer-links a:hover { color: var(--text-sub); }
+
+    .mobile-nav {
+      display: none; flex-direction: column; gap: 4px;
+      background: var(--surface); border-top: 1px solid var(--border);
+      padding: 12px 16px 16px; position: absolute; top: 64px;
+      left: 0; right: 0; box-shadow: var(--shadow-lg);
+    }
+    .mobile-nav.open { display: flex; }
+    .mobile-nav a {
+      color: var(--text); text-decoration: none;
+      font-size: 15px; font-weight: 500; padding: 11px 14px;
+      border-radius: 8px; transition: background 0.15s;
+    }
+    .mobile-nav a:hover { background: var(--bg); }
+
+    @media (max-width: 960px) {
+      .hero { grid-template-columns: 1fr; gap: 40px; padding: 48px 24px 56px; }
+      .search-card { max-width: 500px; }
+      .steps-grid { grid-template-columns: 1fr; }
+      .stats-inner { grid-template-columns: repeat(2, 1fr); gap: 24px; }
+      .testimonials-grid { grid-template-columns: 1fr; }
+      .cta-card { grid-template-columns: 1fr; padding: 40px 28px; }
+      .cta-actions { flex-direction: row; flex-wrap: wrap; }
+      .footer-top { grid-template-columns: 1fr 1fr; gap: 32px; }
+    }
+    @media (max-width: 640px) {
+      .nav-links { display: none; }
+      .hamburger { display: flex; }
+      nav { position: relative; }
+      h1 { letter-spacing: -1px; }
+      .apps-grid { grid-template-columns: repeat(2, 1fr); }
+      .form-row { grid-template-columns: 1fr; }
+      .stats-inner { grid-template-columns: repeat(2, 1fr); }
+      .footer-top { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<nav id="nav">
+  <div class="nav-inner">
+    <a href="#" class="logo">
+      <div class="logo-icon">E</div>
+      <span class="logo-text">Euro<span>Office</span></span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="#tools">Tools</a></li>
+      <li><a href="#how-it-works">How It Works</a></li>
+      <li><a href="#testimonials">Reviews</a></li>
+      <li><a href="#pricing">Pricing</a></li>
+      <li><a href="#get-started" class="nav-cta">Get Started Free</a></li>
+    </ul>
+    <button class="hamburger" id="hamburger" aria-label="Menu">
+      <span class="material-icons-round">menu</span>
+    </button>
+  </div>
+  <div class="mobile-nav" id="mobile-nav">
+    <a href="#tools">Tools</a>
+    <a href="#how-it-works">How It Works</a>
+    <a href="#testimonials">Reviews</a>
+    <a href="#pricing">Pricing</a>
+    <a href="#get-started" style="color:var(--blue);font-weight:600;">Get Started Free →</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="hero-left">
+    <div class="hero-eyebrow">
+      <span class="material-icons-round">construction</span>
+      Built for Blue-Collar Businesses
+    </div>
+    <h1>
+      Run Your Business<br>
+      <span class="accent-g">S</span><span class="accent-r">m</span><span class="accent-y">a</span><span class="accent-gr">r</span>ter — Not Harder
+    </h1>
+    <p class="hero-sub">
+      Free office tools designed for contractors, tradespeople, and self-employed workers.
+      Invoices, quotes, contracts, and bookkeeping — all in one place.
+    </p>
+    <div class="hero-actions">
+      <a href="#get-started" class="btn-primary">
+        <span class="material-icons-round" style="font-size:18px;">rocket_launch</span>
+        Get Free Access
+      </a>
+      <a href="#tools" class="btn-secondary">
+        <span class="material-icons-round" style="font-size:18px;">grid_view</span>
+        See All Tools
+      </a>
+    </div>
+    <div class="hero-trust">
+      <div class="trust-item">
+        <div class="trust-dot"><span class="material-icons-round">check</span></div>
+        No credit card required — always free
+      </div>
+      <div class="trust-item">
+        <div class="trust-dot"><span class="material-icons-round">check</span></div>
+        Works on any phone, tablet, or laptop
+      </div>
+      <div class="trust-item">
+        <div class="trust-dot"><span class="material-icons-round">check</span></div>
+        Built for plumbers, electricians, painters &amp; more
+      </div>
+    </div>
+  </div>
+
+  <div class="search-card" id="get-started">
+    <div class="card-headline">Claim Your Free Account</div>
+    <div class="card-sub">Get instant access to all Euro Office tools</div>
+    <div class="form-group">
+      <label class="form-label">Your Name</label>
+      <input class="form-input" type="text" placeholder="e.g. Mike Johnson">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Email Address</label>
+        <input class="form-input" type="email" placeholder="mike@example.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Phone</label>
+        <input class="form-input" type="tel" placeholder="07700 900000">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Your Trade</label>
+      <select class="form-select">
+        <option value="">Select your trade…</option>
+        <option>Electrician</option>
+        <option>Plumber</option>
+        <option>Painter &amp; Decorator</option>
+        <option>Carpenter / Joiner</option>
+        <option>Landscaper / Groundsworker</option>
+        <option>HVAC / Gas Engineer</option>
+        <option>Roofer</option>
+        <option>Tiler</option>
+        <option>General Builder</option>
+        <option>Other Trade</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Business Size</label>
+      <select class="form-select">
+        <option value="">Just me (sole trader)</option>
+        <option>2–5 employees</option>
+        <option>6–15 employees</option>
+        <option>15+ employees</option>
+      </select>
+    </div>
+    <button class="submit-btn">
+      <span class="material-icons-round" style="font-size:18px;">lock_open</span>
+      Get Free Access Now
+    </button>
+    <div class="form-note">
+      <span class="material-icons-round">verified_user</span>
+      100% free · No spam · Unsubscribe anytime
+    </div>
+  </div>
+</section>
+
+<div class="stats-bar">
+  <div class="stats-inner">
+    <div>
+      <div class="stat-value">12,000+</div>
+      <div class="stat-label">Active Tradespeople</div>
+    </div>
+    <div>
+      <div class="stat-value">£4.2M</div>
+      <div class="stat-label">Invoices Raised This Month</div>
+    </div>
+    <div>
+      <div class="stat-value">8 Tools</div>
+      <div class="stat-label">100% Free Forever</div>
+    </div>
+    <div>
+      <div class="stat-value">4.9 ★</div>
+      <div class="stat-label">Average User Rating</div>
+    </div>
+  </div>
+</div>
+
+<section class="section" id="tools">
+  <div class="section-header">
+    <div class="section-eyebrow">
+      <span class="material-icons-round" style="font-size:14px;">apps</span>
+      Your Toolkit
+    </div>
+    <h2>Everything you need to run your trade</h2>
+    <p class="section-sub">Eight powerful tools, zero cost. No subscriptions, no hidden fees.</p>
+  </div>
+  <div class="apps-grid">
+    <a href="blu-balence-calculator.html" class="app-card">
+      <div class="app-icon blue"><span class="material-icons-round">calculate</span></div>
+      <div>
+        <div class="app-name">Blu Balance</div>
+        <div class="app-desc">Track income vs. expenses and see your profit at a glance.</div>
+      </div>
+      <span class="app-tag tag-free">✓ Free</span>
+    </a>
+    <a href="form-builder.html" class="app-card">
+      <div class="app-icon green"><span class="material-icons-round">description</span></div>
+      <div>
+        <div class="app-name">Invoice Builder</div>
+        <div class="app-desc">Create professional invoices in under 60 seconds.</div>
+      </div>
+      <span class="app-tag tag-free">✓ Free</span>
+    </a>
+    <a href="contract-template.html" class="app-card">
+      <div class="app-icon yellow"><span class="material-icons-round">gavel</span></div>
+      <div>
+        <div class="app-name">Contract Templates</div>
+        <div class="app-desc">Legally-sound contract templates ready to send instantly.</div>
+      </div>
+      <span class="app-tag tag-free">✓ Free</span>
+    </a>
+    <a href="document-creation.html" class="app-card">
+      <div class="app-icon red"><span class="material-icons-round">edit_document</span></div>
+      <div>
+        <div class="app-name">Document Creator</div>
+        <div class="app-desc">Build quotes, reports, and business docs in minutes.</div>
+      </div>
+      <span class="app-tag tag-new">New</span>
+    </a>
+    <a href="calendar.html" class="app-card">
+      <div class="app-icon indigo"><span class="material-icons-round">calendar_month</span></div>
+      <div>
+        <div class="app-name">Job Calendar</div>
+        <div class="app-desc">Schedule jobs, set reminders, never miss a booking.</div>
+      </div>
+      <span class="app-tag tag-free">✓ Free</span>
+    </a>
+    <a href="crm.html" class="app-card">
+      <div class="app-icon teal"><span class="material-icons-round">people</span></div>
+      <div>
+        <div class="app-name">Client CRM</div>
+        <div class="app-desc">Keep all your customer details, notes, and history organized.</div>
+      </div>
+      <span class="app-tag tag-free">✓ Free</span>
+    </a>
+    <a href="find-work.html" class="app-card">
+      <div class="app-icon orange"><span class="material-icons-round">work</span></div>
+      <div>
+        <div class="app-name">Find Work</div>
+        <div class="app-desc">Browse local job leads and connect with homeowners nearby.</div>
+      </div>
+      <span class="app-tag tag-new">New</span>
+    </a>
+    <a href="landing-page-creation.html" class="app-card">
+      <div class="app-icon pink"><span class="material-icons-round">web</span></div>
+      <div>
+        <div class="app-name">Landing Pages</div>
+        <div class="app-desc">Create a professional online presence without tech skills.</div>
+      </div>
+      <span class="app-tag tag-free">✓ Free</span>
+    </a>
+  </div>
+</section>
+
+<section style="background:var(--bg); padding: 1px 0;">
+<div class="section" id="how-it-works">
+  <div class="section-header">
+    <div class="section-eyebrow">Simple Process</div>
+    <h2>Up and running in 3 steps</h2>
+    <p class="section-sub">No tech skills needed. If you can use a smartphone, you're ready.</p>
+  </div>
+  <div class="steps-grid">
+    <div class="step-card">
+      <div class="step-number">1</div>
+      <div class="step-title">Sign Up Free</div>
+      <p class="step-desc">Create your account in under a minute. No credit card, no catch. Just your name, email, and trade.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-number">2</div>
+      <div class="step-title">Pick Your Tools</div>
+      <p class="step-desc">Choose the tools that match your workflow — invoicing, scheduling, contracts, or all of the above.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-number">3</div>
+      <div class="step-title">Grow Your Business</div>
+      <p class="step-desc">Save hours every week on admin, get paid faster, and look more professional to every customer.</p>
+    </div>
+  </div>
+</div>
+</section>
+
+<section class="section" id="testimonials">
+  <div class="section-header">
+    <div class="section-eyebrow">Reviews</div>
+    <h2>Tradespeople love Euro Office</h2>
+    <p class="section-sub">Real feedback from real workers who use these tools every day.</p>
+  </div>
+  <div class="testimonials-grid">
+    <div class="testimonial-card">
+      <div class="stars">
+        <span class="material-icons-round">star</span>
+        <span class="material-icons-round">star</span>
+        <span class="material-icons-round">star</span>
+        <span class="material-icons-round">star</span>
+        <span class="material-icons-round">star</span>
+      </div>
+      <p class="testimonial-text">"I used to chase payments for weeks. Now I send invoices from my van, same day as the job. Got paid 3× faster last month."</p>
+      <div class="testimonial-author">
+        <div class="author-avatar" style="background:linear-gradient(135deg,#1a73e8,#4285f4);">D</div>
+        <div>
+          <div class="author-name">Dave Pritchard</div>
+          <div class="author-trade">Electrician · Manchester</div>
+        </div>
+      </div>
+    </div>
+    <div class="testimonial-card">
+      <div class="stars">
+        <span class="material-icons-round">star</span>
+        <span class="material-icons-round">star</span>
+        <span class="material-icons-round">star</span>
+        <span class="material-icons-round">star</span>
+        <span class="material-icons-round">star</span>
+      </div>
+      <p class="testimonial-text">"The contract templates saved me in a dispute with a customer. Everything was documented. Couldn't believe it was free."</p>
+      <div class="testimonial-author">
+        <div class="author-avatar" style="background:linear-gradient(135deg,#34a853,#0f9d58);">S</div>
+        <div>
+          <div class="author-name">Sarah Owens</div>
+          <div class="author-trade">Painter &amp; Decorator · Bristol</div>
+        </div>
+      </div>
+    </div>
+    <div class="testimonial-card">
+      <div class="stars">
+        <span class="material-icons-round">star</span>
+        <span class="material-icons-round">star</span>
+        <span class="material-icons-round">star</span>
+        <span class="material-icons-round">star</span>
+        <span class="material-icons-round">star</span>
+      </div>
+      <p class="testimonial-text">"Finally something built for people like me. No complicated software. Just open it, fill it in, done. My accountant loves the reports."</p>
+      <div class="testimonial-author">
+        <div class="author-avatar" style="background:linear-gradient(135deg,#ea4335,#d93025);">R</div>
+        <div>
+          <div class="author-name">Rory McTavish</div>
+          <div class="author-trade">Plumber · Glasgow</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="cta-section" id="pricing">
+  <div class="cta-card">
+    <div>
+      <div class="cta-eyebrow">100% Free — No Hidden Fees</div>
+      <div class="cta-headline">Stop letting admin eat your evenings</div>
+      <p class="cta-body">
+        Join 12,000+ tradespeople who spend less time on paperwork and more time earning.
+        Every tool in Euro Office is free — now and always.
+      </p>
+    </div>
+    <div class="cta-actions">
+      <a href="#get-started" class="btn-primary" style="justify-content:center;">
+        <span class="material-icons-round" style="font-size:18px;">rocket_launch</span>
+        Start for Free
+      </a>
+      <a href="index.html" class="btn-secondary" style="justify-content:center;">
+        Learn About Blu Balences
+      </a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-top">
+      <div>
+        <a href="#" class="logo">
+          <div class="logo-icon">E</div>
+          <span class="logo-text">Euro<span>Office</span></span>
+        </a>
+        <p class="footer-brand-desc">
+          Free business tools built for blue-collar workers and sole traders across the UK.
+          Part of the Blu Balences family.
+        </p>
+      </div>
+      <div class="footer-col">
+        <h4>Tools</h4>
+        <ul>
+          <li><a href="blu-balence-calculator.html">Blu Balance</a></li>
+          <li><a href="form-builder.html">Invoice Builder</a></li>
+          <li><a href="contract-template.html">Contracts</a></li>
+          <li><a href="document-creation.html">Documents</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>More Tools</h4>
+        <ul>
+          <li><a href="calendar.html">Job Calendar</a></li>
+          <li><a href="crm.html">Client CRM</a></li>
+          <li><a href="find-work.html">Find Work</a></li>
+          <li><a href="landing-page-creation.html">Landing Pages</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Company</h4>
+        <ul>
+          <li><a href="about.html">About</a></li>
+          <li><a href="pricing.html">Pricing</a></li>
+          <li><a href="index.html">Blu Balences</a></li>
+          <li><a href="privacy.html">Privacy Policy</a></li>
+          <li><a href="terms.html">Terms of Use</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span class="footer-copy">© 2026 Euro Office · A Blu Balences Product. All rights reserved.</span>
+      <div class="footer-links">
+        <a href="privacy.html">Privacy</a>
+        <a href="terms.html">Terms</a>
+        <a href="about.html">Contact</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+  const hamburger = document.getElementById('hamburger');
+  const mobileNav = document.getElementById('mobile-nav');
+  hamburger.addEventListener('click', () => {
+    mobileNav.classList.toggle('open');
+  });
+  mobileNav.querySelectorAll('a').forEach(a => {
+    a.addEventListener('click', () => mobileNav.classList.remove('open'));
+  });
+</script>
+
+</body>
+</html>
