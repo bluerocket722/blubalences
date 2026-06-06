@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Euro Office | Free Business Tools for Blue-Collar Workers</title>
+  <title>Back Office | A Free Replacement for Microsoft Office</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
@@ -215,6 +215,25 @@
     }
     .section-sub { font-size: 17px; color: var(--text-sub); max-width: 560px; margin: 0 auto; }
 
+    /* COMPARISON */
+    .compare-table {
+      max-width: 760px; margin: 0 auto;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);
+    }
+    .compare-row { display: grid; grid-template-columns: 1fr 140px 140px; align-items: center; }
+    .compare-row + .compare-row { border-top: 1px solid var(--border); }
+    .compare-row.head { background: var(--bg); }
+    .compare-cell { padding: 16px 20px; font-size: 14px; color: var(--text); }
+    .compare-cell.feature { font-weight: 500; }
+    .compare-cell.center { text-align: center; }
+    .compare-head-label { font-family: 'Google Sans', sans-serif; font-weight: 700; font-size: 14px; }
+    .compare-head-label.us { color: var(--blue); }
+    .compare-cell .material-icons-round { font-size: 20px; vertical-align: middle; }
+    .yes { color: var(--green); }
+    .no  { color: var(--text-dim); }
+    .compare-price { font-size: 12px; color: var(--text-sub); }
+
     /* APPS GRID */
     .apps-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; }
     .app-card {
@@ -256,23 +275,6 @@
     .step-title { font-family: 'Google Sans', sans-serif; font-size: 17px; font-weight: 700; color: var(--text); margin-bottom: 10px; }
     .step-desc { font-size: 14px; color: var(--text-sub); line-height: 1.7; }
 
-    /* STATS */
-    .stats-bar { background: linear-gradient(135deg, #1a73e8 0%, #1557b0 100%); padding: 56px 24px; }
-    .stats-inner { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px; text-align: center; }
-    .stat-value { font-family: 'Google Sans', sans-serif; font-size: 40px; font-weight: 700; color: #fff; letter-spacing: -1px; line-height: 1; margin-bottom: 8px; }
-    .stat-label { font-size: 14px; color: rgba(255,255,255,.75); font-weight: 500; }
-
-    /* TESTIMONIALS */
-    .testimonials-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
-    .testimonial-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 28px 24px; box-shadow: var(--shadow-sm); }
-    .stars { display: flex; gap: 2px; margin-bottom: 14px; }
-    .stars .material-icons-round { font-size: 18px; color: var(--yellow); }
-    .testimonial-text { font-size: 14px; color: var(--text); line-height: 1.75; margin-bottom: 20px; font-style: italic; }
-    .testimonial-author { display: flex; align-items: center; gap: 12px; }
-    .author-avatar { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'Google Sans', sans-serif; font-size: 16px; font-weight: 700; color: #fff; flex-shrink: 0; }
-    .author-name { font-size: 14px; font-weight: 600; color: var(--text); }
-    .author-trade { font-size: 12px; color: var(--text-sub); }
-
     /* CTA */
     .cta-section { max-width: 1200px; margin: 0 auto; padding: 64px 24px; }
     .cta-card {
@@ -311,8 +313,6 @@
       .hero { grid-template-columns: 1fr; gap: 40px; padding: 48px 24px 56px; }
       .search-card { max-width: 500px; }
       .steps-grid { grid-template-columns: 1fr; }
-      .stats-inner { grid-template-columns: repeat(2, 1fr); gap: 24px; }
-      .testimonials-grid { grid-template-columns: 1fr; }
       .cta-card { grid-template-columns: 1fr; padding: 40px 28px; }
       .cta-actions { flex-direction: row; flex-wrap: wrap; }
       .footer-top { grid-template-columns: 1fr 1fr; gap: 32px; }
@@ -323,8 +323,9 @@
       nav { position: relative; }
       h1 { letter-spacing: -1px; }
       .apps-grid { grid-template-columns: repeat(2, 1fr); }
-      .stats-inner { grid-template-columns: repeat(2, 1fr); }
       .footer-top { grid-template-columns: 1fr; }
+      .compare-row { grid-template-columns: 1fr 90px 90px; }
+      .compare-cell { padding: 12px 12px; font-size: 13px; }
     }
   </style>
 </head>
@@ -334,13 +335,13 @@
 <nav id="nav">
   <div class="nav-inner">
     <a href="#" class="logo">
-      <div class="logo-icon">E</div>
-      <span class="logo-text">Euro<span>Office</span></span>
+      <div class="logo-icon">B</div>
+      <span class="logo-text">Back<span>Office</span></span>
     </a>
     <ul class="nav-links">
       <li><a href="#tools">Tools</a></li>
+      <li><a href="#compare">vs Microsoft Office</a></li>
       <li><a href="#how-it-works">How It Works</a></li>
-      <li><a href="#testimonials">Reviews</a></li>
       <li><a href="#pricing">Pricing</a></li>
       <li><a href="#get-started" class="nav-cta">Get Started Free</a></li>
     </ul>
@@ -350,8 +351,8 @@
   </div>
   <div class="mobile-nav" id="mobile-nav">
     <a href="#tools">Tools</a>
+    <a href="#compare">vs Microsoft Office</a>
     <a href="#how-it-works">How It Works</a>
-    <a href="#testimonials">Reviews</a>
     <a href="#pricing">Pricing</a>
     <a href="#get-started" style="color:var(--blue);font-weight:600;">Get Started Free →</a>
   </div>
@@ -361,16 +362,17 @@
 <section class="hero">
   <div class="hero-left">
     <div class="hero-eyebrow">
-      <span class="material-icons-round">construction</span>
-      Built for Blue-Collar Businesses
+      <span class="material-icons-round">savings</span>
+      A Free Replacement for Microsoft Office
     </div>
     <h1>
-      Run Your Business<br>
-      <span class="accent-g">S</span><span class="accent-r">m</span><span class="accent-y">a</span><span class="accent-gr">r</span>ter — Not Harder
+      Keep Your<br>
+      <span class="accent-g">B</span><span class="accent-r">o</span><span class="accent-y">o</span><span class="accent-gr">k</span>s — For Free
     </h1>
     <p class="hero-sub">
-      Free office tools designed for contractors, tradespeople, and self-employed workers.
-      Invoices, quotes, contracts, and bookkeeping — all in one place.
+      Back Office is a free replacement for Microsoft Office, built around your bookkeeping.
+      Track income and expenses, raise invoices, send quotes, and keep your records straight —
+      without paying a monthly subscription.
     </p>
     <div class="hero-actions">
       <a href="#get-started" class="btn-primary">
@@ -385,15 +387,15 @@
     <div class="hero-trust">
       <div class="trust-item">
         <div class="trust-dot"><span class="material-icons-round">check</span></div>
-        No credit card required — always free
+        Free forever — no Microsoft Office licence needed
       </div>
       <div class="trust-item">
         <div class="trust-dot"><span class="material-icons-round">check</span></div>
-        Works on any phone, tablet, or laptop
+        Bookkeeping, invoices &amp; documents in one place
       </div>
       <div class="trust-item">
         <div class="trust-dot"><span class="material-icons-round">check</span></div>
-        Built for plumbers, electricians, painters &amp; more
+        Works on any phone, tablet, or laptop — no install
       </div>
     </div>
   </div>
@@ -404,7 +406,7 @@
     <!-- Step 1: Sign up -->
     <div id="step-auth">
       <div class="card-headline">Claim Your Free Account</div>
-      <div class="card-sub">Get instant access to all Euro Office tools</div>
+      <div class="card-sub">Get instant access to all Back Office tools</div>
       <button class="google-btn" id="btn-google">
         <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.59-13.46-8.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
         Continue with Google
@@ -439,7 +441,7 @@
     <!-- Step 1b: Login -->
     <div id="step-login" style="display:none;">
       <div class="card-headline">Welcome Back</div>
-      <div class="card-sub">Sign in to your Euro Office account</div>
+      <div class="card-sub">Sign in to your Back Office account</div>
       <button class="google-btn" id="btn-google-login">
         <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.59-13.46-8.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
         Continue with Google
@@ -517,7 +519,7 @@
       </div>
       <div class="card-headline">You're all set!</div>
       <p style="font-size:14px;color:var(--text-sub);margin:10px 0 24px;line-height:1.7;">
-        Your Euro Office account is ready. Check your email to confirm, then start using your free tools.
+        Your Back Office account is ready. Check your email to confirm, then start using your free tools.
       </p>
       <a href="index.html" class="btn-primary" style="justify-content:center;width:100%;">
         <span class="material-icons-round" style="font-size:18px;">rocket_launch</span>
@@ -532,22 +534,55 @@
   </div>
 </section>
 
-<!-- STATS -->
-<div class="stats-bar">
-  <div class="stats-inner">
-    <div><div class="stat-value">12,000+</div><div class="stat-label">Active Tradespeople</div></div>
-    <div><div class="stat-value">£4.2M</div><div class="stat-label">Invoices Raised This Month</div></div>
-    <div><div class="stat-value">8 Tools</div><div class="stat-label">100% Free Forever</div></div>
-    <div><div class="stat-value">4.9 ★</div><div class="stat-label">Average User Rating</div></div>
+<!-- COMPARE vs MICROSOFT OFFICE -->
+<section style="background:var(--bg);padding:1px 0;">
+  <div class="section" id="compare">
+    <div class="section-header">
+      <div class="section-eyebrow"><span class="material-icons-round" style="font-size:14px;">compare_arrows</span> The Comparison</div>
+      <h2>Everything Microsoft Office does for your books — free</h2>
+      <p class="section-sub">Why pay a monthly licence for spreadsheets and documents when Back Office covers the bookkeeping basics for nothing?</p>
+    </div>
+    <div class="compare-table">
+      <div class="compare-row head">
+        <div class="compare-cell feature compare-head-label">Feature</div>
+        <div class="compare-cell center compare-head-label us">Back Office</div>
+        <div class="compare-cell center compare-head-label">MS Office</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell feature">Income &amp; expense bookkeeping</div>
+        <div class="compare-cell center"><span class="material-icons-round yes">check_circle</span></div>
+        <div class="compare-cell center compare-price">Manual in Excel</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell feature">Professional invoices &amp; quotes</div>
+        <div class="compare-cell center"><span class="material-icons-round yes">check_circle</span></div>
+        <div class="compare-cell center compare-price">Templates only</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell feature">Documents, reports &amp; contracts</div>
+        <div class="compare-cell center"><span class="material-icons-round yes">check_circle</span></div>
+        <div class="compare-cell center"><span class="material-icons-round yes">check_circle</span></div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell feature">Works in your browser, no install</div>
+        <div class="compare-cell center"><span class="material-icons-round yes">check_circle</span></div>
+        <div class="compare-cell center compare-price">Paid web version</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell feature">Monthly cost</div>
+        <div class="compare-cell center" style="font-family:'Google Sans',sans-serif;font-weight:700;color:var(--green);">£0</div>
+        <div class="compare-cell center compare-price">Subscription</div>
+      </div>
+    </div>
   </div>
-</div>
+</section>
 
 <!-- TOOLS -->
 <section class="section" id="tools">
   <div class="section-header">
     <div class="section-eyebrow"><span class="material-icons-round" style="font-size:14px;">apps</span> Your Toolkit</div>
-    <h2>Everything you need to run your trade</h2>
-    <p class="section-sub">Eight powerful tools, zero cost. No subscriptions, no hidden fees.</p>
+    <h2>Everything you need to keep the books</h2>
+    <p class="section-sub">Eight tools that replace your Microsoft Office bookkeeping — at zero cost. No subscriptions, no hidden fees.</p>
   </div>
   <div class="apps-grid">
     <a href="blu-balence-calculator.html" class="app-card">
@@ -605,52 +640,17 @@
       <div class="step-card">
         <div class="step-number">1</div>
         <div class="step-title">Sign Up Free</div>
-        <p class="step-desc">Create your account in under a minute. No credit card, no catch. Just your name, email, and trade.</p>
+        <p class="step-desc">Create your account in under a minute. No credit card, no Microsoft licence. Just your name, email, and trade.</p>
       </div>
       <div class="step-card">
         <div class="step-number">2</div>
-        <div class="step-title">Pick Your Tools</div>
-        <p class="step-desc">Choose the tools that match your workflow — invoicing, scheduling, contracts, or all of the above.</p>
+        <div class="step-title">Set Up Your Books</div>
+        <p class="step-desc">Log income and expenses, build your first invoice, and pull your records together — all in one place.</p>
       </div>
       <div class="step-card">
         <div class="step-number">3</div>
-        <div class="step-title">Grow Your Business</div>
-        <p class="step-desc">Save hours every week on admin, get paid faster, and look more professional to every customer.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- TESTIMONIALS -->
-<section class="section" id="testimonials">
-  <div class="section-header">
-    <div class="section-eyebrow">Reviews</div>
-    <h2>Tradespeople love Euro Office</h2>
-    <p class="section-sub">Real feedback from real workers who use these tools every day.</p>
-  </div>
-  <div class="testimonials-grid">
-    <div class="testimonial-card">
-      <div class="stars"><span class="material-icons-round">star</span><span class="material-icons-round">star</span><span class="material-icons-round">star</span><span class="material-icons-round">star</span><span class="material-icons-round">star</span></div>
-      <p class="testimonial-text">"I used to chase payments for weeks. Now I send invoices from my van, same day as the job. Got paid 3× faster last month."</p>
-      <div class="testimonial-author">
-        <div class="author-avatar" style="background:linear-gradient(135deg,#1a73e8,#4285f4);">D</div>
-        <div><div class="author-name">Dave Pritchard</div><div class="author-trade">Electrician · Manchester</div></div>
-      </div>
-    </div>
-    <div class="testimonial-card">
-      <div class="stars"><span class="material-icons-round">star</span><span class="material-icons-round">star</span><span class="material-icons-round">star</span><span class="material-icons-round">star</span><span class="material-icons-round">star</span></div>
-      <p class="testimonial-text">"The contract templates saved me in a dispute with a customer. Everything was documented. Couldn't believe it was free."</p>
-      <div class="testimonial-author">
-        <div class="author-avatar" style="background:linear-gradient(135deg,#34a853,#0f9d58);">S</div>
-        <div><div class="author-name">Sarah Owens</div><div class="author-trade">Painter &amp; Decorator · Bristol</div></div>
-      </div>
-    </div>
-    <div class="testimonial-card">
-      <div class="stars"><span class="material-icons-round">star</span><span class="material-icons-round">star</span><span class="material-icons-round">star</span><span class="material-icons-round">star</span><span class="material-icons-round">star</span></div>
-      <p class="testimonial-text">"Finally something built for people like me. No complicated software. Just open it, fill it in, done. My accountant loves the reports."</p>
-      <div class="testimonial-author">
-        <div class="author-avatar" style="background:linear-gradient(135deg,#ea4335,#d93025);">R</div>
-        <div><div class="author-name">Rory McTavish</div><div class="author-trade">Plumber · Glasgow</div></div>
+        <div class="step-title">Stay On Top of It</div>
+        <p class="step-desc">See your profit at a glance, get paid faster, and hand clean reports to your accountant at year end.</p>
       </div>
     </div>
   </div>
@@ -661,8 +661,8 @@
   <div class="cta-card">
     <div>
       <div class="cta-eyebrow">100% Free — No Hidden Fees</div>
-      <div class="cta-headline">Stop letting admin eat your evenings</div>
-      <p class="cta-body">Join 12,000+ tradespeople who spend less time on paperwork and more time earning. Every tool in Euro Office is free — now and always.</p>
+      <div class="cta-headline">Drop the Microsoft Office bill</div>
+      <p class="cta-body">Back Office gives you the bookkeeping, invoicing, and documents you actually use — free, now and always. No subscription, no licence, no catch.</p>
     </div>
     <div class="cta-actions">
       <a href="#get-started" class="btn-primary" style="justify-content:center;">
@@ -682,10 +682,10 @@
     <div class="footer-top">
       <div>
         <a href="#" class="logo">
-          <div class="logo-icon">E</div>
-          <span class="logo-text">Euro<span>Office</span></span>
+          <div class="logo-icon">B</div>
+          <span class="logo-text">Back<span>Office</span></span>
         </a>
-        <p class="footer-brand-desc">Free business tools built for blue-collar workers and sole traders across the UK. Part of the Blu Balences family.</p>
+        <p class="footer-brand-desc">A free replacement for Microsoft Office, built around your bookkeeping. Part of the Blu Balences family.</p>
       </div>
       <div class="footer-col">
         <h4>Tools</h4>
@@ -717,7 +717,7 @@
       </div>
     </div>
     <div class="footer-bottom">
-      <span class="footer-copy">© 2026 Euro Office · A Blu Balences Product. All rights reserved.</span>
+      <span class="footer-copy">© 2026 Back Office · A Blu Balences Product. All rights reserved.</span>
       <div class="footer-links">
         <a href="privacy.html">Privacy</a>
         <a href="terms.html">Terms</a>
