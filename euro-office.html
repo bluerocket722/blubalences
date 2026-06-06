@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <title>Euro Office | Free Business Tools for Blue-Collar Workers</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
   <style>
@@ -27,7 +27,6 @@
       --shadow-md: 0 2px 6px rgba(60,64,67,.15), 0 1px 3px rgba(60,64,67,.1);
       --shadow-lg: 0 4px 16px rgba(60,64,67,.18), 0 2px 6px rgba(60,64,67,.1);
       --shadow-hover: 0 6px 20px rgba(26,115,232,.22), 0 2px 8px rgba(26,115,232,.12);
-      --radius:    12px;
       --radius-lg: 20px;
       --radius-xl: 28px;
     }
@@ -35,48 +34,33 @@
     html { scroll-behavior: smooth; }
     body {
       font-family: 'Roboto', 'Google Sans', Arial, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      line-height: 1.6;
-      -webkit-font-smoothing: antialiased;
+      background: var(--bg); color: var(--text);
+      line-height: 1.6; -webkit-font-smoothing: antialiased;
     }
 
+    /* NAV */
     nav {
       position: sticky; top: 0; z-index: 100;
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      padding: 0 24px;
-      box-shadow: var(--shadow-sm);
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 0 24px; box-shadow: var(--shadow-sm);
     }
     .nav-inner {
       max-width: 1200px; margin: 0 auto;
-      display: flex; align-items: center; justify-content: space-between;
-      height: 64px;
+      display: flex; align-items: center; justify-content: space-between; height: 64px;
     }
-    .logo {
-      display: flex; align-items: center; gap: 10px;
-      text-decoration: none;
-    }
+    .logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
     .logo-icon {
       width: 36px; height: 36px; border-radius: 8px;
       background: linear-gradient(135deg, var(--blue) 0%, #4285f4 100%);
       display: flex; align-items: center; justify-content: center;
-      color: #fff; font-family: 'Google Sans', sans-serif;
-      font-weight: 700; font-size: 16px; letter-spacing: -0.5px;
+      color: #fff; font-family: 'Google Sans', sans-serif; font-weight: 700; font-size: 16px;
     }
-    .logo-text {
-      font-family: 'Google Sans', sans-serif;
-      font-size: 20px; font-weight: 700; color: var(--text);
-    }
+    .logo-text { font-family: 'Google Sans', sans-serif; font-size: 20px; font-weight: 700; color: var(--text); }
     .logo-text span { color: var(--blue); }
-    .nav-links {
-      display: flex; gap: 4px; list-style: none; align-items: center;
-    }
+    .nav-links { display: flex; gap: 4px; list-style: none; align-items: center; }
     .nav-links a {
-      color: var(--text-sub); text-decoration: none;
-      font-size: 14px; font-weight: 500;
-      padding: 8px 14px; border-radius: 20px;
-      transition: background 0.15s, color 0.15s;
+      color: var(--text-sub); text-decoration: none; font-size: 14px; font-weight: 500;
+      padding: 8px 14px; border-radius: 20px; transition: background 0.15s, color 0.15s;
     }
     .nav-links a:hover { background: var(--bg); color: var(--text); }
     .nav-cta {
@@ -85,142 +69,139 @@
       font-weight: 600 !important; box-shadow: var(--shadow-sm);
       transition: background 0.2s, box-shadow 0.2s !important;
     }
-    .nav-cta:hover {
-      background: var(--blue-dark) !important;
-      box-shadow: var(--shadow-hover) !important;
-    }
-    .hamburger {
-      display: none; background: none; border: none;
-      cursor: pointer; padding: 8px;
-    }
+    .nav-cta:hover { background: var(--blue-dark) !important; box-shadow: var(--shadow-hover) !important; }
+    .hamburger { display: none; background: none; border: none; cursor: pointer; padding: 8px; }
     .hamburger .material-icons-round { font-size: 24px; color: var(--text-sub); }
+    .mobile-nav {
+      display: none; flex-direction: column; gap: 4px;
+      background: var(--surface); border-top: 1px solid var(--border);
+      padding: 12px 16px 16px; position: absolute; top: 64px;
+      left: 0; right: 0; box-shadow: var(--shadow-lg); z-index: 99;
+    }
+    .mobile-nav.open { display: flex; }
+    .mobile-nav a {
+      color: var(--text); text-decoration: none; font-size: 15px; font-weight: 500;
+      padding: 11px 14px; border-radius: 8px; transition: background 0.15s;
+    }
+    .mobile-nav a:hover { background: var(--bg); }
 
+    /* HERO */
     .hero {
-      max-width: 1200px; margin: 0 auto;
-      padding: 80px 24px 72px;
-      display: grid; grid-template-columns: 1fr 440px; gap: 80px;
-      align-items: center;
+      max-width: 1200px; margin: 0 auto; padding: 80px 24px 72px;
+      display: grid; grid-template-columns: 1fr 440px; gap: 80px; align-items: center;
     }
     .hero-eyebrow {
       display: inline-flex; align-items: center; gap: 8px;
       background: var(--blue-soft); color: var(--blue);
       font-size: 12px; font-weight: 600; letter-spacing: 1.2px;
-      text-transform: uppercase; padding: 6px 14px; border-radius: 20px;
-      margin-bottom: 24px;
+      text-transform: uppercase; padding: 6px 14px; border-radius: 20px; margin-bottom: 24px;
     }
     .hero-eyebrow .material-icons-round { font-size: 14px; }
     h1 {
       font-family: 'Google Sans', sans-serif;
-      font-size: clamp(36px, 4.5vw, 56px);
-      font-weight: 700; line-height: 1.12;
-      letter-spacing: -1.5px; color: var(--text);
-      margin-bottom: 20px;
+      font-size: clamp(36px, 4.5vw, 56px); font-weight: 700;
+      line-height: 1.12; letter-spacing: -1.5px; color: var(--text); margin-bottom: 20px;
     }
     h1 .accent-g { color: var(--blue); }
     h1 .accent-r { color: var(--red); }
     h1 .accent-y { color: var(--yellow); }
     h1 .accent-gr { color: var(--green); }
-    .hero-sub {
-      font-size: 18px; color: var(--text-sub);
-      line-height: 1.8; margin-bottom: 36px; max-width: 520px;
-    }
+    .hero-sub { font-size: 18px; color: var(--text-sub); line-height: 1.8; margin-bottom: 36px; max-width: 520px; }
     .hero-actions { display: flex; gap: 14px; flex-wrap: wrap; }
     .btn-primary {
       display: inline-flex; align-items: center; gap: 8px;
-      background: var(--blue); color: #fff;
-      padding: 14px 28px; border-radius: 28px;
+      background: var(--blue); color: #fff; padding: 14px 28px; border-radius: 28px;
       font-size: 15px; font-weight: 600; text-decoration: none;
-      box-shadow: var(--shadow-md);
-      transition: background 0.2s, box-shadow 0.2s;
+      box-shadow: var(--shadow-md); transition: background 0.2s, box-shadow 0.2s;
     }
     .btn-primary:hover { background: var(--blue-dark); box-shadow: var(--shadow-hover); }
     .btn-secondary {
       display: inline-flex; align-items: center; gap: 8px;
-      background: var(--surface); color: var(--blue);
-      padding: 13px 26px; border-radius: 28px; border: 1.5px solid var(--border);
+      background: var(--surface); color: var(--blue); padding: 13px 26px;
+      border-radius: 28px; border: 1.5px solid var(--border);
       font-size: 15px; font-weight: 600; text-decoration: none;
       transition: border-color 0.2s, box-shadow 0.2s;
     }
     .btn-secondary:hover { border-color: var(--blue); box-shadow: var(--shadow-sm); }
-    .hero-trust {
-      display: flex; flex-direction: column; gap: 10px;
-      margin-top: 36px;
-    }
-    .trust-item {
-      display: flex; align-items: center; gap: 10px;
-      font-size: 14px; color: var(--text-sub); font-weight: 500;
-    }
+    .hero-trust { display: flex; flex-direction: column; gap: 10px; margin-top: 36px; }
+    .trust-item { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--text-sub); font-weight: 500; }
     .trust-dot {
-      width: 20px; height: 20px; border-radius: 50%;
-      background: #e6f4ea; display: flex; align-items: center;
-      justify-content: center; flex-shrink: 0;
+      width: 20px; height: 20px; border-radius: 50%; background: #e6f4ea;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
     }
     .trust-dot .material-icons-round { font-size: 12px; color: var(--green); }
 
+    /* AUTH CARD */
     .search-card {
       background: var(--surface); border: 1px solid var(--border);
       border-radius: var(--radius-xl); padding: 36px 28px;
-      box-shadow: var(--shadow-lg);
-      transition: box-shadow 0.25s;
+      box-shadow: var(--shadow-lg); transition: box-shadow 0.25s;
     }
     .search-card:hover { box-shadow: 0 8px 28px rgba(60,64,67,.2); }
-    .card-headline {
-      font-family: 'Google Sans', sans-serif;
-      font-size: 20px; font-weight: 700; color: var(--text);
-      margin-bottom: 6px;
-    }
+    .card-headline { font-family: 'Google Sans', sans-serif; font-size: 20px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
     .card-sub { font-size: 14px; color: var(--text-sub); margin-bottom: 24px; }
     .form-group { margin-bottom: 16px; }
-    .form-label {
-      display: block; font-size: 12px; font-weight: 500;
-      color: var(--text-sub); margin-bottom: 6px; letter-spacing: 0.2px;
-    }
+    .form-label { display: block; font-size: 12px; font-weight: 500; color: var(--text-sub); margin-bottom: 6px; }
     .form-input {
       width: 100%; height: 52px; padding: 0 16px;
       background: var(--bg); border: 1.5px solid var(--border);
       border-radius: 10px; font-size: 15px; color: var(--text);
-      font-family: 'Roboto', sans-serif;
+      font-family: 'Roboto', sans-serif; outline: none;
       transition: border-color 0.2s, box-shadow 0.2s;
-      outline: none;
     }
     .form-input::placeholder { color: var(--text-dim); }
-    .form-input:focus {
-      border-color: var(--blue);
-      box-shadow: 0 0 0 3px rgba(26,115,232,.12);
-      background: var(--surface);
-    }
+    .form-input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(26,115,232,.12); background: var(--surface); }
     .form-select {
       width: 100%; height: 52px; padding: 0 16px;
       background: var(--bg); border: 1.5px solid var(--border);
       border-radius: 10px; font-size: 15px; color: var(--text);
-      font-family: 'Roboto', sans-serif;
-      appearance: none; cursor: pointer; outline: none;
+      font-family: 'Roboto', sans-serif; appearance: none; cursor: pointer; outline: none;
       transition: border-color 0.2s, box-shadow 0.2s;
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='%235f6368'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
       background-repeat: no-repeat; background-position: right 12px center;
     }
     .form-select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(26,115,232,.12); }
-    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     .submit-btn {
       width: 100%; height: 52px; background: var(--blue); color: #fff;
       border: none; border-radius: 10px; font-size: 15px; font-weight: 600;
       font-family: 'Google Sans', sans-serif; cursor: pointer;
       display: flex; align-items: center; justify-content: center; gap: 8px;
-      box-shadow: var(--shadow-sm);
-      transition: background 0.2s, box-shadow 0.2s; margin-top: 8px;
+      box-shadow: var(--shadow-sm); transition: background 0.2s, box-shadow 0.2s; margin-top: 8px;
     }
     .submit-btn:hover { background: var(--blue-dark); box-shadow: var(--shadow-hover); }
+    .submit-btn:disabled { opacity: 0.7; cursor: not-allowed; }
     .form-note {
-      text-align: center; font-size: 12px; color: var(--text-dim);
-      margin-top: 12px; display: flex; align-items: center;
-      justify-content: center; gap: 4px;
+      text-align: center; font-size: 12px; color: var(--text-dim); margin-top: 12px;
+      display: flex; align-items: center; justify-content: center; gap: 4px;
     }
     .form-note .material-icons-round { font-size: 14px; color: var(--green); }
-
-    .section {
-      max-width: 1200px; margin: 0 auto;
-      padding: 64px 24px;
+    .google-btn {
+      width: 100%; height: 52px; background: var(--surface);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      font-size: 15px; font-weight: 600; color: var(--text);
+      font-family: 'Google Sans', sans-serif; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      transition: border-color 0.2s, box-shadow 0.2s; margin-bottom: 4px;
     }
+    .google-btn:hover { border-color: #4285f4; box-shadow: var(--shadow-sm); }
+    .divider { display: flex; align-items: center; gap: 12px; margin: 18px 0; color: var(--text-dim); font-size: 12px; }
+    .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .form-error {
+      background: #fce8e6; border: 1px solid #f5c6c2; color: #c5221f;
+      font-size: 13px; padding: 10px 14px; border-radius: 8px; margin-bottom: 12px;
+    }
+    .step-pills { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+    .step-pill {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--bg); border: 2px solid var(--border); color: var(--text-dim);
+      font-size: 13px; font-weight: 700; display: flex; align-items: center;
+      justify-content: center; flex-shrink: 0; font-family: 'Google Sans', sans-serif;
+    }
+    .step-pill.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+    .step-line { flex: 1; height: 2px; background: var(--border); }
+
+    /* SECTIONS */
+    .section { max-width: 1200px; margin: 0 auto; padding: 64px 24px; }
     .section-header { text-align: center; margin-bottom: 48px; }
     .section-eyebrow {
       display: inline-flex; align-items: center; gap: 6px;
@@ -229,17 +210,13 @@
     }
     h2 {
       font-family: 'Google Sans', sans-serif;
-      font-size: clamp(28px, 3.5vw, 40px);
-      font-weight: 700; letter-spacing: -1px;
-      color: var(--text); margin-bottom: 14px;
+      font-size: clamp(28px, 3.5vw, 40px); font-weight: 700;
+      letter-spacing: -1px; color: var(--text); margin-bottom: 14px;
     }
     .section-sub { font-size: 17px; color: var(--text-sub); max-width: 560px; margin: 0 auto; }
 
-    .apps-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-      gap: 20px;
-    }
+    /* APPS GRID */
+    .apps-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; }
     .app-card {
       background: var(--surface); border: 1px solid var(--border);
       border-radius: var(--radius-lg); padding: 28px 24px;
@@ -247,15 +224,8 @@
       transition: box-shadow 0.2s, transform 0.2s, border-color 0.2s;
       display: flex; flex-direction: column; gap: 14px;
     }
-    .app-card:hover {
-      box-shadow: var(--shadow-hover);
-      transform: translateY(-2px);
-      border-color: rgba(26,115,232,.3);
-    }
-    .app-icon {
-      width: 52px; height: 52px; border-radius: 14px;
-      display: flex; align-items: center; justify-content: center;
-    }
+    .app-card:hover { box-shadow: var(--shadow-hover); transform: translateY(-2px); border-color: rgba(26,115,232,.3); }
+    .app-icon { width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center; }
     .app-icon .material-icons-round { font-size: 26px; color: #fff; }
     .app-icon.blue   { background: linear-gradient(135deg, #1a73e8, #4285f4); }
     .app-icon.green  { background: linear-gradient(135deg, #34a853, #0f9d58); }
@@ -265,159 +235,78 @@
     .app-icon.teal   { background: linear-gradient(135deg, #00897b, #26a69a); }
     .app-icon.orange { background: linear-gradient(135deg, #ff7043, #ff5722); }
     .app-icon.pink   { background: linear-gradient(135deg, #e91e63, #f06292); }
-
-    .app-name {
-      font-family: 'Google Sans', sans-serif;
-      font-size: 15px; font-weight: 700; color: var(--text);
-    }
+    .app-name { font-family: 'Google Sans', sans-serif; font-size: 15px; font-weight: 700; color: var(--text); }
     .app-desc { font-size: 13px; color: var(--text-sub); line-height: 1.6; }
     .app-tag {
-      display: inline-flex; align-items: center; gap: 4px;
-      font-size: 11px; font-weight: 600; letter-spacing: 0.3px;
-      padding: 3px 10px; border-radius: 12px; align-self: flex-start;
-      margin-top: auto;
+      display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600;
+      letter-spacing: 0.3px; padding: 3px 10px; border-radius: 12px;
+      align-self: flex-start; margin-top: auto;
     }
     .tag-free { background: #e6f4ea; color: #137333; }
     .tag-new  { background: #e8f0fe; color: #1a73e8; }
 
-    .steps-grid {
-      display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px;
-    }
-    .step-card {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--radius-lg); padding: 32px 28px;
-      position: relative; text-align: center;
-    }
+    /* STEPS */
+    .steps-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
+    .step-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 32px 28px; text-align: center; }
     .step-number {
-      width: 48px; height: 48px; border-radius: 50%;
-      background: var(--blue-soft); color: var(--blue);
-      font-family: 'Google Sans', sans-serif;
-      font-size: 20px; font-weight: 700;
-      display: flex; align-items: center; justify-content: center;
-      margin: 0 auto 20px;
+      width: 48px; height: 48px; border-radius: 50%; background: var(--blue-soft); color: var(--blue);
+      font-family: 'Google Sans', sans-serif; font-size: 20px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;
     }
-    .step-title {
-      font-family: 'Google Sans', sans-serif;
-      font-size: 17px; font-weight: 700; color: var(--text);
-      margin-bottom: 10px;
-    }
+    .step-title { font-family: 'Google Sans', sans-serif; font-size: 17px; font-weight: 700; color: var(--text); margin-bottom: 10px; }
     .step-desc { font-size: 14px; color: var(--text-sub); line-height: 1.7; }
 
-    .stats-bar {
-      background: linear-gradient(135deg, #1a73e8 0%, #1557b0 100%);
-      padding: 56px 24px; margin: 0;
-    }
-    .stats-inner {
-      max-width: 1200px; margin: 0 auto;
-      display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px;
-      text-align: center;
-    }
-    .stat-value {
-      font-family: 'Google Sans', sans-serif;
-      font-size: 40px; font-weight: 700; color: #fff;
-      letter-spacing: -1px; line-height: 1;
-      margin-bottom: 8px;
-    }
+    /* STATS */
+    .stats-bar { background: linear-gradient(135deg, #1a73e8 0%, #1557b0 100%); padding: 56px 24px; }
+    .stats-inner { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px; text-align: center; }
+    .stat-value { font-family: 'Google Sans', sans-serif; font-size: 40px; font-weight: 700; color: #fff; letter-spacing: -1px; line-height: 1; margin-bottom: 8px; }
     .stat-label { font-size: 14px; color: rgba(255,255,255,.75); font-weight: 500; }
 
-    .testimonials-grid {
-      display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;
-    }
-    .testimonial-card {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--radius-lg); padding: 28px 24px;
-      box-shadow: var(--shadow-sm);
-    }
+    /* TESTIMONIALS */
+    .testimonials-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+    .testimonial-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 28px 24px; box-shadow: var(--shadow-sm); }
     .stars { display: flex; gap: 2px; margin-bottom: 14px; }
     .stars .material-icons-round { font-size: 18px; color: var(--yellow); }
-    .testimonial-text {
-      font-size: 14px; color: var(--text); line-height: 1.75;
-      margin-bottom: 20px; font-style: italic;
-    }
+    .testimonial-text { font-size: 14px; color: var(--text); line-height: 1.75; margin-bottom: 20px; font-style: italic; }
     .testimonial-author { display: flex; align-items: center; gap: 12px; }
-    .author-avatar {
-      width: 40px; height: 40px; border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-family: 'Google Sans', sans-serif;
-      font-size: 16px; font-weight: 700; color: #fff; flex-shrink: 0;
-    }
+    .author-avatar { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'Google Sans', sans-serif; font-size: 16px; font-weight: 700; color: #fff; flex-shrink: 0; }
     .author-name { font-size: 14px; font-weight: 600; color: var(--text); }
     .author-trade { font-size: 12px; color: var(--text-sub); }
 
+    /* CTA */
     .cta-section { max-width: 1200px; margin: 0 auto; padding: 64px 24px; }
     .cta-card {
       background: var(--surface); border: 1.5px solid var(--border);
       border-radius: var(--radius-xl); padding: 60px 48px;
       display: grid; grid-template-columns: 1fr auto; gap: 48px;
-      align-items: center; box-shadow: var(--shadow-lg);
-      position: relative; overflow: hidden;
+      align-items: center; box-shadow: var(--shadow-lg); position: relative; overflow: hidden;
     }
     .cta-card::before {
-      content: ''; position: absolute;
-      top: -60px; right: -60px;
+      content: ''; position: absolute; top: -60px; right: -60px;
       width: 280px; height: 280px; border-radius: 50%;
-      background: radial-gradient(circle, rgba(26,115,232,.08) 0%, transparent 70%);
-      pointer-events: none;
+      background: radial-gradient(circle, rgba(26,115,232,.08) 0%, transparent 70%); pointer-events: none;
     }
-    .cta-eyebrow {
-      font-size: 12px; font-weight: 600; letter-spacing: 1.2px;
-      text-transform: uppercase; color: var(--green); margin-bottom: 14px;
-    }
-    .cta-headline {
-      font-family: 'Google Sans', sans-serif;
-      font-size: 32px; font-weight: 700; letter-spacing: -0.8px;
-      color: var(--text); margin-bottom: 14px; line-height: 1.2;
-    }
+    .cta-eyebrow { font-size: 12px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; color: var(--green); margin-bottom: 14px; }
+    .cta-headline { font-family: 'Google Sans', sans-serif; font-size: 32px; font-weight: 700; letter-spacing: -0.8px; color: var(--text); margin-bottom: 14px; line-height: 1.2; }
     .cta-body { font-size: 16px; color: var(--text-sub); line-height: 1.75; }
     .cta-actions { display: flex; flex-direction: column; gap: 12px; min-width: 220px; }
 
-    footer {
-      background: var(--surface);
-      border-top: 1px solid var(--border);
-      padding: 40px 24px 24px;
-    }
+    /* FOOTER */
+    footer { background: var(--surface); border-top: 1px solid var(--border); padding: 40px 24px 24px; }
     .footer-inner { max-width: 1200px; margin: 0 auto; }
-    .footer-top {
-      display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 48px;
-      margin-bottom: 40px;
-    }
-    .footer-brand-desc {
-      font-size: 14px; color: var(--text-sub);
-      line-height: 1.75; margin-top: 12px; max-width: 280px;
-    }
-    .footer-col h4 {
-      font-family: 'Google Sans', sans-serif;
-      font-size: 13px; font-weight: 700; color: var(--text);
-      margin-bottom: 14px; letter-spacing: 0.3px;
-    }
+    .footer-top { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 48px; margin-bottom: 40px; }
+    .footer-brand-desc { font-size: 14px; color: var(--text-sub); line-height: 1.75; margin-top: 12px; max-width: 280px; }
+    .footer-col h4 { font-family: 'Google Sans', sans-serif; font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 14px; }
     .footer-col ul { list-style: none; display: flex; flex-direction: column; gap: 9px; }
     .footer-col a { font-size: 13px; color: var(--text-sub); text-decoration: none; transition: color 0.15s; }
     .footer-col a:hover { color: var(--blue); }
-    .footer-bottom {
-      border-top: 1px solid var(--border);
-      padding-top: 20px; display: flex;
-      align-items: center; justify-content: space-between;
-      flex-wrap: wrap; gap: 12px;
-    }
+    .footer-bottom { border-top: 1px solid var(--border); padding-top: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
     .footer-copy { font-size: 13px; color: var(--text-dim); }
     .footer-links { display: flex; gap: 20px; }
     .footer-links a { font-size: 13px; color: var(--text-dim); text-decoration: none; }
     .footer-links a:hover { color: var(--text-sub); }
 
-    .mobile-nav {
-      display: none; flex-direction: column; gap: 4px;
-      background: var(--surface); border-top: 1px solid var(--border);
-      padding: 12px 16px 16px; position: absolute; top: 64px;
-      left: 0; right: 0; box-shadow: var(--shadow-lg);
-    }
-    .mobile-nav.open { display: flex; }
-    .mobile-nav a {
-      color: var(--text); text-decoration: none;
-      font-size: 15px; font-weight: 500; padding: 11px 14px;
-      border-radius: 8px; transition: background 0.15s;
-    }
-    .mobile-nav a:hover { background: var(--bg); }
-
+    /* RESPONSIVE */
     @media (max-width: 960px) {
       .hero { grid-template-columns: 1fr; gap: 40px; padding: 48px 24px 56px; }
       .search-card { max-width: 500px; }
@@ -434,44 +323,14 @@
       nav { position: relative; }
       h1 { letter-spacing: -1px; }
       .apps-grid { grid-template-columns: repeat(2, 1fr); }
-      .form-row { grid-template-columns: 1fr; }
       .stats-inner { grid-template-columns: repeat(2, 1fr); }
       .footer-top { grid-template-columns: 1fr; }
     }
-    .google-btn {
-  width: 100%; height: 52px; background: #fff;
-  border: 1.5px solid #dadce0; border-radius: 10px;
-  font-size: 15px; font-weight: 600; color: #202124;
-  font-family: 'Google Sans', sans-serif; cursor: pointer;
-  display: flex; align-items: center; justify-content: center; gap: 10px;
-  transition: border-color 0.2s, box-shadow 0.2s; margin-bottom: 4px;
-}
-.google-btn:hover { border-color: #4285f4; box-shadow: 0 1px 3px rgba(60,64,67,.15); }
-.divider {
-  display: flex; align-items: center; gap: 12px;
-  margin: 18px 0; color: #80868b; font-size: 12px;
-}
-.divider::before, .divider::after {
-  content: ''; flex: 1; height: 1px; background: #dadce0;
-}
-.form-error {
-  background: #fce8e6; border: 1px solid #f5c6c2;
-  color: #c5221f; font-size: 13px; padding: 10px 14px;
-  border-radius: 8px; margin-bottom: 12px;
-}
-.step-pill {
-  width: 28px; height: 28px; border-radius: 50%;
-  background: #f8f9fa; border: 2px solid #dadce0;
-  color: #80868b; font-size: 13px; font-weight: 700;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
-.step-pill.active { background: #1a73e8; border-color: #1a73e8; color: #fff; }
-.step-line { flex: 1; height: 2px; background: #dadce0; }
   </style>
 </head>
 <body>
 
+<!-- NAV -->
 <nav id="nav">
   <div class="nav-inner">
     <a href="#" class="logo">
@@ -498,6 +357,7 @@
   </div>
 </nav>
 
+<!-- HERO -->
 <section class="hero">
   <div class="hero-left">
     <div class="hero-eyebrow">
@@ -538,134 +398,230 @@
     </div>
   </div>
 
+  <!-- AUTH CARD -->
   <div class="search-card" id="get-started">
+
+    <!-- Step 1: Sign up -->
+    <div id="step-auth">
+      <div class="card-headline">Claim Your Free Account</div>
+      <div class="card-sub">Get instant access to all Euro Office tools</div>
+      <button class="google-btn" id="btn-google">
+        <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.59-13.46-8.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+        Continue with Google
+      </button>
+      <div class="divider"><span>or sign up with email</span></div>
+      <div class="form-group">
+        <label class="form-label">Full Name</label>
+        <input class="form-input" id="auth-name" type="text" placeholder="e.g. Mike Johnson">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email Address</label>
+        <input class="form-input" id="auth-email" type="email" placeholder="mike@example.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input class="form-input" id="auth-password" type="password" placeholder="Min. 8 characters">
+      </div>
+      <div id="auth-error" class="form-error" style="display:none;"></div>
+      <button class="submit-btn" id="btn-email-signup">
+        <span class="material-icons-round" style="font-size:18px;">lock_open</span>
+        Create Account
+      </button>
+      <div class="form-note">
+        <span class="material-icons-round">verified_user</span>
+        100% free · No spam · Unsubscribe anytime
+      </div>
+      <p style="text-align:center;margin-top:14px;font-size:13px;color:var(--text-sub);">
+        Already have an account? <a href="#" id="show-login" style="color:var(--blue);font-weight:600;">Sign in</a>
+      </p>
+    </div>
+
+    <!-- Step 1b: Login -->
+    <div id="step-login" style="display:none;">
+      <div class="card-headline">Welcome Back</div>
+      <div class="card-sub">Sign in to your Euro Office account</div>
+      <button class="google-btn" id="btn-google-login">
+        <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.59-13.46-8.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+        Continue with Google
+      </button>
+      <div class="divider"><span>or sign in with email</span></div>
+      <div class="form-group">
+        <label class="form-label">Email Address</label>
+        <input class="form-input" id="login-email" type="email" placeholder="mike@example.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input class="form-input" id="login-password" type="password" placeholder="Your password">
+      </div>
+      <div id="login-error" class="form-error" style="display:none;"></div>
+      <button class="submit-btn" id="btn-login">
+        <span class="material-icons-round" style="font-size:18px;">login</span>
+        Sign In
+      </button>
+      <p style="text-align:center;margin-top:14px;font-size:13px;color:var(--text-sub);">
+        No account yet? <a href="#" id="show-signup" style="color:var(--blue);font-weight:600;">Sign up free</a>
+      </p>
+    </div>
+
+    <!-- Step 2: Business details -->
+    <div id="step-profile" style="display:none;">
+      <div class="step-pills">
+        <div class="step-pill active">1</div>
+        <div class="step-line"></div>
+        <div class="step-pill active">2</div>
+        <div class="step-line"></div>
+        <div class="step-pill">3</div>
+      </div>
+      <div class="card-headline">Tell us about your business</div>
+      <div class="card-sub">So we can personalise your tools</div>
+      <div class="form-group">
+        <label class="form-label">Phone Number</label>
+        <input class="form-input" id="prof-phone" type="tel" placeholder="07700 900000">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Your Trade</label>
+        <select class="form-select" id="prof-trade">
+          <option value="">Select your trade…</option>
+          <option>Electrician</option>
+          <option>Plumber</option>
+          <option>Painter &amp; Decorator</option>
+          <option>Carpenter / Joiner</option>
+          <option>Landscaper / Groundsworker</option>
+          <option>HVAC / Gas Engineer</option>
+          <option>Roofer</option>
+          <option>Tiler</option>
+          <option>General Builder</option>
+          <option>Other Trade</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Business Size</label>
+        <select class="form-select" id="prof-size">
+          <option value="sole-trader">Just me (sole trader)</option>
+          <option value="2-5">2–5 employees</option>
+          <option value="6-15">6–15 employees</option>
+          <option value="15+">15+ employees</option>
+        </select>
+      </div>
+      <div id="profile-error" class="form-error" style="display:none;"></div>
+      <button class="submit-btn" id="btn-save-profile">
+        <span class="material-icons-round" style="font-size:18px;">check_circle</span>
+        Finish Setup
+      </button>
+    </div>
+
+    <!-- Step 3: Success -->
+    <div id="step-success" style="display:none;text-align:center;padding:12px 0;">
+      <div style="width:64px;height:64px;border-radius:50%;background:#e6f4ea;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;">
+        <span class="material-icons-round" style="font-size:34px;color:#34a853;">check_circle</span>
+      </div>
+      <div class="card-headline">You're all set!</div>
+      <p style="font-size:14px;color:var(--text-sub);margin:10px 0 24px;line-height:1.7;">
+        Your Euro Office account is ready. Check your email to confirm, then start using your free tools.
+      </p>
+      <a href="index.html" class="btn-primary" style="justify-content:center;width:100%;">
+        <span class="material-icons-round" style="font-size:18px;">rocket_launch</span>
+        Go to My Tools
+      </a>
+      <div class="form-note" style="margin-top:16px;">
+        <span class="material-icons-round">mail</span>
+        Check your inbox to verify your email
+      </div>
+    </div>
+
+  </div>
 </section>
 
+<!-- STATS -->
 <div class="stats-bar">
   <div class="stats-inner">
-    <div>
-      <div class="stat-value">12,000+</div>
-      <div class="stat-label">Active Tradespeople</div>
-    </div>
-    <div>
-      <div class="stat-value">£4.2M</div>
-      <div class="stat-label">Invoices Raised This Month</div>
-    </div>
-    <div>
-      <div class="stat-value">8 Tools</div>
-      <div class="stat-label">100% Free Forever</div>
-    </div>
-    <div>
-      <div class="stat-value">4.9 ★</div>
-      <div class="stat-label">Average User Rating</div>
-    </div>
+    <div><div class="stat-value">12,000+</div><div class="stat-label">Active Tradespeople</div></div>
+    <div><div class="stat-value">£4.2M</div><div class="stat-label">Invoices Raised This Month</div></div>
+    <div><div class="stat-value">8 Tools</div><div class="stat-label">100% Free Forever</div></div>
+    <div><div class="stat-value">4.9 ★</div><div class="stat-label">Average User Rating</div></div>
   </div>
 </div>
 
+<!-- TOOLS -->
 <section class="section" id="tools">
   <div class="section-header">
-    <div class="section-eyebrow">
-      <span class="material-icons-round" style="font-size:14px;">apps</span>
-      Your Toolkit
-    </div>
+    <div class="section-eyebrow"><span class="material-icons-round" style="font-size:14px;">apps</span> Your Toolkit</div>
     <h2>Everything you need to run your trade</h2>
     <p class="section-sub">Eight powerful tools, zero cost. No subscriptions, no hidden fees.</p>
   </div>
   <div class="apps-grid">
     <a href="blu-balence-calculator.html" class="app-card">
       <div class="app-icon blue"><span class="material-icons-round">calculate</span></div>
-      <div>
-        <div class="app-name">Blu Balance</div>
-        <div class="app-desc">Track income vs. expenses and see your profit at a glance.</div>
-      </div>
+      <div><div class="app-name">Blu Balance</div><div class="app-desc">Track income vs. expenses and see your profit at a glance.</div></div>
       <span class="app-tag tag-free">✓ Free</span>
     </a>
     <a href="form-builder.html" class="app-card">
       <div class="app-icon green"><span class="material-icons-round">description</span></div>
-      <div>
-        <div class="app-name">Invoice Builder</div>
-        <div class="app-desc">Create professional invoices in under 60 seconds.</div>
-      </div>
+      <div><div class="app-name">Invoice Builder</div><div class="app-desc">Create professional invoices in under 60 seconds.</div></div>
       <span class="app-tag tag-free">✓ Free</span>
     </a>
     <a href="contract-template.html" class="app-card">
       <div class="app-icon yellow"><span class="material-icons-round">gavel</span></div>
-      <div>
-        <div class="app-name">Contract Templates</div>
-        <div class="app-desc">Legally-sound contract templates ready to send instantly.</div>
-      </div>
+      <div><div class="app-name">Contract Templates</div><div class="app-desc">Legally-sound contract templates ready to send instantly.</div></div>
       <span class="app-tag tag-free">✓ Free</span>
     </a>
     <a href="document-creation.html" class="app-card">
       <div class="app-icon red"><span class="material-icons-round">edit_document</span></div>
-      <div>
-        <div class="app-name">Document Creator</div>
-        <div class="app-desc">Build quotes, reports, and business docs in minutes.</div>
-      </div>
+      <div><div class="app-name">Document Creator</div><div class="app-desc">Build quotes, reports, and business docs in minutes.</div></div>
       <span class="app-tag tag-new">New</span>
     </a>
     <a href="calendar.html" class="app-card">
       <div class="app-icon indigo"><span class="material-icons-round">calendar_month</span></div>
-      <div>
-        <div class="app-name">Job Calendar</div>
-        <div class="app-desc">Schedule jobs, set reminders, never miss a booking.</div>
-      </div>
+      <div><div class="app-name">Job Calendar</div><div class="app-desc">Schedule jobs, set reminders, never miss a booking.</div></div>
       <span class="app-tag tag-free">✓ Free</span>
     </a>
     <a href="crm.html" class="app-card">
       <div class="app-icon teal"><span class="material-icons-round">people</span></div>
-      <div>
-        <div class="app-name">Client CRM</div>
-        <div class="app-desc">Keep all your customer details, notes, and history organized.</div>
-      </div>
+      <div><div class="app-name">Client CRM</div><div class="app-desc">Keep all your customer details, notes, and history organized.</div></div>
       <span class="app-tag tag-free">✓ Free</span>
     </a>
     <a href="find-work.html" class="app-card">
       <div class="app-icon orange"><span class="material-icons-round">work</span></div>
-      <div>
-        <div class="app-name">Find Work</div>
-        <div class="app-desc">Browse local job leads and connect with homeowners nearby.</div>
-      </div>
+      <div><div class="app-name">Find Work</div><div class="app-desc">Browse local job leads and connect with homeowners nearby.</div></div>
       <span class="app-tag tag-new">New</span>
     </a>
     <a href="landing-page-creation.html" class="app-card">
       <div class="app-icon pink"><span class="material-icons-round">web</span></div>
-      <div>
-        <div class="app-name">Landing Pages</div>
-        <div class="app-desc">Create a professional online presence without tech skills.</div>
-      </div>
+      <div><div class="app-name">Landing Pages</div><div class="app-desc">Create a professional online presence without tech skills.</div></div>
       <span class="app-tag tag-free">✓ Free</span>
     </a>
   </div>
 </section>
 
-<section style="background:var(--bg); padding: 1px 0;">
-<div class="section" id="how-it-works">
-  <div class="section-header">
-    <div class="section-eyebrow">Simple Process</div>
-    <h2>Up and running in 3 steps</h2>
-    <p class="section-sub">No tech skills needed. If you can use a smartphone, you're ready.</p>
+<!-- HOW IT WORKS -->
+<section style="background:var(--bg);padding:1px 0;">
+  <div class="section" id="how-it-works">
+    <div class="section-header">
+      <div class="section-eyebrow">Simple Process</div>
+      <h2>Up and running in 3 steps</h2>
+      <p class="section-sub">No tech skills needed. If you can use a smartphone, you're ready.</p>
+    </div>
+    <div class="steps-grid">
+      <div class="step-card">
+        <div class="step-number">1</div>
+        <div class="step-title">Sign Up Free</div>
+        <p class="step-desc">Create your account in under a minute. No credit card, no catch. Just your name, email, and trade.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-number">2</div>
+        <div class="step-title">Pick Your Tools</div>
+        <p class="step-desc">Choose the tools that match your workflow — invoicing, scheduling, contracts, or all of the above.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-number">3</div>
+        <div class="step-title">Grow Your Business</div>
+        <p class="step-desc">Save hours every week on admin, get paid faster, and look more professional to every customer.</p>
+      </div>
+    </div>
   </div>
-  <div class="steps-grid">
-    <div class="step-card">
-      <div class="step-number">1</div>
-      <div class="step-title">Sign Up Free</div>
-      <p class="step-desc">Create your account in under a minute. No credit card, no catch. Just your name, email, and trade.</p>
-    </div>
-    <div class="step-card">
-      <div class="step-number">2</div>
-      <div class="step-title">Pick Your Tools</div>
-      <p class="step-desc">Choose the tools that match your workflow — invoicing, scheduling, contracts, or all of the above.</p>
-    </div>
-    <div class="step-card">
-      <div class="step-number">3</div>
-      <div class="step-title">Grow Your Business</div>
-      <p class="step-desc">Save hours every week on admin, get paid faster, and look more professional to every customer.</p>
-    </div>
-  </div>
-</div>
 </section>
 
+<!-- TESTIMONIALS -->
 <section class="section" id="testimonials">
   <div class="section-header">
     <div class="section-eyebrow">Reviews</div>
@@ -674,68 +630,39 @@
   </div>
   <div class="testimonials-grid">
     <div class="testimonial-card">
-      <div class="stars">
-        <span class="material-icons-round">star</span>
-        <span class="material-icons-round">star</span>
-        <span class="material-icons-round">star</span>
-        <span class="material-icons-round">star</span>
-        <span class="material-icons-round">star</span>
-      </div>
+      <div class="stars"><span class="material-icons-round">star</span><span class="material-icons-round">star</span><span class="material-icons-round">star</span><span class="material-icons-round">star</span><span class="material-icons-round">star</span></div>
       <p class="testimonial-text">"I used to chase payments for weeks. Now I send invoices from my van, same day as the job. Got paid 3× faster last month."</p>
       <div class="testimonial-author">
         <div class="author-avatar" style="background:linear-gradient(135deg,#1a73e8,#4285f4);">D</div>
-        <div>
-          <div class="author-name">Dave Pritchard</div>
-          <div class="author-trade">Electrician · Manchester</div>
-        </div>
+        <div><div class="author-name">Dave Pritchard</div><div class="author-trade">Electrician · Manchester</div></div>
       </div>
     </div>
     <div class="testimonial-card">
-      <div class="stars">
-        <span class="material-icons-round">star</span>
-        <span class="material-icons-round">star</span>
-        <span class="material-icons-round">star</span>
-        <span class="material-icons-round">star</span>
-        <span class="material-icons-round">star</span>
-      </div>
+      <div class="stars"><span class="material-icons-round">star</span><span class="material-icons-round">star</span><span class="material-icons-round">star</span><span class="material-icons-round">star</span><span class="material-icons-round">star</span></div>
       <p class="testimonial-text">"The contract templates saved me in a dispute with a customer. Everything was documented. Couldn't believe it was free."</p>
       <div class="testimonial-author">
         <div class="author-avatar" style="background:linear-gradient(135deg,#34a853,#0f9d58);">S</div>
-        <div>
-          <div class="author-name">Sarah Owens</div>
-          <div class="author-trade">Painter &amp; Decorator · Bristol</div>
-        </div>
+        <div><div class="author-name">Sarah Owens</div><div class="author-trade">Painter &amp; Decorator · Bristol</div></div>
       </div>
     </div>
     <div class="testimonial-card">
-      <div class="stars">
-        <span class="material-icons-round">star</span>
-        <span class="material-icons-round">star</span>
-        <span class="material-icons-round">star</span>
-        <span class="material-icons-round">star</span>
-        <span class="material-icons-round">star</span>
-      </div>
+      <div class="stars"><span class="material-icons-round">star</span><span class="material-icons-round">star</span><span class="material-icons-round">star</span><span class="material-icons-round">star</span><span class="material-icons-round">star</span></div>
       <p class="testimonial-text">"Finally something built for people like me. No complicated software. Just open it, fill it in, done. My accountant loves the reports."</p>
       <div class="testimonial-author">
         <div class="author-avatar" style="background:linear-gradient(135deg,#ea4335,#d93025);">R</div>
-        <div>
-          <div class="author-name">Rory McTavish</div>
-          <div class="author-trade">Plumber · Glasgow</div>
-        </div>
+        <div><div class="author-name">Rory McTavish</div><div class="author-trade">Plumber · Glasgow</div></div>
       </div>
     </div>
   </div>
 </section>
 
+<!-- CTA -->
 <section class="cta-section" id="pricing">
   <div class="cta-card">
     <div>
       <div class="cta-eyebrow">100% Free — No Hidden Fees</div>
       <div class="cta-headline">Stop letting admin eat your evenings</div>
-      <p class="cta-body">
-        Join 12,000+ tradespeople who spend less time on paperwork and more time earning.
-        Every tool in Euro Office is free — now and always.
-      </p>
+      <p class="cta-body">Join 12,000+ tradespeople who spend less time on paperwork and more time earning. Every tool in Euro Office is free — now and always.</p>
     </div>
     <div class="cta-actions">
       <a href="#get-started" class="btn-primary" style="justify-content:center;">
@@ -749,6 +676,7 @@
   </div>
 </section>
 
+<!-- FOOTER -->
 <footer>
   <div class="footer-inner">
     <div class="footer-top">
@@ -757,10 +685,7 @@
           <div class="logo-icon">E</div>
           <span class="logo-text">Euro<span>Office</span></span>
         </a>
-        <p class="footer-brand-desc">
-          Free business tools built for blue-collar workers and sole traders across the UK.
-          Part of the Blu Balences family.
-        </p>
+        <p class="footer-brand-desc">Free business tools built for blue-collar workers and sole traders across the UK. Part of the Blu Balences family.</p>
       </div>
       <div class="footer-col">
         <h4>Tools</h4>
@@ -803,16 +728,13 @@
 </footer>
 
 <script>
+  // Mobile nav
   const hamburger = document.getElementById('hamburger');
   const mobileNav = document.getElementById('mobile-nav');
-  hamburger.addEventListener('click', () => {
-    mobileNav.classList.toggle('open');
-  });
-  mobileNav.querySelectorAll('a').forEach(a => {
-    a.addEventListener('click', () => mobileNav.classList.remove('open'));
-  });
-</script>
-<script>
+  hamburger.addEventListener('click', () => mobileNav.classList.toggle('open'));
+  mobileNav.querySelectorAll('a').forEach(a => a.addEventListener('click', () => mobileNav.classList.remove('open')));
+
+  // Supabase
   const { createClient } = supabase;
   const sb = createClient(
     'https://xbwuvaxtnylqvagdvpxp.supabase.co',
@@ -824,10 +746,7 @@
       document.getElementById(s).style.display = s === id ? '' : 'none';
     });
   }
-  function showError(elId, msg) {
-    const el = document.getElementById(elId);
-    el.textContent = msg; el.style.display = '';
-  }
+  function showError(elId, msg) { const el = document.getElementById(elId); el.textContent = msg; el.style.display = ''; }
   function hideError(elId) { document.getElementById(elId).style.display = 'none'; }
   function setLoading(btn, on) { btn.disabled = on; btn.style.opacity = on ? '0.7' : '1'; }
 
@@ -836,8 +755,7 @@
 
   async function googleSignIn() {
     const { error } = await sb.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: window.location.href }
+      provider: 'google', options: { redirectTo: window.location.href }
     });
     if (error) alert('Google sign-in failed: ' + error.message);
   }
@@ -905,5 +823,6 @@
     }
   });
 </script>
+
 </body>
 </html>
