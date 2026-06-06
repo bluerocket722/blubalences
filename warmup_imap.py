@@ -47,7 +47,6 @@ REPLY_TEMPLATES = [
     "Thanks, all set!", "Got it — thanks!", "Yes, received. Thanks!",
 ]
 
-# ── Outbound warm-up content (sender → seed) ─────────────────────────────────
 OUT_SUBJECTS = [
     "Quick question for you", "Hey, checking in", "Thought you'd find this useful",
     "One thing I wanted to share", "Can I get your take on something?",
@@ -88,7 +87,6 @@ def bell_minutes(min_m, max_m):
     return round(min_m + (total / 6) * (max_m - min_m))
 
 def mailbox_proxy(mb):
-    """Return per-mailbox dedicated proxy dict, or None to use global env proxy."""
     if mb.get('proxy_host'):
         return {
             'host': mb.get('proxy_host'),
@@ -174,7 +172,6 @@ def outlook_imap_token(client_id, client_secret, refresh_token):
         return json.loads(r.read().decode())['access_token']
 
 def mailbox_imap_login(mb, host, port, proxy=None):
-    """Connect to IMAP using the right auth for the mailbox's provider."""
     prov = (mb.get('provider') or 'gmail').lower()
     email_addr = mb.get('email', '')
     if prov == 'gmail':
@@ -188,10 +185,7 @@ def mailbox_imap_login(mb, host, port, proxy=None):
             mb.get('outlook_client_secret', '') or mb.get('gmail_client_secret', ''),
             mb.get('outlook_refresh_token', '') or mb.get('gmail_refresh_token', ''))
         return imap_connect_oauth(host, port, email_addr, token, proxy=proxy)
-    # yahoo / aol / icloud / custom → app password basic auth
     return imap_connect(host, port, email_addr, mb.get('app_password', ''), proxy=proxy)
-
-# ── Gmail reply (OAuth2 / Gmail API) ─────────────────────────────────────────
 
 def gmail_access_token(client_id, client_secret, refresh_token):
     data = urllib.parse.urlencode({
@@ -241,8 +235,6 @@ def send_reply_gmail_api(client_id, client_secret, refresh_token,
         print(f"    Gmail API reply failed to {to_addr}: {e}")
         log_alert('error', from_addr, f"Gmail send failed to {to_addr}: {e}")
         return False
-
-# ── Outlook reply (Microsoft Graph API / HTTPS — works on Railway) ────────────
 
 def outlook_access_token(client_id, client_secret, refresh_token):
     data = urllib.parse.urlencode({
@@ -295,8 +287,6 @@ def send_reply_outlook_graph(client_id, client_secret, refresh_token,
         log_alert('error', from_addr, f"Outlook send failed to {to_addr}: {e}")
         return False
 
-# ── Yahoo / AOL / iCloud reply (via Brevo HTTPS — SMTP blocked on Railway) ────
-
 def send_reply_brevo(brevo_api_key, from_addr, from_name,
                      to_addr, subject, body, in_reply_to=None):
     if not brevo_api_key:
@@ -331,8 +321,6 @@ def send_reply_brevo(brevo_api_key, from_addr, from_name,
         log_alert('error', from_addr, f"Brevo send failed to {to_addr}: {e}")
         return False
 
-# ── Route reply to the correct sender based on provider ──────────────────────
-
 def send_reply(mb, cfg, to_addr, subject, body, in_reply_to=None, thread_id=None):
     prov = (mb.get('provider') or 'gmail').lower()
 
@@ -345,7 +333,6 @@ def send_reply(mb, cfg, to_addr, subject, body, in_reply_to=None, thread_id=None
             to_addr=to_addr, subject=subject, body=body,
             in_reply_to=in_reply_to, thread_id=thread_id,
         )
-
     elif prov in ('outlook', 'office365', 'microsoft'):
         return send_reply_outlook_graph(
             mb.get('outlook_client_id', '') or mb.get('gmail_client_id', ''),
@@ -355,9 +342,7 @@ def send_reply(mb, cfg, to_addr, subject, body, in_reply_to=None, thread_id=None
             to_addr=to_addr, subject=subject, body=body,
             in_reply_to=in_reply_to,
         )
-
     elif prov in ('yahoo', 'aol', 'icloud', 'custom'):
-        # SMTP blocked on Railway — route through Brevo sender for this mailbox
         brevo_key = mb.get('brevo_api_key') or cfg.get('brevo_api_key', '')
         return send_reply_brevo(
             brevo_key,
@@ -366,7 +351,6 @@ def send_reply(mb, cfg, to_addr, subject, body, in_reply_to=None, thread_id=None
             to_addr=to_addr, subject=subject, body=body,
             in_reply_to=in_reply_to,
         )
-
     else:
         print(f"    Unknown provider '{prov}' — attempting Gmail API")
         return send_reply_gmail_api(
@@ -403,12 +387,9 @@ def already_queued(message_id):
         return bool(res.data)
     except Exception: return False
 
-# --- spam rescue ---------------------------------------------------------
 SPAM_FOLDERS = ["[Gmail]/Spam", "Spam", "Junk", "Junk E-mail", "Junk Email", "Bulk Mail"]
 
 def rescue_from_spam(M, inbox_emails, inbox_name="INBOX"):
-    """Move warm-up mail out of Spam/Junk into INBOX; leaves it UNSEEN so the
-    reply loop can pick it up. Only rescues mail from our sending inboxes."""
     rescued = 0
     for folder in SPAM_FOLDERS:
         try:
@@ -455,17 +436,41 @@ def mark_important(M, num, is_gmail):
 def send_queued_replies(mb, cfg, min_m=None, max_m=None):
     mbid = mb.get('id')
     now_ts = time.time()
+    day_start = dt.datetime.now(dt.timezone.utc).replace(
+        hour=0, minute=0, second=0, microsecond=0).isoformat().replace('+00:00', 'Z')
     try:
         rows = sb.table('warmup_pending').select('*').eq('mailbox_id', mbid).eq('sent', False).execute().data or []
     except Exception as e:
         print(f"  warmup_pending lookup failed: {e}")
         return 0
-    # Use per-cfg bell curve for inter-send spacing so replies never burst out together
     _min = min_m if min_m is not None else int(cfg.get('warmup_min_minutes') or 5)
     _max = max_m if max_m is not None else int(cfg.get('warmup_max_minutes') or 15)
     due = [r for r in rows if (r.get('reply_after') or 0) <= now_ts]
+
+    inbox_limit_cache = {}
+
     sent = 0
     for i, row in enumerate(due):
+        to_addr = (row.get('to_addr') or '').lower()
+
+        if to_addr not in inbox_limit_cache:
+            try:
+                res = sb.table('inboxes').select('id,warmup_daily_limit').ilike('email', to_addr).limit(1).execute()
+                if res.data:
+                    ib = res.data[0]
+                    limit = int(ib.get('warmup_daily_limit') or 0)
+                    sent_today = count_warmup_sent_today(ib['id'], day_start) if limit > 0 else 0
+                    inbox_limit_cache[to_addr] = {'id': ib['id'], 'limit': limit, 'sent_today': sent_today}
+                else:
+                    inbox_limit_cache[to_addr] = {'id': None, 'limit': 0, 'sent_today': 0}
+            except Exception:
+                inbox_limit_cache[to_addr] = {'id': None, 'limit': 0, 'sent_today': 0}
+
+        info = inbox_limit_cache[to_addr]
+        if info['limit'] > 0 and info['sent_today'] >= info['limit']:
+            print(f"  Skipping queued reply to {to_addr} — inbox at daily limit ({info['limit']})")
+            continue
+
         ok = send_reply(
             mb, cfg,
             to_addr=row.get('to_addr', ''),
@@ -478,9 +483,20 @@ def send_queued_replies(mb, cfg, min_m=None, max_m=None):
             try:
                 sb.table('warmup_pending').update({'sent': True, 'sent_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}).eq('id', row['id']).execute()
                 sent += 1
+                if info['id']:
+                    try:
+                        sb.table('send_log').insert({
+                            'inbox_id': info['id'],
+                            'recipient_email': mb.get('email', ''),
+                            'status': 'sent',
+                            'kind': 'warmup',
+                            'sent_at': dt.datetime.now(dt.timezone.utc).isoformat(),
+                        }).execute()
+                    except Exception as e:
+                        print(f"    send_log insert failed: {e}")
+                    inbox_limit_cache[to_addr]['sent_today'] += 1
             except Exception as e:
                 print(f"    mark sent failed: {e}")
-        # Sleep between replies on the bell curve (skip after the last one)
         if ok and i < len(due) - 1:
             wait = bell_minutes(_min, _max)
             print(f"    waiting {wait}m before next queued reply")
@@ -488,7 +504,6 @@ def send_queued_replies(mb, cfg, min_m=None, max_m=None):
     return sent
 
 def log_alert(level, mailbox_email, message):
-    """Record a warm-up issue so the dashboard can surface it."""
     try:
         sb.table('warmup_alerts').insert({
             'level': level,
@@ -500,10 +515,7 @@ def log_alert(level, mailbox_email, message):
     except Exception as e:
         print(f"  alert log failed: {e}")
 
-# ── OUTBOUND warm-up send phase (inboxes → active seeds) ──────────────────────
-
 def load_senders():
-    """Active inboxes with a Brevo key. Includes per-inbox warm-up settings."""
     rows = sb.table('inboxes').select(
         'id,name,email,brevo_api_key,warmup_enabled,warmup_daily_limit,'
         'warmup_start_sends,warmup_target_sends,warmup_ramp_days,warmup_started_at'
@@ -519,7 +531,6 @@ def count_warmup_sent_today(inbox_id, day_start_iso):
         return 0
 
 def compute_inbox_limit(inbox):
-    """Per-inbox daily limit. Hard limit > 0 overrides everything. Else ramp by days."""
     hard = int(inbox.get('warmup_daily_limit') or 0)
     if hard > 0:
         return hard
@@ -540,8 +551,6 @@ def compute_inbox_limit(inbox):
     return round(start + (target - start) * frac)
 
 def has_outstanding_send(inbox, seed):
-    """True if inbox already sent to this seed and is still WAITING for the seed's reply.
-    Blocks sending the next email until the conversation gets a reply back."""
     try:
         res = sb.table('send_log').select('sent_at')\
             .eq('inbox_id', inbox['id']).eq('kind', 'warmup')\
@@ -549,12 +558,12 @@ def has_outstanding_send(inbox, seed):
             .order('sent_at', desc=True).limit(1).execute()
         rows = res.data or []
         if not rows:
-            return False                      # never sent → free to send
+            return False
         last_send = rows[0]['sent_at']
         rep = sb.table('warmup_pending').select('id')\
             .eq('mailbox_id', seed['id']).eq('to_addr', inbox['email'])\
             .eq('sent', True).gt('sent_at', last_send).limit(1).execute()
-        return not bool(rep.data)             # outstanding if no reply yet
+        return not bool(rep.data)
     except Exception:
         return False
 
@@ -588,9 +597,6 @@ def run_outbound_warmup(cfg, min_m, max_m):
     day_start = dt.datetime.now(dt.timezone.utc).replace(
         hour=0, minute=0, second=0, microsecond=0).isoformat().replace('+00:00', 'Z')
 
-    # Build a per-sender queue of seeds it MAY email this run:
-    #   - within its own daily limit (hard limit overrides everything, else ramp)
-    #   - not waiting on a reply from that seed (conversation gating)
     queues = {}
     for s in senders:
         limit = compute_inbox_limit(s)
@@ -604,7 +610,6 @@ def run_outbound_warmup(cfg, min_m, max_m):
         print(f"  {s['email']}: limit {limit}/day, sent {already}, "
               f"eligible {len(eligible)}, queued {len(queues[s['id']])}")
 
-    # Round-robin / lockstep: round 1 = each sender's 1st, round 2 = each sender's 2nd, ...
     sender_by_id = {s['id']: s for s in senders}
     ordered = []
     while True:
@@ -648,8 +653,6 @@ def run_outbound_warmup(cfg, min_m, max_m):
             time.sleep(wait_min * 60)
     return sent
 
-# ── INBOUND reply phase (seeds read mail, rescue, reply) ──────────────────────
-
 def process_mailbox(mb, cfg, inbox_emails, min_m, max_m):
     email_addr = mb.get('email', '')
     password = mb.get('app_password', '')
@@ -672,7 +675,6 @@ def process_mailbox(mb, cfg, inbox_emails, min_m, max_m):
         log_alert('warn', email_addr, f"Skipped — missing auth (provider={prov})")
         return
 
-    # Send any previously queued replies whose timer has elapsed
     sent_queued = send_queued_replies(mb, cfg, min_m, max_m)
     if sent_queued:
         print(f"  Sent {sent_queued} queued replies")
@@ -703,7 +705,6 @@ def process_mailbox(mb, cfg, inbox_emails, min_m, max_m):
 
         for num in ids[:20]:
             try:
-                # Gmail exposes X-GM-THRID for threading; other providers don't
                 if is_gmail:
                     _, data = M.fetch(num, '(X-GM-THRID RFC822)')
                 else:
@@ -748,12 +749,9 @@ def process_mailbox(mb, cfg, inbox_emails, min_m, max_m):
                 reply_body = random.choice(REPLY_TEMPLATES)
 
                 if is_manual:
-                    # Manual test sends reply almost immediately
                     delay_sec = random.uniform(2, 8)
                     reply_after = time.time() + delay_sec
                 else:
-                    # Auto/scheduled replies stagger on the bell curve using
-                    # the Min/Max Minutes from Settings
                     wait_min = bell_minutes(min_m, max_m)
                     reply_after = time.time() + wait_min * 60
 
@@ -796,14 +794,12 @@ def main():
     max_m = int(cfg.get('warmup_max_minutes') or 15)
     print(f"Bell curve: {min_m}–{max_m} min")
 
-    # PHASE 1 — outbound: inboxes → active seeds (round-robin, gated, logs to send_log)
     try:
         total_sent = run_outbound_warmup(cfg, min_m, max_m)
         print(f"Outbound complete — {total_sent} sent")
     except Exception as e:
         print(f"!! outbound phase error: {e}")
 
-    # PHASE 2 — inbound: seeds open, rescue from spam, reply back
     inbox_emails = load_inbox_emails()
     print(f"Watching for emails from: {inbox_emails}")
     res = sb.table('warmup_mailboxes').select('*').eq('active', True).execute()
