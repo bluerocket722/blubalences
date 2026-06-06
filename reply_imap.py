@@ -5,11 +5,36 @@ import email.header
 import ssl
 import time
 import os
+import random
+import json
+import base64
+import urllib.request
+import urllib.parse
+import urllib.error
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from supabase import create_client
 
 SUPABASE_URL = os.environ['SUPABASE_URL']
 SUPABASE_KEY = os.environ['SUPABASE_SERVICE_ROLE_KEY']
 sb = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+REPLY_TEMPLATES = [
+    "Yep, got it!", "Thanks, received it.", "Got it, thanks!",
+    "Perfect, thank you.", "Yes, came through.", "Thanks so much!",
+    "Awesome, got it.", "Received it, thanks!", "Yep, looks good.",
+    "Thanks, all set!", "Got it — thanks!", "Yes, received. Thanks!",
+]
+
+def load_settings():
+    rows = sb.table('settings').select('key,value').execute().data or []
+    cfg = {}
+    for r in rows:
+        v = r.get('value', '') or ''
+        if isinstance(v, list): v = v[0] if v else ''
+        if isinstance(v, str): v = v.strip('"')
+        cfg[r['key']] = v
+    return cfg
 
 def load_warmup_emails():
     rows = sb.table('warmup_mailboxes').select('email').eq('active', True).execute().data or []
@@ -43,7 +68,173 @@ def already_have(message_id):
     res = sb.table('replies').select('id').eq('message_id', message_id).limit(1).execute()
     return bool(res.data)
 
-def process_inbox(ib, warmup_emails):
+# ── Send helpers ──────────────────────────────────────────────────────────────
+
+def gmail_access_token(client_id, client_secret, refresh_token):
+    data = urllib.parse.urlencode({
+        'client_id': client_id, 'client_secret': client_secret,
+        'refresh_token': refresh_token, 'grant_type': 'refresh_token'
+    }).encode()
+    req = urllib.request.Request('https://oauth2.googleapis.com/token', data=data)
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return json.loads(r.read().decode())['access_token']
+    except urllib.error.HTTPError as e:
+        body = e.read().decode(errors='replace')
+        print(f"    Gmail token {e.code}: {body}")
+        raise
+
+def send_reply_gmail_api(client_id, client_secret, refresh_token,
+                         from_addr, to_addr, subject, body,
+                         in_reply_to=None, thread_id=None):
+    if not (client_id and client_secret and refresh_token):
+        print("    Gmail API not configured for this inbox")
+        return False
+    try:
+        token = gmail_access_token(client_id, client_secret, refresh_token)
+        msg = MIMEMultipart('alternative')
+        msg['From'] = from_addr
+        msg['To'] = to_addr
+        msg['Subject'] = subject
+        if in_reply_to:
+            msg['In-Reply-To'] = in_reply_to
+            msg['References'] = in_reply_to
+        msg.attach(MIMEText(body, 'plain'))
+        raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
+        body_obj = {'raw': raw}
+        if thread_id:
+            body_obj['threadId'] = thread_id
+        payload = json.dumps(body_obj).encode()
+        req = urllib.request.Request(
+            'https://gmail.googleapis.com/gmail/v1/users/me/messages/send',
+            data=payload,
+            headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'},
+        )
+        with urllib.request.urlopen(req, timeout=30) as r:
+            r.read()
+        print(f"    ✓ Gmail replied to {to_addr}")
+        return True
+    except Exception as e:
+        print(f"    Gmail API reply failed to {to_addr}: {e}")
+        return False
+
+def outlook_access_token(client_id, client_secret, refresh_token):
+    data = urllib.parse.urlencode({
+        'client_id': client_id, 'client_secret': client_secret,
+        'refresh_token': refresh_token, 'grant_type': 'refresh_token',
+        'scope': 'https://graph.microsoft.com/Mail.Send offline_access',
+    }).encode()
+    req = urllib.request.Request(
+        'https://login.microsoftonline.com/common/oauth2/v2.0/token', data=data)
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return json.loads(r.read().decode())['access_token']
+    except urllib.error.HTTPError as e:
+        body = e.read().decode(errors='replace')
+        print(f"    Outlook token {e.code}: {body}")
+        raise
+
+def send_reply_outlook_graph(client_id, client_secret, refresh_token,
+                              from_addr, to_addr, subject, body,
+                              in_reply_to=None):
+    if not (client_id and client_secret and refresh_token):
+        print("    Outlook Graph API not configured for this inbox")
+        return False
+    try:
+        token = outlook_access_token(client_id, client_secret, refresh_token)
+        message = {
+            "subject": subject,
+            "body": {"contentType": "Text", "content": body},
+            "toRecipients": [{"emailAddress": {"address": to_addr}}],
+        }
+        if in_reply_to:
+            message["internetMessageHeaders"] = [
+                {"name": "In-Reply-To", "value": in_reply_to},
+                {"name": "References",  "value": in_reply_to},
+            ]
+        payload = json.dumps({"message": message, "saveToSentItems": True}).encode()
+        req = urllib.request.Request(
+            'https://graph.microsoft.com/v1.0/me/sendMail',
+            data=payload,
+            headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'},
+        )
+        with urllib.request.urlopen(req, timeout=30) as r:
+            r.read()
+        print(f"    ✓ Outlook replied to {to_addr}")
+        return True
+    except Exception as e:
+        print(f"    Outlook Graph reply failed to {to_addr}: {e}")
+        return False
+
+def send_reply_brevo(brevo_api_key, from_addr, from_name,
+                     to_addr, subject, body, in_reply_to=None):
+    if not brevo_api_key:
+        print("    Brevo API key not configured for this inbox")
+        return False
+    try:
+        html = "<html><body>" + body.replace("\n", "<br>") + "</body></html>"
+        payload_obj = {
+            "sender": {"email": from_addr, "name": from_name or from_addr},
+            "to": [{"email": to_addr}],
+            "subject": subject,
+            "htmlContent": html,
+            "tags": ["warmup-reply"],
+        }
+        if in_reply_to:
+            payload_obj["headers"] = {
+                "In-Reply-To": in_reply_to,
+                "References": in_reply_to,
+            }
+        payload = json.dumps(payload_obj).encode()
+        req = urllib.request.Request(
+            'https://api.brevo.com/v3/smtp/email',
+            data=payload,
+            headers={'api-key': brevo_api_key, 'Content-Type': 'application/json'},
+        )
+        with urllib.request.urlopen(req, timeout=30) as r:
+            r.read()
+        print(f"    ✓ Brevo replied to {to_addr} (from {from_addr})")
+        return True
+    except Exception as e:
+        print(f"    Brevo reply failed to {to_addr}: {e}")
+        return False
+
+def send_reply(ib, cfg, to_addr, subject, body, in_reply_to=None, thread_id=None):
+    prov = (ib.get('provider') or 'gmail').lower()
+
+    if prov == 'gmail':
+        return send_reply_gmail_api(
+            ib.get('gmail_client_id', ''),
+            ib.get('gmail_client_secret', ''),
+            ib.get('gmail_refresh_token', ''),
+            from_addr=ib.get('email', ''),
+            to_addr=to_addr, subject=subject, body=body,
+            in_reply_to=in_reply_to, thread_id=thread_id,
+        )
+
+    elif prov in ('outlook', 'office365', 'microsoft'):
+        return send_reply_outlook_graph(
+            ib.get('outlook_client_id', '') or ib.get('gmail_client_id', ''),
+            ib.get('outlook_client_secret', '') or ib.get('gmail_client_secret', ''),
+            ib.get('outlook_refresh_token', '') or ib.get('gmail_refresh_token', ''),
+            from_addr=ib.get('email', ''),
+            to_addr=to_addr, subject=subject, body=body,
+            in_reply_to=in_reply_to,
+        )
+
+    else:
+        brevo_key = ib.get('brevo_api_key') or cfg.get('brevo_api_key', '')
+        return send_reply_brevo(
+            brevo_key,
+            from_addr=ib.get('email', ''),
+            from_name=ib.get('name', ''),
+            to_addr=to_addr, subject=subject, body=body,
+            in_reply_to=in_reply_to,
+        )
+
+# ── Main inbox processor ──────────────────────────────────────────────────────
+
+def process_inbox(ib, warmup_emails, cfg):
     email_addr = ib.get('email', '')
     host = ib.get('imap_host') or 'imap.gmail.com'
     port = ib.get('imap_port') or 993
@@ -73,15 +264,12 @@ def process_inbox(ib, warmup_emails):
                 from_name, from_addr = email.utils.parseaddr(msg.get('From', ''))
                 from_addr = (from_addr or '').lower()
 
-                # Skip emails the inbox sent to itself
                 if from_addr == email_addr.lower(): continue
-                # Skip blank senders
                 if not from_addr or '@' not in from_addr: continue
 
                 message_id = msg.get('Message-ID', '') or ''
                 if already_have(message_id): continue
 
-                # Determine kind: warmup or prospect
                 kind = 'warmup' if from_addr in warmup_emails else 'prospect'
 
                 subject = str(email.header.make_header(email.header.decode_header(msg.get('Subject', ''))))
@@ -108,6 +296,21 @@ def process_inbox(ib, warmup_emails):
                 }).execute()
                 captured += 1
                 print(f"    + [{kind}] reply from {from_addr}: {subject[:50]}")
+
+                # Auto-reply to warmup emails so the conversation loop continues
+                if kind == 'warmup':
+                    reply_subj = f"Re: {subject}" if not subject.lower().startswith('re:') else subject
+                    reply_body = random.choice(REPLY_TEMPLATES)
+                    ok = send_reply(
+                        ib, cfg,
+                        to_addr=from_addr,
+                        subject=reply_subj,
+                        body=reply_body,
+                        in_reply_to=message_id or None,
+                    )
+                    if not ok:
+                        print(f"    ! auto-reply to {from_addr} failed")
+
             except Exception as e:
                 print(f"    error on message: {e}")
         print(f"  Captured: {captured}")
@@ -117,6 +320,7 @@ def process_inbox(ib, warmup_emails):
 
 def main():
     print("=== Reply catcher ===")
+    cfg = load_settings()
     warmup_emails = load_warmup_emails()
     print(f"Known warm-up addresses: {len(warmup_emails)}")
     inboxes = sb.table('inboxes').select('*').eq('active', True).execute().data or []
@@ -124,7 +328,7 @@ def main():
         print("No active inboxes.")
         return
     for ib in inboxes:
-        process_inbox(ib, warmup_emails)
+        process_inbox(ib, warmup_emails, cfg)
     print("\n=== Done ===")
 
 def run_loop():
