@@ -68,8 +68,6 @@ def already_have(message_id):
     res = sb.table('replies').select('id').eq('message_id', message_id).limit(1).execute()
     return bool(res.data)
 
-# ── Send helpers ──────────────────────────────────────────────────────────────
-
 def gmail_access_token(client_id, client_secret, refresh_token):
     data = urllib.parse.urlencode({
         'client_id': client_id, 'client_secret': client_secret,
@@ -211,7 +209,6 @@ def send_reply(ib, cfg, to_addr, subject, body, in_reply_to=None, thread_id=None
             to_addr=to_addr, subject=subject, body=body,
             in_reply_to=in_reply_to, thread_id=thread_id,
         )
-
     elif prov in ('outlook', 'office365', 'microsoft'):
         return send_reply_outlook_graph(
             ib.get('outlook_client_id', '') or ib.get('gmail_client_id', ''),
@@ -221,7 +218,6 @@ def send_reply(ib, cfg, to_addr, subject, body, in_reply_to=None, thread_id=None
             to_addr=to_addr, subject=subject, body=body,
             in_reply_to=in_reply_to,
         )
-
     else:
         brevo_key = ib.get('brevo_api_key') or cfg.get('brevo_api_key', '')
         return send_reply_brevo(
@@ -232,7 +228,13 @@ def send_reply(ib, cfg, to_addr, subject, body, in_reply_to=None, thread_id=None
             in_reply_to=in_reply_to,
         )
 
-# ── Main inbox processor ──────────────────────────────────────────────────────
+def count_warmup_sent_today(inbox_id, day_start_iso):
+    try:
+        res = sb.table('send_log').select('id').eq('inbox_id', inbox_id)\
+            .eq('kind', 'warmup').gte('sent_at', day_start_iso).execute()
+        return len(res.data or [])
+    except Exception:
+        return 0
 
 def process_inbox(ib, warmup_emails, cfg):
     email_addr = ib.get('email', '')
@@ -243,6 +245,11 @@ def process_inbox(ib, warmup_emails, cfg):
         print(f"  Skipping {email_addr} — no IMAP password set")
         return
     print(f"\n→ {email_addr} [{host}:{port}]")
+
+    daily_limit = int(ib.get('warmup_daily_limit') or 0)
+    day_start = time.strftime('%Y-%m-%dT00:00:00Z', time.gmtime())
+    warmup_sent_today = count_warmup_sent_today(ib['id'], day_start) if daily_limit > 0 else 0
+
     try:
         ctx = ssl.create_default_context()
         M = imaplib.IMAP4_SSL(host, int(port), ssl_context=ctx)
@@ -297,19 +304,33 @@ def process_inbox(ib, warmup_emails, cfg):
                 captured += 1
                 print(f"    + [{kind}] reply from {from_addr}: {subject[:50]}")
 
-                # Auto-reply to warmup emails so the conversation loop continues
                 if kind == 'warmup':
-                    reply_subj = f"Re: {subject}" if not subject.lower().startswith('re:') else subject
-                    reply_body = random.choice(REPLY_TEMPLATES)
-                    ok = send_reply(
-                        ib, cfg,
-                        to_addr=from_addr,
-                        subject=reply_subj,
-                        body=reply_body,
-                        in_reply_to=message_id or None,
-                    )
-                    if not ok:
-                        print(f"    ! auto-reply to {from_addr} failed")
+                    if daily_limit > 0 and warmup_sent_today >= daily_limit:
+                        print(f"    ! auto-reply to {from_addr} skipped — inbox at daily limit ({daily_limit})")
+                    else:
+                        reply_subj = f"Re: {subject}" if not subject.lower().startswith('re:') else subject
+                        reply_body = random.choice(REPLY_TEMPLATES)
+                        ok = send_reply(
+                            ib, cfg,
+                            to_addr=from_addr,
+                            subject=reply_subj,
+                            body=reply_body,
+                            in_reply_to=message_id or None,
+                        )
+                        if ok:
+                            try:
+                                sb.table('send_log').insert({
+                                    'inbox_id': ib['id'],
+                                    'recipient_email': from_addr,
+                                    'status': 'sent',
+                                    'kind': 'warmup',
+                                    'sent_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+                                }).execute()
+                                warmup_sent_today += 1
+                            except Exception as e:
+                                print(f"    ! send_log insert failed: {e}")
+                        else:
+                            print(f"    ! auto-reply to {from_addr} failed")
 
             except Exception as e:
                 print(f"    error on message: {e}")
