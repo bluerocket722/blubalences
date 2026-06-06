@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <title>Euro Office | Free Business Tools for Blue-Collar Workers</title>
   <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
@@ -437,6 +438,36 @@
       .stats-inner { grid-template-columns: repeat(2, 1fr); }
       .footer-top { grid-template-columns: 1fr; }
     }
+    .google-btn {
+  width: 100%; height: 52px; background: #fff;
+  border: 1.5px solid #dadce0; border-radius: 10px;
+  font-size: 15px; font-weight: 600; color: #202124;
+  font-family: 'Google Sans', sans-serif; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  transition: border-color 0.2s, box-shadow 0.2s; margin-bottom: 4px;
+}
+.google-btn:hover { border-color: #4285f4; box-shadow: 0 1px 3px rgba(60,64,67,.15); }
+.divider {
+  display: flex; align-items: center; gap: 12px;
+  margin: 18px 0; color: #80868b; font-size: 12px;
+}
+.divider::before, .divider::after {
+  content: ''; flex: 1; height: 1px; background: #dadce0;
+}
+.form-error {
+  background: #fce8e6; border: 1px solid #f5c6c2;
+  color: #c5221f; font-size: 13px; padding: 10px 14px;
+  border-radius: 8px; margin-bottom: 12px;
+}
+.step-pill {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: #f8f9fa; border: 2px solid #dadce0;
+  color: #80868b; font-size: 13px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.step-pill.active { background: #1a73e8; border-color: #1a73e8; color: #fff; }
+.step-line { flex: 1; height: 2px; background: #dadce0; }
   </style>
 </head>
 <body>
@@ -508,56 +539,6 @@
   </div>
 
   <div class="search-card" id="get-started">
-    <div class="card-headline">Claim Your Free Account</div>
-    <div class="card-sub">Get instant access to all Euro Office tools</div>
-    <div class="form-group">
-      <label class="form-label">Your Name</label>
-      <input class="form-input" type="text" placeholder="e.g. Mike Johnson">
-    </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Email Address</label>
-        <input class="form-input" type="email" placeholder="mike@example.com">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Phone</label>
-        <input class="form-input" type="tel" placeholder="07700 900000">
-      </div>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Your Trade</label>
-      <select class="form-select">
-        <option value="">Select your trade…</option>
-        <option>Electrician</option>
-        <option>Plumber</option>
-        <option>Painter &amp; Decorator</option>
-        <option>Carpenter / Joiner</option>
-        <option>Landscaper / Groundsworker</option>
-        <option>HVAC / Gas Engineer</option>
-        <option>Roofer</option>
-        <option>Tiler</option>
-        <option>General Builder</option>
-        <option>Other Trade</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Business Size</label>
-      <select class="form-select">
-        <option value="">Just me (sole trader)</option>
-        <option>2–5 employees</option>
-        <option>6–15 employees</option>
-        <option>15+ employees</option>
-      </select>
-    </div>
-    <button class="submit-btn">
-      <span class="material-icons-round" style="font-size:18px;">lock_open</span>
-      Get Free Access Now
-    </button>
-    <div class="form-note">
-      <span class="material-icons-round">verified_user</span>
-      100% free · No spam · Unsubscribe anytime
-    </div>
-  </div>
 </section>
 
 <div class="stats-bar">
@@ -831,6 +812,98 @@
     a.addEventListener('click', () => mobileNav.classList.remove('open'));
   });
 </script>
+<script>
+  const { createClient } = supabase;
+  const sb = createClient(
+    'https://xbwuvaxtnylqvagdvpxp.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhid3V2YXh0bnlscXZhZ2R2cHhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3Njk1NjMsImV4cCI6MjA5NDM0NTU2M30.WnCOew6w9HtQ2eAM1vpSJCb_AjAvv9x7Mev-k2IxSpc'
+  );
 
+  function showStep(id) {
+    ['step-auth','step-login','step-profile','step-success'].forEach(s => {
+      document.getElementById(s).style.display = s === id ? '' : 'none';
+    });
+  }
+  function showError(elId, msg) {
+    const el = document.getElementById(elId);
+    el.textContent = msg; el.style.display = '';
+  }
+  function hideError(elId) { document.getElementById(elId).style.display = 'none'; }
+  function setLoading(btn, on) { btn.disabled = on; btn.style.opacity = on ? '0.7' : '1'; }
+
+  document.getElementById('show-login').addEventListener('click', e => { e.preventDefault(); showStep('step-login'); });
+  document.getElementById('show-signup').addEventListener('click', e => { e.preventDefault(); showStep('step-auth'); });
+
+  async function googleSignIn() {
+    const { error } = await sb.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.href }
+    });
+    if (error) alert('Google sign-in failed: ' + error.message);
+  }
+  document.getElementById('btn-google').addEventListener('click', googleSignIn);
+  document.getElementById('btn-google-login').addEventListener('click', googleSignIn);
+
+  document.getElementById('btn-email-signup').addEventListener('click', async () => {
+    const btn = document.getElementById('btn-email-signup');
+    const name  = document.getElementById('auth-name').value.trim();
+    const email = document.getElementById('auth-email').value.trim();
+    const pass  = document.getElementById('auth-password').value;
+    hideError('auth-error');
+    if (!name)           return showError('auth-error', 'Please enter your full name.');
+    if (!email)          return showError('auth-error', 'Please enter your email address.');
+    if (pass.length < 8) return showError('auth-error', 'Password must be at least 8 characters.');
+    setLoading(btn, true);
+    const { error } = await sb.auth.signUp({ email, password: pass, options: { data: { full_name: name } } });
+    setLoading(btn, false);
+    if (error) return showError('auth-error', error.message);
+    showStep('step-profile');
+  });
+
+  document.getElementById('btn-login').addEventListener('click', async () => {
+    const btn = document.getElementById('btn-login');
+    const email = document.getElementById('login-email').value.trim();
+    const pass  = document.getElementById('login-password').value;
+    hideError('login-error');
+    if (!email) return showError('login-error', 'Please enter your email address.');
+    if (!pass)  return showError('login-error', 'Please enter your password.');
+    setLoading(btn, true);
+    const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+    setLoading(btn, false);
+    if (error) return showError('login-error', error.message);
+    showStep('step-success');
+  });
+
+  document.getElementById('btn-save-profile').addEventListener('click', async () => {
+    const btn   = document.getElementById('btn-save-profile');
+    const phone = document.getElementById('prof-phone').value.trim();
+    const trade = document.getElementById('prof-trade').value;
+    const size  = document.getElementById('prof-size').value;
+    hideError('profile-error');
+    if (!trade) return showError('profile-error', 'Please select your trade.');
+    setLoading(btn, true);
+    const { data: { user } } = await sb.auth.getUser();
+    if (user) {
+      await sb.from('profiles').upsert({
+        id: user.id,
+        full_name: user.user_metadata?.full_name || user.email,
+        email: user.email,
+        phone, trade,
+        business_size: size,
+        updated_at: new Date().toISOString()
+      });
+    }
+    setLoading(btn, false);
+    showStep('step-success');
+  });
+
+  sb.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_IN' && session) {
+      sb.from('profiles').select('trade').eq('id', session.user.id).single()
+        .then(({ data }) => showStep(data?.trade ? 'step-success' : 'step-profile'))
+        .catch(() => showStep('step-profile'));
+    }
+  });
+</script>
 </body>
 </html>
