@@ -452,7 +452,7 @@ def mark_important(M, num, is_gmail):
         else: M.store(num, '+FLAGS', '\\Flagged')
     except Exception: pass
 
-def send_queued_replies(mb, cfg):
+def send_queued_replies(mb, cfg, min_m=None, max_m=None):
     mbid = mb.get('id')
     now_ts = time.time()
     try:
@@ -460,10 +460,12 @@ def send_queued_replies(mb, cfg):
     except Exception as e:
         print(f"  warmup_pending lookup failed: {e}")
         return 0
+    # Use per-cfg bell curve for inter-send spacing so replies never burst out together
+    _min = min_m if min_m is not None else int(cfg.get('warmup_min_minutes') or 5)
+    _max = max_m if max_m is not None else int(cfg.get('warmup_max_minutes') or 15)
+    due = [r for r in rows if (r.get('reply_after') or 0) <= now_ts]
     sent = 0
-    for row in rows:
-        if (row.get('reply_after') or 0) > now_ts:
-            continue
+    for i, row in enumerate(due):
         ok = send_reply(
             mb, cfg,
             to_addr=row.get('to_addr', ''),
@@ -478,6 +480,11 @@ def send_queued_replies(mb, cfg):
                 sent += 1
             except Exception as e:
                 print(f"    mark sent failed: {e}")
+        # Sleep between replies on the bell curve (skip after the last one)
+        if ok and i < len(due) - 1:
+            wait = bell_minutes(_min, _max)
+            print(f"    waiting {wait}m before next queued reply")
+            time.sleep(wait * 60)
     return sent
 
 def log_alert(level, mailbox_email, message):
@@ -666,7 +673,7 @@ def process_mailbox(mb, cfg, inbox_emails, min_m, max_m):
         return
 
     # Send any previously queued replies whose timer has elapsed
-    sent_queued = send_queued_replies(mb, cfg)
+    sent_queued = send_queued_replies(mb, cfg, min_m, max_m)
     if sent_queued:
         print(f"  Sent {sent_queued} queued replies")
 
@@ -741,9 +748,12 @@ def process_mailbox(mb, cfg, inbox_emails, min_m, max_m):
                 reply_body = random.choice(REPLY_TEMPLATES)
 
                 if is_manual:
+                    # Manual test sends reply almost immediately
                     delay_sec = random.uniform(2, 8)
                     reply_after = time.time() + delay_sec
                 else:
+                    # Auto/scheduled replies stagger on the bell curve using
+                    # the Min/Max Minutes from Settings
                     wait_min = bell_minutes(min_m, max_m)
                     reply_after = time.time() + wait_min * 60
 
