@@ -176,7 +176,7 @@ def main():
         log.info("Today (%s) not in send_days (%s) — skipping", today_abbr, send_days)
         return 0
 
-        import random as _random
+    import random as _random                                          # ← fix 1: was indented 8 extra spaces
     def bell_seconds(min_m, max_m):
         """Irwin-Hall bell curve scaled to [min_m, max_m] minutes, returned as seconds."""
         t = sum(_random.random() for _ in range(6)) / 6.0
@@ -217,7 +217,7 @@ def main():
             delay_mins  = step["delay_days"]*1440 + step["delay_hours"]*60 + step["delay_minutes"]
             batch_limit = int(step.get("batch_limit") or 0)
             batch_iv    = int(step.get("batch_interval_minutes") or 0)
-                        seq_min = float(seq.get("min_interval_minutes") or global_min_interval)
+            seq_min = float(seq.get("min_interval_minutes") or global_min_interval)  # ← fix 2: was indented 24 extra spaces
             seq_max = float(seq.get("max_interval_minutes") or global_max_interval)
             interval    = batch_iv * 60 if batch_iv > 0 else None  # None = use bell curve per send
             step_body   = step.get("body") or ""
@@ -296,7 +296,7 @@ def main():
                 except Exception:
                     log.exception("  [%d/%d] failed for %s", i+1, len(due), enr["email"])
 
-                                if i < len(due) - 1:
+                if i < len(due) - 1:                                  # ← fix 3: was indented 32 extra spaces
                     wait = interval if interval is not None else bell_seconds(seq_min, seq_max)
                     log.info("  Waiting %.0fs… (%.1f–%.1f min range)", wait, seq_min, seq_max)
                     time.sleep(wait)
