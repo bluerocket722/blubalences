@@ -1,0 +1,93 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
+
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+const PROVIDER_SMTP: Record<string, [string, number]> = {
+  gmail:     ["smtp.gmail.com", 587],
+  outlook:   ["smtp.office365.com", 587],
+  office365: ["smtp.office365.com", 587],
+  microsoft: ["smtp.office365.com", 587],
+  icloud:    ["smtp.mail.me.com", 587],
+};
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
+  const json = (o: unknown, s = 200) =>
+    new Response(JSON.stringify(o), { status: s, headers: { ...CORS, "Content-Type": "application/json" } });
+
+  try {
+    const { mailbox_id, inbox_id, to, subject, body } = await req.json();
+    if (!to) return json({ ok: false, error: "to is required" }, 400);
+
+    const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+    // ── Outbound: from main inbox (inboxes table) via Brevo ──
+    if (inbox_id) {
+      const { data: inbox, error } = await sb.from("inboxes").select("*").eq("id", inbox_id).single();
+      if (error || !inbox) return json({ ok: false, error: "inbox not found" }, 404);
+
+      const { data: settingsRows } = await sb.from("settings").select("key,value");
+      const cfg: Record<string, string> = {};
+      for (const r of settingsRows || []) cfg[r.key] = r.value?.replace(/^"|"$/g, "") ?? "";
+      const brevoKey = cfg.brevo_api_key;
+      if (!brevoKey) return json({ ok: false, error: "brevo_api_key not set in settings" }, 500);
+
+      const fromEmail = inbox.email;
+      const fromName = inbox.name || fromEmail;
+      const htmlBody = (body || "").includes("<") ? body : `<html><body>${(body || "").replace(/\n/g, "<br>")}</body></html>`;
+      const r = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: { "api-key": brevoKey, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sender: { email: fromEmail, name: fromName },
+          to: [{ email: to }],
+          subject: subject || "(no subject)",
+          htmlContent: htmlBody,
+          tags: ["warmup"],
+        }),
+      });
+      if (!r.ok) return json({ ok: false, error: `Brevo ${r.status}: ${await r.text()}` }, 500);
+      return json({ ok: true, from: fromEmail, to });
+    }
+
+    // ── Inbound reply: from warm-up mailbox (warmup_mailboxes table) via SMTP ──
+    if (!mailbox_id) return json({ ok: false, error: "mailbox_id or inbox_id required" }, 400);
+    const { data: mb, error } = await sb.from("warmup_mailboxes").select("*").eq("id", mailbox_id).single();
+    if (error || !mb) return json({ ok: false, error: "mailbox not found" }, 404);
+
+    const prov = (mb.provider || "gmail").toLowerCase();
+    const [dHost, dPort] = PROVIDER_SMTP[prov] || PROVIDER_SMTP.gmail;
+    const host = mb.smtp_host || dHost;
+    const port = mb.smtp_port || dPort;
+    const pass = (mb.app_password || "").replace(/\s+/g, "");
+    if (!pass) return json({ ok: false, error: "mailbox has no app_password" }, 400);
+
+    const client = new SMTPClient({
+      connection: {
+        hostname: host,
+        port: Number(port),
+        tls: Number(port) === 465,
+        auth: { username: mb.email, password: pass },
+      },
+    });
+
+    await client.send({
+      from: mb.name ? `${mb.name} <${mb.email}>` : mb.email,
+      to,
+      subject: subject || "(no subject)",
+      content: body || "",
+      html: (body || "").includes("<") ? body : `<html><body>${(body || "").replace(/\n/g, "<br>")}</body></html>`,
+    });
+    await client.close();
+
+    return json({ ok: true, from: mb.email, to });
+  } catch (e) {
+    return json({ ok: false, error: String(e?.message || e) }, 500);
+  }
+});
