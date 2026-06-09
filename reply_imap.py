@@ -305,7 +305,11 @@ def process_inbox(ib, warmup_emails, cfg):
                 print(f"    + [{kind}] reply from {from_addr}: {subject[:50]}")
 
                 if kind == 'warmup':
+                                    if kind == 'warmup':
+                    if daily_limit > 0:
+                        warmup_sent_today = count_warmup_sent_today(ib['id'], day_start)
                     if daily_limit > 0 and warmup_sent_today >= daily_limit:
+                        print(f"    ! auto-reply to {from_addr} skipped — inbox at daily limit ({warmup_sent_today}/{daily_limit})")
                         print(f"    ! auto-reply to {from_addr} skipped — inbox at daily limit ({daily_limit})")
                     else:
                         reply_subj = f"Re: {subject}" if not subject.lower().startswith('re:') else subject
