@@ -25,7 +25,6 @@
     { "source": "/about", "destination": "/about.html" },
     { "source": "/terms", "destination": "/terms.html" },
     { "source": "/privacy", "destination": "/privacy.html" },
-    { "source": "/euro-office", "destination": "/euro-office.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
