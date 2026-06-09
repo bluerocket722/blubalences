@@ -467,9 +467,11 @@ def send_queued_replies(mb, cfg, min_m=None, max_m=None):
                 inbox_limit_cache[to_addr] = {'id': None, 'limit': 0, 'sent_today': 0}
 
         info = inbox_limit_cache[to_addr]
-        if info['limit'] > 0 and info['sent_today'] >= info['limit']:
-            print(f"  Skipping queued reply to {to_addr} — inbox at daily limit ({info['limit']})")
-            continue
+        if info['limit'] > 0:
+            info['sent_today'] = count_warmup_sent_today(info['id'], day_start) if info['id'] else 0
+            if info['sent_today'] >= info['limit']:
+                print(f"  Skipping queued reply to {to_addr} — inbox at daily limit ({info['sent_today']}/{info['limit']})")
+                continue
 
         ok = send_reply(
             mb, cfg,
@@ -625,6 +627,13 @@ def run_outbound_warmup(cfg, min_m, max_m):
     print(f"Outbound sends this run: {len(ordered)}")
     sent = 0
     for idx, (s, r) in enumerate(ordered):
+        current_count = count_warmup_sent_today(s['id'], day_start)
+        hard = int(s.get('warmup_daily_limit') or 0)
+        effective_limit = hard if hard > 0 else compute_inbox_limit(s)
+        if current_count >= effective_limit:
+            print(f"  [{idx+1}/{len(ordered)}] {s['email']} — at daily limit ({current_count}/{effective_limit}), skipping rest")
+            continue
+
         subj = OUT_SUBJECTS[idx % len(OUT_SUBJECTS)]
         body = OUT_BODIES[idx % len(OUT_BODIES)]
         try:
