@@ -1819,16 +1819,23 @@ function initAutoSend() {
         }
       }
 
-      // Per-sequence schedules
-      const { data: seqRows } = await sb.from('sequences').select('id,name,send_time,send_days,active').eq('active', true);
+           // Per-sequence schedules
+      const { data: seqRows } = await sb.from('sequences').select('id,name,send_time,send_days,active,is_warmup').eq('active', true);
       for (const seq of (seqRows||[])) {
         if (!seq.send_time) continue;
         const seqDays = (seq.send_days || cfg.send_days || 'mon,tue,wed,thu,fri').split(',').map(d=>d.trim());
         const sk = `auto_sent_seq_${seq.id}_${dateKey}_${seq.send_time}`;
         if (currentTime === seq.send_time && seqDays.includes(currentDay) && !sessionStorage.getItem(sk)) {
           sessionStorage.setItem(sk, '1');
-          const ok = await triggerDrip(token, repo);
-          console.log(`[auto-send] Seq "${seq.name}" trigger: ${ok ? 'ok' : 'failed'}`);
+          if (seq.is_warmup) {
+            try {
+              const { data, error } = await sb.functions.invoke('drip-warmup');
+              console.log(`[auto-send] Warmup seq "${seq.name}" edge fn: ${error ? 'failed: '+error.message : 'sent '+(data?.sent??0)}`);
+            } catch(e) { console.warn(`[auto-send] Warmup seq "${seq.name}" error:`, e.message); }
+          } else {
+            const ok = await triggerDrip(token, repo);
+            console.log(`[auto-send] Seq "${seq.name}" trigger: ${ok ? 'ok' : 'failed'}`);
+          }
         }
       }
     } catch(e) { console.warn('[auto-send] error:', e.message); }
