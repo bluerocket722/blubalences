@@ -1,0 +1,20 @@
+name: Warm-Up Emails
+
+on:
+  schedule:
+    - cron: '0 6 * * *'   # 6:00 AM UTC daily
+  workflow_dispatch:        # allow manual runs too
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Invoke drip-warmup edge function
+        run: |
+          curl -sf -X POST "$SUPABASE_URL/functions/v1/drip-warmup" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_KEY" \
+            -H "Content-Type: application/json" \
+            --fail-with-body
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
