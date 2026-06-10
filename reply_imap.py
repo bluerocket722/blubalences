@@ -260,10 +260,10 @@ def process_inbox(ib, warmup_emails, cfg):
     captured = 0
     try:
         M.select('INBOX')
-        since = time.strftime('%d-%b-%Y', time.gmtime(time.time() - 7 * 86400))
+        since = time.strftime('%d-%b-%Y', time.gmtime(time.time() - 1 * 86400))
         _, nums = M.search(None, f'(SINCE {since})')
         ids = nums[0].split() if nums[0] else []
-        print(f"  Scanning {len(ids)} emails from last 7 days")
+        print(f"  Scanning {len(ids)} emails from last 1 day")
         for num in ids[-200:]:
             try:
                 _, data = M.fetch(num, '(RFC822)')
@@ -305,12 +305,10 @@ def process_inbox(ib, warmup_emails, cfg):
                 print(f"    + [{kind}] reply from {from_addr}: {subject[:50]}")
 
                 if kind == 'warmup':
-                                    if kind == 'warmup':
                     if daily_limit > 0:
                         warmup_sent_today = count_warmup_sent_today(ib['id'], day_start)
                     if daily_limit > 0 and warmup_sent_today >= daily_limit:
                         print(f"    ! auto-reply to {from_addr} skipped — inbox at daily limit ({warmup_sent_today}/{daily_limit})")
-                        print(f"    ! auto-reply to {from_addr} skipped — inbox at daily limit ({daily_limit})")
                     else:
                         reply_subj = f"Re: {subject}" if not subject.lower().startswith('re:') else subject
                         reply_body = random.choice(REPLY_TEMPLATES)
