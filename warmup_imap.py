@@ -389,26 +389,54 @@ def already_queued(message_id):
 
 SPAM_FOLDERS = ["[Gmail]/Spam", "Spam", "Junk", "Junk E-mail", "Junk Email", "Bulk Mail"]
 
+def discover_junk_folders(M):
+    """Find spam/junk folders via SPECIAL-USE \\Junk flag, plus known names."""
+    found = []
+    try:
+        typ, data = M.list()
+        if typ == 'OK':
+            for raw in data or []:
+                line = (raw.decode('utf-8', errors='replace') if isinstance(raw, bytes) else str(raw))
+                # folder name is the last quoted segment
+                m = re.search(r'"([^"]+)"\s*$', line)
+                name = m.group(1) if m else line.split()[-1]
+                if '\\Junk' in line or 'spam' in name.lower() or 'junk' in name.lower() or 'bulk' in name.lower():
+                    found.append(name)
+    except Exception as e:
+        print(f"  folder-list failed: {e}")
+    # always include the hardcoded fallbacks
+    for f in SPAM_FOLDERS:
+        if f not in found:
+            found.append(f)
+    return found
+
 def rescue_from_spam(M, inbox_emails, inbox_name="INBOX"):
     rescued = 0
-    for folder in SPAM_FOLDERS:
+    # domains of our senders, so a From match works even if the exact address differs
+    sender_domains = {e.split('@')[-1].lower() for e in inbox_emails if '@' in e}
+
+    for folder in discover_junk_folders(M):
         try:
             typ, _ = M.select(f'"{folder}"')
         except Exception:
             continue
         if typ != 'OK':
             continue
-        typ, data = M.search(None, 'UNSEEN')
+        # scan ALL recent mail in spam, not just UNSEEN — Gmail often pre-marks spam as read
+        typ, data = M.search(None, 'ALL')
         if typ != 'OK' or not data or not data[0]:
             continue
+        is_gmail_folder = folder.startswith('[Gmail]') or 'gmail' in folder.lower()
         for num in data[0].split():
             try:
                 _, hdr = M.fetch(num, '(RFC822.HEADER)')
                 msg = email.message_from_bytes(hdr[0][1])
                 _, from_addr = email.utils.parseaddr(msg.get('From', ''))
-                if from_addr.lower() not in inbox_emails:
+                from_addr = from_addr.lower()
+                from_domain = from_addr.split('@')[-1] if '@' in from_addr else ''
+                if from_addr not in inbox_emails and from_domain not in sender_domains:
                     continue
-                if folder.startswith('[Gmail]'):
+                if is_gmail_folder:
                     M.copy(num, 'INBOX')
                     M.store(num, '+FLAGS', '\\Deleted')
                 else:
