@@ -2,7 +2,7 @@ name: Warm-Up Emails
 
 on:
   schedule:
-    - cron: '0 6 * * *'   # 6:00 AM UTC daily
+    - cron: '0 11 * * *'   # 6:00 AM EST (UTC-5) daily
   workflow_dispatch:        # allow manual runs too
 
 jobs:
