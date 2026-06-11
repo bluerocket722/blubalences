@@ -1,9 +1,11 @@
 name: Warm-Up Emails
 
+# IMPORTANT: NO schedule/cron here. A frequent GitHub cron risks flagging the
+# sending account, and warm-up timing is owned by the drip-warmup edge function
+# (pinged every minute by Supabase pg_cron — see supabase/pg_cron_drip_warmup.sql).
+# This workflow is manual-trigger only, for ad-hoc/debug invocations.
 on:
-  schedule:
-    - cron: '0 11 * * *'   # 6:00 AM EST (UTC-5) daily
-  workflow_dispatch:        # allow manual runs too
+  workflow_dispatch:
 
 jobs:
   send:
