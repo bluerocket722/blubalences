@@ -776,6 +776,18 @@ def process_mailbox(mb, cfg, inbox_emails, min_m, max_m):
                 mark_important(M, num, is_gmail)
                 opened += 1
 
+                # Only auto-reply to brand-new, top-level warm-up emails. If the
+                # message is itself a reply (it carries In-Reply-To/References, or
+                # has a "Re:" subject), skip it — otherwise two seeds keep replying
+                # to each other and a single thread balloons to 9-10 back-and-forths.
+                # We still mark it read/important above, so it counts as "opened".
+                is_reply_msg = (
+                    bool(msg.get('In-Reply-To') or msg.get('References'))
+                    or subj.strip().lower().startswith('re:')
+                )
+                if is_reply_msg:
+                    continue
+
                 if already_queued(msg_id):
                     continue
 
