@@ -13,6 +13,26 @@ function bellMinutes(min: number, max: number): number {
   return Math.round(min + (sum / 6) * (max - min));
 }
 
+// Current weekday key (sun..sat) and HH:MM (24h) in a given IANA timezone.
+function nowInTz(tz: string): { day: string; time: string } {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    hour12: false,
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).formatToParts(new Date());
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+  const dayMap: Record<string, string> = {
+    Sun: "sun", Mon: "mon", Tue: "tue", Wed: "wed", Thu: "thu", Fri: "fri", Sat: "sat",
+  };
+  const day = dayMap[get("weekday")] ?? "";
+  let hour = get("hour");
+  if (hour === "24") hour = "00"; // Intl can emit "24" at midnight in some runtimes
+  const time = `${hour.padStart(2, "0")}:${get("minute").padStart(2, "0")}`;
+  return { day, time };
+}
+
 function personalize(body: string, email: string, name: string): string {
   const display = name || email.split("@")[0];
   const parts = display.split(" ");
@@ -87,17 +107,36 @@ serve(async (req) => {
     });
   }
 
+  // Account-level scheduling config. The edge function is authoritative on timing.
+  const sendTz = cfg.send_timezone || "America/New_York";
+  const defaultSendDays = cfg.send_days || "mon,tue,wed,thu,fri";
+  const { day: curDay, time: curTime } = nowInTz(sendTz);
+
   const now = new Date().toISOString();
 
   const { data: sequences } = await sb
     .from("sequences")
-    .select("id,name,same_thread,min_interval_minutes,max_interval_minutes")
+    .select("id,name,same_thread,min_interval_minutes,max_interval_minutes,send_time,send_days")
     .eq("active", true)
     .eq("is_warmup", true);
 
   const results: string[] = [];
 
   for (const seq of sequences || []) {
+    // Honor the sequence's configured send_time / send_days. With no send_time,
+    // fall back to the legacy "send whenever invoked" behavior.
+    if (seq.send_time) {
+      const days = (seq.send_days || defaultSendDays).split(",").map((d: string) => d.trim());
+      if (!days.includes(curDay)) {
+        results.push(`⏭ ${seq.name}: ${curDay} not in send_days (${days.join(",")})`);
+        continue;
+      }
+      if (curTime < seq.send_time) {
+        results.push(`⏭ ${seq.name}: now ${curTime} ${sendTz} is before send_time ${seq.send_time}`);
+        continue;
+      }
+    }
+
     const minM = seq.min_interval_minutes ?? 5;
     const maxM = seq.max_interval_minutes ?? 15;
 
