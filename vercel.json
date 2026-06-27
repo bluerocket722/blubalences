@@ -25,7 +25,8 @@
     { "source": "/about", "destination": "/about.html" },
     { "source": "/terms", "destination": "/terms.html" },
     { "source": "/privacy", "destination": "/privacy.html" },
+    { "source": "/document-creation-2", "destination": "/document-creation-2.html" },
     { "source": "/(.*)", "destination": "/index.html" }
-    { "source": "/document-creation-2", "destination": "/document-creation-2.html" }
+    
   ]
 }
