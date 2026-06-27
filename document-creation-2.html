@@ -489,6 +489,9 @@ hr { border: 0; border-top: 1px solid var(--border2); margin: 16px 0; }
             <div style="font-size:12px;margin-top:4px;color:var(--text-dim);">or drag and drop · PDF only</div>
             <input type="file" id="file-input" style="display:none" accept=".pdf">
           </div>
+
+          <!-- DOCUMENT DETECTION (reads the PDF, identifies the form, preserves existing fields) -->
+          <div id="doc-detect" class="annotation-hint" style="display:none;margin-top:12px;line-height:1.6;"></div>
         </div>
 
         <!-- ANNOTATION ZONE -->
@@ -573,6 +576,8 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 </script>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<!-- pdf-lib: read existing fillable fields + detect form type (pure, local, no network) -->
+<script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
 
 <script>
 const MAKE_WEBHOOK_URL         = "https://hook.us1.make.com/nzft5pdep4ndl9kxhmw6nakhidje3p77";
@@ -705,13 +710,51 @@ fileInput.onchange = async () => {
     const ti = document.getElementById("document_title");
     if (ti && !ti.dataset.manual) { ti.dataset.uploadName = file.name.replace(/\.pdf$/i,""); ti.value = ti.dataset.uploadName; }
     renderPDF(url);
+    detectUploadedDoc(file);
   } catch (err) { console.error(err); alert("Upload failed"); }
 };
+
+/* ── DOCUMENT DETECTION (read PDF → identify form → preserve existing fields) ── */
+const DETECT_FORMS = [
+  { id:"w9", label:"IRS W-9 (Request for Taxpayer Identification Number)", patterns:[/\bw[\s\-_]?9\b/i,/request for taxpayer/i,/taxpayer identification number/i] },
+  { id:"w4", label:"IRS W-4 (Employee's Withholding Certificate)", patterns:[/\bw[\s\-_]?4\b/i,/employee'?s withholding/i] },
+  { id:"i9", label:"USCIS I-9 (Employment Eligibility Verification)", patterns:[/\bi[\s\-_]?9\b/i,/employment eligibility verification/i] },
+  { id:"eu-supplier", label:"EU Supplier / VAT registration", patterns:[/\bvat\b/i,/\biban\b/i,/supplier/i] }
+];
+async function detectUploadedDoc(file) {
+  const badge = document.getElementById("doc-detect");
+  try {
+    const buf = await file.arrayBuffer();
+    const doc = await PDFLib.PDFDocument.load(buf, { ignoreEncryption: true });
+    const flds = doc.getForm().getFields();
+    const meta = [doc.getTitle(), doc.getSubject(), doc.getKeywords(), doc.getAuthor()].filter(Boolean).join(" ");
+    const hay = (meta + " " + flds.map(f => f.getName()).join(" ") + " " + file.name).toLowerCase();
+    let def = null, score = 0;
+    for (const c of DETECT_FORMS) {
+      const s = c.patterns.reduce((n, re) => n + (re.test(hay) ? 1 : 0), 0);
+      if (s > score) { def = c; score = s; }
+    }
+    const n = flds.length;
+    window.DOC_DETECT = { formId: def ? def.id : null, label: def ? def.label : "Unknown document", nativeFieldCount: n };
+    badge.style.display = "block";
+    badge.innerHTML = `🔎 Detected: <strong style="color:var(--text)">${def ? def.label : "Unknown document"}</strong><br>` +
+      (n > 0
+        ? `✓ ${n} existing fillable field${n !== 1 ? "s" : ""} found — these are <strong style="color:var(--text)">kept fillable</strong>. Add any extra boxes (signature, etc.) below.`
+        : `No fillable fields (flat PDF) — place the boxes you need below.`);
+  } catch (e) {
+    console.warn("Detection failed:", e);
+    window.DOC_DETECT = null;
+    badge.style.display = "block";
+    badge.textContent = "Could not analyze this PDF (it will still upload and work).";
+  }
+}
 
 /* ── RESET ── */
 function resetDocumentState() {
   document.querySelectorAll(".signature-box").forEach(el => el.remove());
   fieldList = []; selectedBox = null; activeDrag = resizeTarget = resizeDir = null; currentSigner = 1;
+  const badge = document.getElementById("doc-detect"); if (badge) { badge.style.display = "none"; badge.innerHTML = ""; }
+  window.DOC_DETECT = null;
 }
 
 /* ── FIELD TYPE ── */
@@ -926,6 +969,9 @@ async function submitData() {
         template:     "",
         pdf_url:      window.UPLOADED_PDF_URL || "",
         custom_email: "",
+        detected_form:      window.DOC_DETECT?.formId ?? null,
+        detected_label:     window.DOC_DETECT?.label ?? null,
+        native_field_count: window.DOC_DETECT?.nativeFieldCount ?? null,
         signer1_name: signerRows[0]?.name||null,  signer1_email:signerRows[0]?.email||null,  signer1_token:signerRows[0]?.token||null,
         signer2_name: signerRows[1]?.name||null,  signer2_email:signerRows[1]?.email||null,  signer2_token:signerRows[1]?.token||null,
         signer3_name: signerRows[2]?.name||null,  signer3_email:signerRows[2]?.email||null,  signer3_token:signerRows[2]?.token||null,
