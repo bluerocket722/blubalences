@@ -961,22 +961,12 @@ async function submitData() {
       if (fieldError) throw fieldError;
     }
 
-    await fetch(MAKE_WEBHOOK_URL, {
-      method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({
-        doc_id:       docId,
-        title:        titleInput?.value || name,
-        template:     "",
-        pdf_url:      window.UPLOADED_PDF_URL || "",
-        custom_email: "",
-        detected_form:      window.DOC_DETECT?.formId ?? null,
-        detected_label:     window.DOC_DETECT?.label ?? null,
-        native_field_count: window.DOC_DETECT?.nativeFieldCount ?? null,
-        signer1_name: signerRows[0]?.name||null,  signer1_email:signerRows[0]?.email||null,  signer1_token:signerRows[0]?.token||null,
-        signer2_name: signerRows[1]?.name||null,  signer2_email:signerRows[1]?.email||null,  signer2_token:signerRows[1]?.token||null,
-        signer3_name: signerRows[2]?.name||null,  signer3_email:signerRows[2]?.email||null,  signer3_token:signerRows[2]?.token||null,
-        signer4_name: signerRows[3]?.name||null,  signer4_email:signerRows[3]?.email||null,  signer4_token:signerRows[3]?.token||null
-      })
+        // EU-sovereign dispatch — emails signer 1 via the send-document edge
+    // function (Brevo, no Make). finalize-document emails each later signer.
+    await fetch(`${SUPABASE_URL}/functions/v1/send-document`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${SUPABASE_ANON_KEY}` },
+      body: JSON.stringify({ doc_id: docId })
     });
 
     alert("Document sent successfully for signature.");
