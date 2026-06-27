@@ -1,0 +1,107 @@
+{
+  "formId": "w9",
+  "formName": "IRS W-9 (Rev. Oct 2018)",
+  "description": "Request for Taxpayer Identification Number and Certification",
+  "notes": "Coordinates in PDF points (72 pt = 1 inch), origin at bottom-left. Letter: 612 x 792. Edit x/y/width/height to reposition fields. To add a new form, copy this file and change the field definitions.",
+
+  "pages": {
+    "1": {
+      "textFields": [
+        {
+          "name": "name",
+          "label": "Name (as shown on your income tax return)",
+          "x": 36, "y": 647, "width": 540, "height": 18,
+          "fontSize": 11, "maxLength": 80
+        },
+        {
+          "name": "businessName",
+          "label": "Business name / disregarded entity name",
+          "x": 36, "y": 615, "width": 540, "height": 18,
+          "fontSize": 11, "maxLength": 80
+        },
+        {
+          "name": "exemptPayeeCode",
+          "label": "Exempt payee code (if any)",
+          "x": 422, "y": 572, "width": 70, "height": 14,
+          "fontSize": 10, "maxLength": 10
+        },
+        {
+          "name": "fatcaCode",
+          "label": "Exemption from FATCA reporting code",
+          "x": 502, "y": 572, "width": 74, "height": 14,
+          "fontSize": 10, "maxLength": 10
+        },
+        {
+          "name": "address",
+          "label": "Address (number, street, apt/suite)",
+          "x": 36, "y": 540, "width": 380, "height": 16,
+          "fontSize": 11, "maxLength": 80
+        },
+        {
+          "name": "cityStateZip",
+          "label": "City, state, and ZIP code",
+          "x": 36, "y": 510, "width": 380, "height": 16,
+          "fontSize": 11, "maxLength": 80
+        },
+        {
+          "name": "requesterInfo",
+          "label": "Requester's name and address (optional)",
+          "x": 422, "y": 522, "width": 154, "height": 33,
+          "fontSize": 10, "maxLength": 60
+        },
+        {
+          "name": "accountNumbers",
+          "label": "List account number(s) here (optional)",
+          "x": 36, "y": 498, "width": 380, "height": 14,
+          "fontSize": 11, "maxLength": 40
+        }
+      ],
+
+      "checkboxes": [
+        { "name": "taxClass_individual", "label": "Individual/sole proprietor or single-member LLC", "x": 42, "y": 580, "size": 10 },
+        { "name": "taxClass_cCorp", "label": "C Corporation", "x": 266, "y": 580, "size": 10 },
+        { "name": "taxClass_sCorp", "label": "S Corporation", "x": 318, "y": 580, "size": 10 },
+        { "name": "taxClass_partnership", "label": "Partnership", "x": 370, "y": 580, "size": 10 },
+        { "name": "taxClass_trust", "label": "Trust/estate", "x": 404, "y": 580, "size": 10 },
+        { "name": "taxClass_llc", "label": "Limited liability company", "x": 42, "y": 568, "size": 10 },
+        { "name": "taxClass_other", "label": "Other (see instructions)", "x": 246, "y": 568, "size": 10 }
+      ],
+
+      "llcClassification": {
+        "name": "llcTaxClassification",
+        "label": "LLC tax classification (C, S, or P)",
+        "x": 395, "y": 568, "width": 20, "height": 14,
+        "fontSize": 10, "maxLength": 1
+      },
+
+      "ssnField": {
+        "label": "Social Security Number",
+        "y": 462, "startX": 422,
+        "digitWidth": 16, "digitHeight": 18,
+        "gap": 1.5, "dashAfter": [3, 5], "dashWidth": 6,
+        "fontSize": 12
+      },
+
+      "einField": {
+        "label": "Employer Identification Number",
+        "y": 436, "startX": 422,
+        "digitWidth": 16, "digitHeight": 18,
+        "gap": 1.5, "dashAfter": [2], "dashWidth": 6,
+        "fontSize": 12
+      },
+
+      "signatureFields": [
+        {
+          "name": "signature",
+          "label": "Signature of U.S. person",
+          "x": 100, "y": 78, "width": 330, "height": 20, "fontSize": 12
+        },
+        {
+          "name": "signatureDate",
+          "label": "Date",
+          "x": 470, "y": 78, "width": 106, "height": 20, "fontSize": 12
+        }
+      ]
+    }
+  }
+}
