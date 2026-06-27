@@ -794,7 +794,21 @@ document.getElementById("finishBtn")?.addEventListener("click",async()=>{
   if(record.all_signers?.length)record.all_signers.forEach(s=>{flattenedSigners[`signer_${s.signer_order}_id`]=s.id;flattenedSigners[`signer_${s.signer_order}_name`]=s.name;flattenedSigners[`signer_${s.signer_order}_email`]=s.email;flattenedSigners[`signer_${s.signer_order}_token`]=s.token;});
   const isLastSigner=record.all_signers&&record.signer_order===record.all_signers.length;
   await sendAuditEvent("signed_document");
-  await fetch("https://hook.us1.make.com/nlj9t13xg4yhsmelk2a0eapchcpy7k76",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({signed_at:new Date().toISOString(),user_agent:navigator.userAgent,pdf_sha256:pdfSha256,title:record.title,status:isLastSigner?"completed":"signed",template:record.template,esign_consent:esignAccepted,esign_consent_at:esignAccepted?new Date().toISOString():null,token,doc_id:record.doc_id,signer_id:record.id,signer_order:record.signer_order,signer:record?.name||"unknown",email:record?.email||"unknown",jira:jiraCode||"UNSET",...flattenedSigners,fields:completedFields,w9_mode:isW9Document(),native_mode:hasNative,base_pdf_url:basePdfUrl,pdf_base64:pdfBase64})});
+  await const pdfBase64 = btoa(new Uint8Array(finalPdfBytes).reduce((s,b)=>s+String.fromCharCode(b),""));
+await sendAuditEvent("signed_document");
+await fetch(`${SUPABASE_URL}/functions/v1/finalize-document`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json", "apikey": SUPABASE_ANON, "Authorization": `Bearer ${SUPABASE_ANON}` },
+  body: JSON.stringify({
+    doc_id: record.doc_id,
+    token,
+    signer_order: record.signer_order,
+    title: record.title,
+    pdf_sha256: pdfSha256,
+    user_agent: navigator.userAgent,
+    pdf_base64: pdfBase64
+  })
+});
   document.body.innerHTML=`<div style="position:fixed;inset:0;background:#202124;color:#e8eaed;display:flex;align-items:center;justify-content:center;font-family:'Roboto',system-ui;z-index:999999;padding:40px;"><div style="text-align:center;max-width:420px;"><div style="width:64px;height:64px;background:rgba(15,157,88,0.12);border:1px solid rgba(15,157,88,0.3);border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 24px;font-size:28px;">✓</div><h1 style="font-size:24px;font-weight:400;margin-bottom:12px;letter-spacing:-.3px;">Document Signed</h1><p style="color:rgba(255,255,255,0.5);font-size:14px;line-height:1.7;">This document has been securely completed and recorded by Blu Balence. For your protection, the signed document is no longer viewable on this device.</p></div></div>`;
   document.documentElement.style.overflow="hidden"; document.body.style.overflow="hidden";
 });
