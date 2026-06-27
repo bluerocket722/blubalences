@@ -1,267 +1,948 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HR Document Dispatch | Blu Balence</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+:root {
+  --bg: #202124;
+  --surface: #292a2d;
+  --surface2: #35363a;
+  --surface3: #3c3d42;
+  --border: rgba(255,255,255,.10);
+  --border2: rgba(255,255,255,.06);
+  --text: #e8eaed;
+  --text-sub: #9aa0a6;
+  --text-dim: #5f6368;
+  --primary: #1a73e8;
+  --primary-light: #4285f4;
+  --success: #0f9d58;
+  --danger: #d93025;
+  --input-bg: #1a1b1e;
+  /* Signer palette */
+  --s1: #0891b2;  --s1-bg: rgba(8,145,178,.18);
+  --s2: #16a34a;  --s2-bg: rgba(22,163,74,.18);
+  --s3: #d97706;  --s3-bg: rgba(217,119,6,.18);
+  --s4: #7c3aed;  --s4-bg: rgba(124,58,237,.18);
+}
 
-const CORS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  font-family: 'Roboto', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── TOPBAR ── */
+.topbar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.topbar-logo {
+  display: flex; align-items: center; gap: 8px;
+  text-decoration: none;
+}
+.topbar-logo-mark {
+  width: 32px; height: 32px;
+  background: var(--primary); border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 700; color: #fff;
+}
+.topbar-logo-text { font-size: 20px; font-weight: 400; color: var(--text); letter-spacing: -.3px; }
+.topbar-sep { width: 1px; height: 24px; background: var(--border); }
+.topbar-title { font-size: 18px; font-weight: 400; color: var(--text); }
+.topbar-spacer { flex: 1; }
+.topbar-badge {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 12px; font-weight: 500;
+  color: var(--text-sub);
+}
+
+/* ── PAGE WRAP ── */
+.page-wrap { padding: 24px; max-width: 1100px; margin: 0 auto; }
+
+.page-header { margin-bottom: 20px; }
+.page-header h1 { margin: 0; font-size: 22px; font-weight: 400; letter-spacing: -.3px; }
+.page-header p  { margin: 4px 0 0; font-size: 13px; color: var(--text-sub); }
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 16px;
+}
+
+/* ── CARDS ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px 24px;
+  margin-bottom: 14px;
+}
+.card:last-child { margin-bottom: 0; }
+
+.section-title {
+  font-size: 11px; font-weight: 500;
+  margin-bottom: 14px;
+  color: var(--primary-light);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  display: flex; align-items: center; gap: 7px;
+}
+
+.form-group { margin-bottom: 14px; }
+.form-group:last-child { margin-bottom: 0; }
+
+label {
+  display: block;
+  font-size: 11px; font-weight: 500;
+  color: var(--text-sub);
+  margin-bottom: 5px;
+  text-transform: uppercase; letter-spacing: .06em;
+}
+
+input, select, textarea {
+  width: 100%;
+  padding: 9px 0;
+  border: none; border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  font-size: 13px;
+  font-family: 'Roboto', sans-serif;
+  background: transparent;
+  color: var(--text);
+  outline: none;
+  transition: border-color .15s;
+}
+input:focus, select:focus, textarea:focus { border-color: var(--primary); }
+input::placeholder { color: var(--text-dim); }
+textarea { resize: vertical; min-height: 80px; }
+
+/* Boxed selects */
+select.boxed {
+  padding: 8px 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+select.boxed:focus { border-color: var(--primary); }
+select option { background: var(--surface2); color: var(--text); }
+
+hr { border: 0; border-top: 1px solid var(--border2); margin: 16px 0; }
+
+/* ── RESOURCE BUTTONS ── */
+.resource-btn {
+  background: var(--surface2);
+  color: var(--text-sub);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 7px 14px;
+  font-size: 12px; font-weight: 500;
+  cursor: pointer; transition: all .15s;
+  white-space: nowrap;
+  font-family: 'Roboto', sans-serif;
+}
+.resource-btn:hover { border-color: var(--primary); color: var(--primary-light); background: rgba(26,115,232,.1); }
+
+/* ── TOOL BUTTONS ── */
+.tool-btn {
+  background: var(--surface2);
+  color: var(--text-sub);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 12px; font-weight: 500;
+  cursor: pointer; transition: all .15s;
+  white-space: nowrap;
+  font-family: 'Roboto', sans-serif;
+}
+.tool-btn:hover { border-color: var(--primary); color: var(--primary-light); }
+.tool-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+.tool-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+#btn-signer1.active { background: var(--s1); border-color: var(--s1); color: #fff; }
+#btn-signer2.active { background: var(--s2); border-color: var(--s2); color: #fff; }
+#btn-signer3.active { background: var(--s3); border-color: var(--s3); color: #fff; }
+#btn-signer4.active { background: var(--s4); border-color: var(--s4); color: #fff; }
+
+/* ── SIGNER ROW ── */
+.signer-row {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+}
+.signer-row-label {
+  font-size: 11px; font-weight: 500;
+  color: var(--text-sub);
+  text-transform: uppercase; letter-spacing: .06em;
+  margin-bottom: 10px;
+  display: flex; align-items: center; gap: 6px;
+}
+.signer-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+/* calendar client picker inside signer row */
+.cal-pick-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; color: var(--text-sub); margin-bottom: 6px;
+}
+.cal-pick-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); }
+
+/* ── FILE UPLOAD ── */
+.file-upload-zone {
+  border: 2px dashed rgba(255,255,255,.15);
+  border-radius: 10px;
+  padding: 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: .2s;
+  color: var(--text-sub);
+  font-size: 13px;
+  background: var(--surface2);
+}
+.file-upload-zone:hover { border-color: var(--primary); color: var(--primary-light); }
+
+/* ── PDF VIEWER ── */
+#pdf-container {
+  background: #3a3b3e;
+  padding: 20px;
+  border-radius: 10px;
+  height: 640px;
+  overflow-y: auto;
+}
+#pdf-container::-webkit-scrollbar { width: 6px; }
+#pdf-container::-webkit-scrollbar-thumb { background: rgba(255,255,255,.2); border-radius: 3px; }
+#pdf-viewer { position: relative; display: flex; flex-direction: column; gap: 16px; }
+.page-container { position: relative; box-shadow: 0 4px 20px rgba(0,0,0,.5); }
+.page-container canvas { display: block; }
+
+/* ── SIGNATURE BOXES ── */
+.signature-box {
+  position: absolute;
+  min-width: 120px; min-height: 38px;
+  cursor: move; user-select: none; z-index: 10;
+  border-radius: 3px; overflow: visible;
+  display: flex; align-items: stretch;
+  font-family: 'Roboto', sans-serif;
+  transition: opacity .15s;
+}
+.sig-inner {
+  display: flex; align-items: center; gap: 6px;
+  width: 100%; padding: 0 8px;
+  border-radius: 3px; position: relative;
+  pointer-events: none; border: 1.5px solid;
+}
+.signature-box[data-signer="1"] .sig-inner { background: var(--s1-bg); border-color: var(--s1); border-left: 4px solid var(--s1); color: var(--s1); }
+.signature-box[data-signer="2"] .sig-inner { background: var(--s2-bg); border-color: var(--s2); border-left: 4px solid var(--s2); color: var(--s2); }
+.signature-box[data-signer="3"] .sig-inner { background: var(--s3-bg); border-color: var(--s3); border-left: 4px solid var(--s3); color: var(--s3); }
+.signature-box[data-signer="4"] .sig-inner { background: var(--s4-bg); border-color: var(--s4); border-left: 4px solid var(--s4); color: var(--s4); }
+.sig-icon  { font-size: 14px; flex-shrink: 0; opacity: .85; }
+.sig-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sig-tag   { position: absolute; top: -9px; right: 4px; font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; padding: 2px 5px; border-radius: 100px; color: #fff; white-space: nowrap; border: 1.5px solid rgba(255,255,255,.3); }
+.signature-box[data-signer="1"] .sig-tag { background: var(--s1); }
+.signature-box[data-signer="2"] .sig-tag { background: var(--s2); }
+.signature-box[data-signer="3"] .sig-tag { background: var(--s3); }
+.signature-box[data-signer="4"] .sig-tag { background: var(--s4); }
+.signature-box.selected .sig-inner { box-shadow: 0 0 0 2px rgba(255,255,255,.2), 0 0 0 4px var(--primary); }
+
+/* ── RESIZE HANDLES ── */
+.signature-box .resize-handle { position: absolute; width: 7px; height: 7px; background: #fff; border: 2px solid var(--primary); border-radius: 50%; z-index: 20; transition: transform .1s; }
+.resize-handle:hover { transform: scale(1.5); }
+.resize-t  { top:-3px;    left:50%;  transform:translateX(-50%); cursor:ns-resize; }
+.resize-b  { bottom:-3px; left:50%;  transform:translateX(-50%); cursor:ns-resize; }
+.resize-l  { left:-3px;   top:50%;   transform:translateY(-50%); cursor:ew-resize; }
+.resize-r  { right:-3px;  top:50%;   transform:translateY(-50%); cursor:ew-resize; }
+.resize-tl { top:-3px;    left:-3px; cursor:nwse-resize; }
+.resize-tr { top:-3px;    right:-3px;cursor:nesw-resize; }
+.resize-bl { bottom:-3px; left:-3px; cursor:nesw-resize; }
+.resize-br { bottom:-3px; right:-3px;cursor:nwse-resize; }
+
+/* ── SEND BUTTON ── */
+.btn-send {
+  background: var(--primary); color: #fff; border: none;
+  padding: 13px; border-radius: 20px;
+  font-weight: 500; font-size: 14px; width: 100%;
+  cursor: pointer; margin-top: 14px;
+  transition: background .15s, opacity .15s;
+  font-family: 'Roboto', sans-serif; letter-spacing: .25px;
+}
+.btn-send:hover:not(:disabled) { background: var(--primary-light); }
+.btn-send:disabled { opacity: .35; cursor: not-allowed; }
+
+.send-hint { font-size: 11px; color: var(--danger); text-align: center; margin-top: 7px; min-height: 16px; }
+
+/* ── STATUS BADGE ── */
+.status-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; font-size: 13px; color: var(--text-sub); border-bottom: 1px solid var(--border2); margin-bottom: 8px; }
+.status-row:last-of-type { border-bottom: none; }
+.status-row strong { color: var(--text); }
+.badge-green { display: inline-flex; align-items: center; gap: 4px; background: rgba(15,157,88,.15); color: #34d399; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; border: 1px solid rgba(15,157,88,.3); }
+.badge-green::before { content: ''; width: 6px; height: 6px; background: #34d399; border-radius: 50%; }
+
+/* ── CANDIDATE DROPDOWN ── */
+.candidate-dropdown {
+  position: absolute;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-top: 4px;
+  max-height: 240px;
+  overflow-y: auto;
+  width: 100%;
+  z-index: 50;
+  box-shadow: 0 10px 30px rgba(0,0,0,.4);
+}
+.candidate-dropdown::-webkit-scrollbar { width: 5px; }
+.candidate-dropdown::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.candidate-item { padding: 9px 13px; cursor: pointer; font-size: 13px; border-bottom: 1px solid var(--border2); transition: background .1s; }
+.candidate-item:last-child { border-bottom: none; }
+.candidate-item:hover { background: var(--surface3); }
+
+/* ── CALENDAR CLIENT SELECT ── */
+.cal-client-select {
+  width: 100%; padding: 8px 12px;
+  background: var(--surface3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text); font-family: 'Roboto', sans-serif;
+  font-size: 13px; cursor: pointer;
+  outline: none; transition: border-color .15s;
+  margin-bottom: 12px;
+}
+.cal-client-select:focus { border-color: var(--primary); }
+.cal-client-select option { background: var(--surface2); color: var(--text); }
+
+.hidden { display: none; }
+
+/* ── FIELD TOOLBAR ── */
+.field-toolbar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; align-items: center; }
+.toolbar-divider { width: 1px; height: 26px; background: var(--border); margin: 0 4px; }
+
+/* ── ANNOTATION HEADER ── */
+.annotation-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.annotation-hint { font-size: 11px; color: var(--text-dim); background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; }
+            /* ── LOGIN OVERLAY ── */
+    #login-overlay{position:fixed;inset:0;background:#0a1628;display:flex;align-items:center;justify-content:center;z-index:300}
+    #login-overlay .login-card{background:#111827;border:1px solid rgba(255,255,255,0.12);border-radius:16px;padding:40px 36px;width:100%;max-width:420px}
+    #login-overlay h1{color:#fff;font-size:26px;font-weight:700;margin-bottom:8px}
+    #login-overlay .login-sub{color:#9ca3af;font-size:15px;margin-bottom:28px}
+    #login-overlay .lo-label{color:#d1d5db;font-size:14px;font-weight:500;margin-bottom:6px;display:block;margin-top:14px}
+    #login-overlay .lo-input{background:#1f2937;border:1px solid rgba(255,255,255,0.12);color:#fff;border-radius:8px;padding:12px 14px;font-size:15px;width:100%;outline:none;transition:border-color .2s}
+    #login-overlay .lo-input:focus{border-color:#22c55e}
+    #login-overlay .login-btn{width:100%;background:#22c55e;color:#fff;border:none;border-radius:10px;padding:13px;font-size:16px;font-weight:600;cursor:pointer;transition:background .2s;margin-top:18px}
+    #login-overlay .login-btn:hover{background:#16a34a}
+    #login-overlay .login-err{color:#f87171;font-size:13px;margin-top:12px;text-align:center;min-height:20px}
+    </style>
+</head>
+<body>
+<div id="login-overlay">
+  <div class="login-card">
+    <h1>Welcome Back</h1>
+    <p class="login-sub">Please sign in to your account.</p>
+    <label class="lo-label">Email</label>
+    <input class="lo-input" id="lo-email" type="email" placeholder="you@example.com" onkeydown="if(event.key==='Enter')doLogin()">
+    <label class="lo-label">Password</label>
+    <input class="lo-input" id="lo-pass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="login-btn" onclick="doLogin()">Sign In</button>
+    <div class="login-err" id="lo-err"></div>
+  </div>
+</div>
+<!-- TOPBAR -->
+<div class="topbar">
+  <a class="topbar-logo" href="/">
+    <div class="topbar-logo-mark">B</div>
+    <span class="topbar-logo-text">Blu Balence</span>
+  </a>
+  <div class="topbar-sep"></div>
+  <span class="topbar-title">HR Document Dispatch</span>
+  <div class="topbar-spacer"></div>
+  <span class="topbar-badge">Internal Portal</span>
+</div>
+
+<div class="page-wrap">
+  <div class="page-header">
+    <h1>Prepare Signature Request</h1>
+    <p>Create, configure, and send documents for digital signature</p>
+  </div>
+
+  <form id="hr-dispatch-form">
+    <div class="dashboard-grid">
+      <div class="main-col">
+
+        <!-- QUICK RESOURCES -->
+        <div class="card">
+          <div class="section-title">Quick Resources</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button type="button" class="resource-btn" onclick="requestResourceDoc('QB Instructions')">QB Instructions</button>
+            <button type="button" class="resource-btn" onclick="requestResourceDoc('Supply List')">Supply List</button>
+            <button type="button" class="resource-btn" onclick="requestResourceDoc('Login Instructions')">Login Instructions</button>
+            <button type="button" class="resource-btn" onclick="requestResourceDoc('Schedule Instructions')">Schedule Instructions</button>
+          </div>
+        </div>
+
+        <!-- SIGNERS -->
+        <div class="card">
+          <div class="section-title">Recipients &amp; Signers</div>
+
+          <div class="form-group" style="max-width:180px;">
+            <label>Number of Signers</label>
+            <select id="signer_count" class="boxed" onchange="updateSignerVisibility()">
+              <option value="1">1 Signer</option>
+              <option value="2">2 Signers</option>
+              <option value="3">3 Signers</option>
+              <option value="4">4 Signers</option>
+            </select>
+          </div>
+
+          <!-- Signer 1 -->
+          <div class="signer-row">
+            <div class="signer-row-label">
+              <span class="signer-dot" style="background:var(--s1);"></span>
+              Signer 1
+            </div>
+
+            <!-- Calendar client dropdown -->
+            <div class="form-group">
+              <div class="cal-pick-badge"><span class="dot"></span><span id="cal-clients-label">Loading from calendar…</span></div>
+              <select class="cal-client-select" id="cal-client-select" onchange="fillSignerFromCalendar()">
+                <option value="">— Select from calendar to auto-fill —</option>
+              </select>
+            </div>
+
+            <div style="display:grid;grid-template-columns:auto 1fr 1fr 1fr;gap:10px;align-items:end;">
+              <div>
+                <label>&nbsp;</label>
+                <button type="button" class="tool-btn" style="width:40px;height:36px;padding:0;font-weight:700;" onclick="fetchCandidates()" title="Load candidates">Get</button>
+              </div>
+              <div style="position:relative;">
+                <label>Name</label>
+                <input type="text" id="signer1_name" placeholder="Full name" oninput="filterCandidates(this.value); updateSendButton();">
+                <div id="candidate-dropdown" class="candidate-dropdown hidden"></div>
+              </div>
+              <div>
+                <label>Email</label>
+                <input type="email" id="signer1_email" placeholder="email@example.com" oninput="updateSendButton()">
+              </div>
+              <div>
+                <label>Job / Jira Code</label>
+                <input type="text" id="jira_code" placeholder="HR-1245">
+              </div>
+            </div>
+          </div>
+
+          <div id="signer2_row" style="display:none;">
+            <div class="signer-row">
+              <div class="signer-row-label"><span class="signer-dot" style="background:var(--s2);"></span>Signer 2</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <div class="form-group" style="margin:0;"><label>Name</label><input type="text" id="signer2_name" placeholder="Full name"></div>
+                <div class="form-group" style="margin:0;"><label>Email</label><input type="email" id="signer2_email" placeholder="email@example.com"></div>
+              </div>
+            </div>
+          </div>
+
+          <div id="signer3_row" style="display:none;">
+            <div class="signer-row">
+              <div class="signer-row-label"><span class="signer-dot" style="background:var(--s3);"></span>Signer 3</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <div class="form-group" style="margin:0;"><label>Name</label><input type="text" id="signer3_name" placeholder="Full name"></div>
+                <div class="form-group" style="margin:0;"><label>Email</label><input type="email" id="signer3_email" placeholder="email@example.com"></div>
+              </div>
+            </div>
+          </div>
+
+          <div id="signer4_row" style="display:none;">
+            <div class="signer-row">
+              <div class="signer-row-label"><span class="signer-dot" style="background:var(--s4);"></span>Signer 4</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <div class="form-group" style="margin:0;"><label>Name</label><input type="text" id="signer4_name" placeholder="Full name"></div>
+                <div class="form-group" style="margin:0;"><label>Email</label><input type="email" id="signer4_email" placeholder="email@example.com"></div>
+              </div>
+            </div>
+          </div>
+
+          <hr>
+
+          <div class="form-group">
+            <label>Document Title</label>
+            <input type="text" id="document_title" placeholder="e.g. Contractor Agreement – Jane Smith">
+          </div>
+
+          <div class="file-upload-zone" id="drop-zone">
+            <div style="font-size:24px;margin-bottom:6px;">📄</div>
+            <div id="upload-text" style="font-weight:500;">Click to upload a custom PDF</div>
+            <div style="font-size:12px;margin-top:4px;color:var(--text-dim);">or drag and drop · PDF only</div>
+            <input type="file" id="file-input" style="display:none" accept=".pdf">
+          </div>
+        </div>
+
+        <!-- ANNOTATION ZONE -->
+        <div id="annotation-zone" class="card">
+          <div class="annotation-header">
+            <div class="section-title" style="margin:0;">Place Signature Fields</div>
+            <div class="annotation-hint">Click on the document to place · Delete key removes selected</div>
+          </div>
+
+          <div class="field-toolbar">
+            <button type="button" class="tool-btn active" id="btn-sig"   onclick="setFieldType('signature', this)">✍ Signature</button>
+            <button type="button" class="tool-btn"        id="btn-init"  onclick="setFieldType('initials', this)">Initials</button>
+            <button type="button" class="tool-btn"        id="btn-date"  onclick="setFieldType('date', this)">📅 Date</button>
+            <button type="button" class="tool-btn"        id="btn-text"  onclick="setFieldType('text', this)">Text</button>
+            <button type="button" class="tool-btn"        id="btn-name"  onclick="setFieldType('name', this)">Full Name</button>
+            <div class="toolbar-divider"></div>
+            <button type="button" class="tool-btn active" id="btn-signer1" onclick="setSigner(1,this)">Signer 1</button>
+            <button type="button" class="tool-btn"        id="btn-signer2" onclick="setSigner(2,this)">Signer 2</button>
+            <button type="button" class="tool-btn"        id="btn-signer3" onclick="setSigner(3,this)">Signer 3</button>
+            <button type="button" class="tool-btn"        id="btn-signer4" onclick="setSigner(4,this)">Signer 4</button>
+          </div>
+
+          <div id="pdf-container">
+            <div id="pdf-viewer">
+              <div id="overlay-layer" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;"></div>
+              <p style="text-align:center;color:var(--text-dim);margin-top:120px;font-size:14px;">Upload a PDF to begin placing fields</p>
+            </div>
+          </div>
+          <input type="hidden" name="coordinates" id="coord-data">
+        </div>
+
+      </div>
+
+      <!-- SIDE PANEL -->
+      <div class="side-col">
+        <div class="card" style="position:sticky;top:68px;">
+          <div class="section-title">Review &amp; Send</div>
+
+          <div class="status-row">
+            <span>Status</span>
+            <span class="badge-green">Ready</span>
+          </div>
+          <div class="status-row">
+            <span>Method</span>
+            <strong>Secure Digital</strong>
+          </div>
+
+          <hr>
+
+          <div class="form-group">
+            <label>Link Expiry</label>
+            <select class="boxed">
+              <option>48 Hours</option>
+              <option>7 Days</option>
+            </select>
+          </div>
+
+          <button type="button" class="btn-send" id="btn-send" onclick="submitData()" disabled>
+            Send for Signature
+          </button>
+          <p class="send-hint" id="send-hint">Signer 1 name and email are required</p>
+        </div>
+      </div>
+
+    </div>
+  </form>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL      = "https://rfdvogakvyodixgpvqvz.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJmZHZvZ2FrdnlvZGl4Z3B2cXZ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcwMzU4MDMsImV4cCI6MjA4MjYxMTgwM30.UumTuz6AaKL8uYmmNxFj1ec5CInHVNQowt6LRo4cu-E";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    async function doLogin() {
+  const email = document.getElementById('lo-email').value.trim();
+  const pass  = document.getElementById('lo-pass').value;
+  document.getElementById('lo-err').textContent = '';
+  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+  if (error) { document.getElementById('lo-err').textContent = error.message; return; }
+  document.getElementById('login-overlay').style.display = 'none';
+}
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+<script>
+const MAKE_WEBHOOK_URL         = "https://hook.us1.make.com/nzft5pdep4ndl9kxhmw6nakhidje3p77";
+const RESOURCE_WEBHOOK_URL     = "https://hook.us1.make.com/4ht70jpe4reumtxoj61c2khktdk3gt1v";
+const CANDIDATE_LOOKUP_WEBHOOK = "https://hook.us1.make.com/sg30vwpdf5tywoykjmyj3nj0vuyph5bl";
+
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+const FIELD_META = {
+  signature: { icon: "✍", label: "Signature" },
+  initials:  { icon: "✏", label: "Initials"  },
+  date:      { icon: "📅", label: "Date"      },
+  text:      { icon: "T",  label: "Text"      },
+  name:      { icon: "👤", label: "Full Name" }
 };
 
-function bellMinutes(min: number, max: number): number {
-  let sum = 0;
-  for (let i = 0; i < 6; i++) sum += Math.random();
-  return Math.round(min + (sum / 6) * (max - min));
-}
+let selectedBox = null, currentSigner = 1, currentFieldType = 'signature';
+let fieldList = [], activeDrag = null;
+let resizeTarget = null, resizeDir = null;
+let startX, startY, startW, startH, startLeft, startTop;
+let candidates = [], activeTemplateBlobUrl = null;
 
-function personalize(body: string, email: string, name: string): string {
-  const display = name || email.split("@")[0];
-  const parts = display.split(" ");
-  const first = parts[0] || display;
-  const last = parts.length > 1 ? parts[parts.length - 1] : "";
-  const now = new Date();
-  const today = now.toLocaleDateString("en-US", { month: "long", day: "2-digit", year: "numeric" });
-  const month = now.toLocaleDateString("en-US", { month: "long" });
-  return body
-    .replace(/\{\{\.?Subscriber\.?FirstName\}\}/g, first)
-    .replace(/\{\{\.?Subscriber\.?LastName\}\}/g, last)
-    .replace(/\{\{\.?Subscriber\.?Name\}\}/g, display)
-    .replace(/\{\{\.?Subscriber\.?Email\}\}/g, email)
-    .replace(/\{\{name\}\}/g, display)
-    .replace(/\{\{first_name\}\}/g, first)
-    .replace(/\{\{last_name\}\}/g, last)
-    .replace(/\{\{email\}\}/g, email)
-    .replace(/\{\{today\}\}/g, today)
-    .replace(/\{\{this_month\}\}/g, month);
-}
-
-async function sendBrevo(
-  apiKey: string,
-  from: { email: string; name: string },
-  to: { email: string; name: string },
-  subject: string,
-  body: string,
-  inReplyTo?: string
-) {
-  const text = personalize(body, to.email, to.name);
-  const html = text.includes("<") ? text : "<html><body>" + text.replace(/\n/g, "<br>") + "</body></html>";
-  const payload: Record<string, unknown> = {
-    sender: { email: from.email, name: from.name },
-    to: [{ email: to.email, name: to.name || to.email }],
-    subject,
-    htmlContent: html,
-    tags: ["warmup"],
-  };
-  if (inReplyTo) payload.headers = { "In-Reply-To": inReplyTo, References: inReplyTo };
-  const r = await fetch("https://api.brevo.com/v3/smtp/email", {
-    method: "POST",
-    headers: { "api-key": apiKey, "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  if (!r.ok) throw new Error(`Brevo ${r.status}: ${await r.text()}`);
-  return ((await r.json()).messageId ?? "") as string;
-}
-
-Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: CORS });
-  }
-
+/* ── CALENDAR CLIENTS ── */
+async function loadCalendarClients() {
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const sb = createClient(supabaseUrl, supabaseKey);
-
-    const { data: settingsRows } = await sb.from("settings").select("key,value");
-    const cfg: Record<string, string> = {};
-    for (const r of settingsRows || []) cfg[r.key] = String(r.value ?? "").replace(/^"|"$/g, "");
-
-    const brevoKey = cfg.brevo_api_key;
-    const rawFrom = cfg.from_email ?? "";
-    const fromMatch = rawFrom.match(/^(.+?)\s*<(.+?)>$/);
-    const globalFromEmail = fromMatch ? fromMatch[2] : rawFrom;
-    const globalFromName = cfg.from_name || globalFromEmail;
-
-    if (!brevoKey || !globalFromEmail) {
-      return new Response(JSON.stringify({ error: "brevo_api_key or from_email not set" }), {
-        status: 500, headers: { ...CORS, "Content-Type": "application/json" },
-      });
-    }
-
-    // ── Bell curve interval check ──
-    const globalMinM = parseInt(cfg.warmup_min_minutes || "5");
-    const globalMaxM = parseInt(cfg.warmup_max_minutes || "15");
-    const nowDate = new Date();
-    const nextRunAt = cfg.warmup_next_run_at ? new Date(cfg.warmup_next_run_at) : null;
-    const isManual = req.headers.get("x-manual-trigger") === "1";
-
-    if (!isManual && nextRunAt && nowDate < nextRunAt) {
-      const waitMin = Math.round((nextRunAt.getTime() - nowDate.getTime()) / 60000);
-      return new Response(JSON.stringify({ skipped: true, next_run_in_minutes: waitMin }), {
-        headers: { ...CORS, "Content-Type": "application/json" },
-      });
-    }
-
-    // Schedule next run on bell curve
-    const nextIntervalMin = bellMinutes(globalMinM, globalMaxM);
-    const nextRun = new Date(nowDate.getTime() + nextIntervalMin * 60_000).toISOString();
-    await sb.from("settings").upsert({ key: "warmup_next_run_at", value: nextRun }, { onConflict: "key" });
-
-    const now = nowDate.toISOString();
-
-    const { data: sequences } = await sb
-      .from("sequences")
-      .select("id,name,same_thread,min_interval_minutes,max_interval_minutes")
-      .eq("active", true)
-      .eq("is_warmup", true);
-
-    const results: string[] = [];
-
-    for (const seq of sequences || []) {
-      const minM = seq.min_interval_minutes ?? globalMinM;
-      const maxM = seq.max_interval_minutes ?? globalMaxM;
-
-      const { data: seqInboxRows } = await sb
-        .from("sequence_inboxes")
-        .select("inbox_id,daily_limit,use_inbox_limit,inboxes(id,email,name,brevo_api_key,active)")
-        .eq("sequence_id", seq.id)
-        .eq("active", true);
-
-      const todayStart = new Date();
-      todayStart.setUTCHours(0, 0, 0, 0);
-      const todayStr = todayStart.toISOString();
-
-      const sendsToday: Record<string, number> = {};
-      for (const row of seqInboxRows || []) {
-        const inboxId = (row as any).inbox_id;
-        if (!inboxId) continue;
-        const { data: todaySends } = await sb
-          .from("send_log")
-          .select("id", { count: "exact", head: true })
-          .eq("inbox_id", inboxId)
-          .gte("sent_at", todayStr);
-        sendsToday[inboxId] = (todaySends as any)?.length ?? 0;
-      }
-
-      const allInboxes = (seqInboxRows || []).map((r: any) => ({
-        ...r.inboxes,
-        daily_limit: r.daily_limit || 0,
-        use_inbox_limit: r.use_inbox_limit || false,
-      })).filter((ib: any) => ib && ib.active && ib.brevo_api_key);
-
-      const inboxes = allInboxes.filter((ib: any) => {
-        if (!ib.use_inbox_limit || ib.daily_limit <= 0) return true;
-        return (sendsToday[ib.id] || 0) < ib.daily_limit;
-      });
-
-      if (allInboxes.length > 0 && inboxes.length === 0) {
-        results.push(`⚠ Sequence "${seq.name}": all inboxes at daily limit — skipping`);
-        continue;
-      }
-
-      const rotationKey = `warmup_rotation_${seq.id}`;
-      const { data: rotRow } = await sb
-        .from("settings")
-        .select("value")
-        .eq("key", rotationKey)
-        .maybeSingle();
-      let rotationIndex = parseInt(String(rotRow?.value ?? "0")) || 0;
-
-      const { data: steps } = await sb
-        .from("steps")
-        .select("*")
-        .eq("sequence_id", seq.id)
-        .order("step_number");
-      if (!steps?.length) continue;
-      const totalSteps = steps.length;
-
-      const { data: due } = await sb
-        .from("enrollments")
-        .select("id,email,name,company,current_step,thread_message_id,assigned_inbox_id,next_send_at")
-        .eq("sequence_id", seq.id)
-        .eq("status", "active")
-        .or(`next_send_at.lte.${now},next_send_at.is.null`);
-
-      for (const enr of due || []) {
-        try {
-          const nextStepNum = (enr.current_step ?? 0) + 1;
-          const step = steps.find((s: any) => s.step_number === nextStepNum);
-          if (!step) continue;
-
-          let useInbox: any = null;
-          if (inboxes.length > 0) {
-            if (seq.same_thread && nextStepNum > 1 && enr.assigned_inbox_id) {
-              useInbox = inboxes.find((ib: any) => ib.id === enr.assigned_inbox_id) ?? inboxes[rotationIndex % inboxes.length];
-            } else {
-              const available = allInboxes.filter((ib: any) => {
-                if (!ib.use_inbox_limit || ib.daily_limit <= 0) return true;
-                return (sendsToday[ib.id] || 0) < ib.daily_limit;
-              });
-              if (!available.length) {
-                results.push(`⚠ All inboxes hit daily limit mid-run — stopping sequence "${seq.name}"`);
-                break;
-              }
-              useInbox = available[rotationIndex % available.length];
-              rotationIndex++;
-            }
-          }
-
-          const useApiKey    = useInbox?.brevo_api_key ?? brevoKey;
-          const useFromEmail = useInbox?.email         ?? globalFromEmail;
-          const useFromName  = useInbox?.name          ?? globalFromName;
-
-          const inReplyTo = seq.same_thread && enr.current_step > 0 ? enr.thread_message_id || "" : "";
-          const msgId = await sendBrevo(
-            useApiKey,
-            { email: useFromEmail, name: useFromName },
-            { email: enr.email, name: enr.name || "" },
-            step.subject,
-            step.body || "",
-            inReplyTo
-          );
-
-          const isLast = nextStepNum >= totalSteps;
-          const intervalMinutes = bellMinutes(minM, maxM);
-          const nextSendAt = new Date(Date.now() + intervalMinutes * 60_000).toISOString();
-
-          await sb.from("send_log").insert({
-            enrollment_id: enr.id,
-            step_id: step.id,
-            step_number: nextStepNum,
-            brevo_message_id: msgId,
-            status: "sent",
-            inbox_id: useInbox?.id ?? null,
-          });
-
-          const update: Record<string, unknown> = {
-            current_step: nextStepNum,
-            last_sent_at: now,
-            status: isLast ? "completed" : "active",
-            next_send_at: isLast ? null : nextSendAt,
-          };
-          if (seq.same_thread && nextStepNum === 1 && msgId) update.thread_message_id = msgId;
-          if (nextStepNum === 1 && useInbox?.id) update.assigned_inbox_id = useInbox.id;
-          await sb.from("enrollments").update(update).eq("id", enr.id);
-
-          results.push(`✓ ${enr.email} step ${nextStepNum} via ${useFromEmail} — next in ${intervalMinutes}m`);
-          if (useInbox?.id) sendsToday[useInbox.id] = (sendsToday[useInbox.id] || 0) + 1;
-        } catch (err: any) {
-          results.push(`✗ ${enr.email}: ${err.message}`);
-        }
-      }
-
-      if (inboxes.length > 0) {
-        await sb.from("settings").upsert(
-          { key: rotationKey, value: String(rotationIndex % inboxes.length) },
-          { onConflict: "key" }
-        );
-      }
-    }
-
-    return new Response(JSON.stringify({ sent: results.length, results, next_run_in_minutes: nextIntervalMin, next_run_at: nextRun }), {
-      headers: { ...CORS, "Content-Type": "application/json" },
+    const res  = await fetch(`${SUPABASE_URL}/rest/v1/appointments?select=*&order=appointment_utc.asc`, {
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
     });
-  } catch (err: any) {
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500, headers: { ...CORS, "Content-Type": "application/json" },
+    const appts = res.ok ? await res.json() : [];
+
+    const now    = new Date();
+    const todayS = now.toDateString();
+    const todays  = appts.filter(a => new Date(a.appointment_utc).toDateString() === todayS);
+    const futures = appts.filter(a => new Date(a.appointment_utc) > now && new Date(a.appointment_utc).toDateString() !== todayS);
+    const pasts   = appts.filter(a => new Date(a.appointment_utc) < now && new Date(a.appointment_utc).toDateString() !== todayS).reverse();
+    const sorted  = [...todays, ...futures, ...pasts];
+
+    const sel = document.getElementById("cal-client-select");
+    let count = 0;
+    sorted.forEach(appt => {
+      if (!appt.client_name && !appt.email) return;
+      const isToday   = new Date(appt.appointment_utc).toDateString() === todayS;
+      const dateLabel = isToday ? "Today" : new Date(appt.appointment_utc).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      const opt = document.createElement("option");
+      opt.value = appt.id;
+      opt.textContent = `${appt.client_name || appt.name} — ${dateLabel}${appt.phone ? " · " + appt.phone : ""}`;
+      opt.dataset.name  = appt.client_name || "";
+      opt.dataset.email = appt.email       || "";
+      opt.dataset.phone = appt.phone       || "";
+      sel.appendChild(opt);
+      count++;
     });
+
+    document.getElementById("cal-clients-label").textContent =
+      count > 0 ? `${count} client${count !== 1 ? "s" : ""} from calendar` : "No calendar clients found";
+  } catch (e) {
+    console.warn("Calendar load failed:", e);
+    document.getElementById("cal-clients-label").textContent = "Could not load calendar";
+  }
+}
+
+function fillSignerFromCalendar() {
+  const sel = document.getElementById("cal-client-select");
+  const opt = sel.options[sel.selectedIndex];
+  if (!opt || !opt.value) return;
+  if (opt.dataset.name)  document.getElementById("signer1_name").value  = opt.dataset.name;
+  if (opt.dataset.email) document.getElementById("signer1_email").value = opt.dataset.email;
+  updateSendButton();
+}
+
+/* ── SEND GUARD ── */
+function validEmailStr(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(e).trim()); }
+
+function updateSendButton() {
+  const name  = document.getElementById("signer1_name").value.trim();
+  const email = document.getElementById("signer1_email").value.trim();
+  const btn   = document.getElementById("btn-send");
+  const hint  = document.getElementById("send-hint");
+  const nameOk = name.length > 0, emailOk = validEmailStr(email);
+  if (nameOk && emailOk) { btn.disabled = false; hint.textContent = ""; }
+  else {
+    btn.disabled = true;
+    hint.textContent = !nameOk && !emailOk ? "Signer 1 name and email are required"
+                     : !nameOk             ? "Signer 1 name is required"
+                     :                       "Valid signer 1 email is required";
+  }
+}
+
+/* ── SUPABASE UPLOAD ── */
+async function uploadPdfToSupabase(file) {
+  const filePath = `uploads/${crypto.randomUUID()}.${file.name.split('.').pop()}`;
+  const { error } = await sb.storage.from("documents").upload(filePath, file, { cacheControl: "3600", upsert: false });
+  if (error) throw error;
+  return sb.storage.from("documents").getPublicUrl(filePath).data.publicUrl;
+}
+
+/* ── RENDER PDF ── */
+async function renderPDF(url) {
+  const viewer = document.getElementById("pdf-viewer");
+  viewer.innerHTML = "";
+  const pdf = await pdfjsLib.getDocument(url).promise;
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const page = await pdf.getPage(p);
+    const vp   = page.getViewport({ scale: 1.2 });
+    const canvas = document.createElement("canvas");
+    canvas.width = vp.width; canvas.height = vp.height;
+    await page.render({ canvasContext: canvas.getContext("2d"), viewport: vp }).promise;
+    const wrap = document.createElement("div");
+    wrap.className = "page-container"; wrap.dataset.page = p;
+    wrap.style.cssText = `position:relative;width:${vp.width}px;height:${vp.height}px;`;
+    wrap.appendChild(canvas);
+    viewer.appendChild(wrap);
+  }
+}
+
+/* ── FILE UPLOAD ── */
+const fileInput = document.getElementById('file-input');
+const dropZone  = document.getElementById('drop-zone');
+dropZone.addEventListener('click', () => fileInput.click());
+
+fileInput.onchange = async () => {
+  resetDocumentState();
+  const file = fileInput.files[0];
+  if (!file) return;
+  try {
+    const url = await uploadPdfToSupabase(file);
+    window.UPLOADED_PDF_URL = url;
+    document.getElementById("upload-text").innerHTML = "✓ " + file.name;
+    const ti = document.getElementById("document_title");
+    if (ti && !ti.dataset.manual) { ti.dataset.uploadName = file.name.replace(/\.pdf$/i,""); ti.value = ti.dataset.uploadName; }
+    renderPDF(url);
+  } catch (err) { console.error(err); alert("Upload failed"); }
+};
+
+/* ── RESET ── */
+function resetDocumentState() {
+  document.querySelectorAll(".signature-box").forEach(el => el.remove());
+  fieldList = []; selectedBox = null; activeDrag = resizeTarget = resizeDir = null; currentSigner = 1;
+}
+
+/* ── FIELD TYPE ── */
+function setFieldType(type, btn) {
+  currentFieldType = type;
+  document.querySelectorAll('.field-toolbar .tool-btn').forEach(b => { if (!b.id.startsWith('btn-signer')) b.classList.remove('active'); });
+  btn.classList.add('active');
+}
+
+/* ── CREATE BOX ── */
+function createSignatureBox(type, signerNum) {
+  const meta = FIELD_META[type] || { icon:"?", label:type };
+  const box  = document.createElement('div');
+  box.className = 'signature-box'; box.dataset.type = type; box.dataset.signer = signerNum;
+  box.style.cssText = 'min-width:120px;min-height:38px;';
+  const inner = document.createElement('div'); inner.className = 'sig-inner';
+  const icon  = document.createElement('span'); icon.className = 'sig-icon'; icon.textContent = meta.icon;
+  const label = document.createElement('span'); label.className = 'sig-label';
+  label.textContent = type === 'name' ? (document.getElementById(`signer${signerNum}_name`)?.value || `Full Name – S${signerNum}`) : meta.label;
+  const tag = document.createElement('span'); tag.className = 'sig-tag'; tag.textContent = `S${signerNum}`;
+  inner.appendChild(icon); inner.appendChild(label); inner.appendChild(tag);
+  box.appendChild(inner);
+  ['t','b','l','r','tl','tr','bl','br'].forEach(pos => {
+    const h = document.createElement('div'); h.className = `resize-handle resize-${pos}`; h.dataset.direction = pos; box.appendChild(h);
+  });
+  box.addEventListener('click', e => { e.stopPropagation(); selectBox(box); });
+  box.addEventListener('mousedown', e => {
+    if (e.target.classList.contains('resize-handle')) return;
+    e.stopPropagation(); activeDrag = box;
+    const r = box.getBoundingClientRect(); box.dataset.offsetX = e.clientX - r.left; box.dataset.offsetY = e.clientY - r.top;
+  });
+  return box;
+}
+
+function selectBox(box) {
+  document.querySelectorAll('.signature-box').forEach(b => b.classList.remove('selected'));
+  selectedBox = box; box.classList.add('selected');
+}
+
+/* ── PLACE FIELD ── */
+document.getElementById('pdf-viewer').addEventListener('click', e => {
+  if (e.target.closest('.signature-box') || !currentFieldType) return;
+  const pageEl = e.target.closest(".page-container"); if (!pageEl) return;
+  const rect = pageEl.getBoundingClientRect();
+  const x = e.clientX - rect.left, y = e.clientY - rect.top;
+  const pageW = pageEl.offsetWidth, pageH = pageEl.offsetHeight;
+  const box = createSignatureBox(currentFieldType, currentSigner);
+  box.style.left = (x/pageW*100)+"%"; box.style.top = (y/pageH*100)+"%";
+  pageEl.appendChild(box); enforceSignerLock();
+  const field = { id:crypto.randomUUID(), signer:currentSigner, type:currentFieldType, value:currentFieldType==='name'?(document.getElementById(`signer${currentSigner}_name`)?.value||''):'', page:Number(pageEl.dataset.page), xPct:x/pageW, yPct:y/pageH, wPct:box.offsetWidth/pageW, hPct:box.offsetHeight/pageH };
+  box.__field = field; fieldList.push(field);
+});
+
+/* ── DRAG & RESIZE ── */
+document.addEventListener('mousemove', e => {
+  if (activeDrag) {
+    const pageEl = activeDrag.closest(".page-container"); if (!pageEl) return;
+    const rect = pageEl.getBoundingClientRect();
+    activeDrag.style.left = ((e.clientX-rect.left-Number(activeDrag.dataset.offsetX))/pageEl.offsetWidth*100)+"%";
+    activeDrag.style.top  = ((e.clientY-rect.top -Number(activeDrag.dataset.offsetY))/pageEl.offsetHeight*100)+"%";
+  }
+  if (resizeTarget) {
+    const dx=e.clientX-startX, dy=e.clientY-startY, minW=80, minH=30;
+    if (resizeDir.includes('r')) resizeTarget.style.width  = Math.max(minW,startW+dx)+'px';
+    if (resizeDir.includes('l')) { const nw=Math.max(minW,startW-dx); resizeTarget.style.width=nw+'px'; resizeTarget.style.left=startLeft+(startW-nw)+'px'; }
+    if (resizeDir.includes('b')) resizeTarget.style.height = Math.max(minH,startH+dy)+'px';
+    if (resizeDir.includes('t')) { const nh=Math.max(minH,startH-dy); resizeTarget.style.height=nh+'px'; resizeTarget.style.top=startTop+(startH-nh)+'px'; }
   }
 });
+
+document.addEventListener('mouseup', () => {
+  if (activeDrag?.__field) { const f=activeDrag.__field, el=activeDrag, pg=el.closest(".page-container"); if(pg){f.xPct=el.offsetLeft/pg.offsetWidth;f.yPct=el.offsetTop/pg.offsetHeight;} }
+  activeDrag = null;
+  if (resizeTarget?.__field) { const f=resizeTarget.__field, el=resizeTarget, pg=el.closest(".page-container"); if(pg){f.xPct=el.offsetLeft/pg.offsetWidth;f.yPct=el.offsetTop/pg.offsetHeight;f.wPct=el.offsetWidth/pg.offsetWidth;f.hPct=el.offsetHeight/pg.offsetHeight;} }
+  resizeTarget = resizeDir = null;
+});
+
+document.addEventListener('mousedown', e => {
+  const h = e.target.closest('.resize-handle'); if (!h) return;
+  e.stopPropagation(); resizeTarget=h.parentElement; resizeDir=h.dataset.direction; activeDrag=null;
+  startX=e.clientX; startY=e.clientY; startW=resizeTarget.offsetWidth; startH=resizeTarget.offsetHeight; startLeft=resizeTarget.offsetLeft; startTop=resizeTarget.offsetTop;
+});
+
+document.addEventListener('keydown', e => {
+  if (!selectedBox) return;
+  if (e.key==='Delete'||e.key==='Backspace') { const id=selectedBox.__field?.id; selectedBox.remove(); if(id) fieldList=fieldList.filter(f=>f.id!==id); selectedBox=null; }
+});
+
+/* ── SIGNER SELECTOR ── */
+function setSigner(n, btn) {
+  currentSigner = n;
+  document.querySelectorAll('#btn-signer1,#btn-signer2,#btn-signer3,#btn-signer4').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active'); enforceSignerLock();
+}
+function enforceSignerLock() {
+  document.querySelectorAll('.signature-box').forEach(box => {
+    const a = Number(box.dataset.signer)===currentSigner;
+    box.style.pointerEvents = a?'auto':'none'; box.style.opacity = a?'1':'0.35';
+  });
+}
+function updateSignerVisibility() {
+  const count = Number(document.getElementById('signer_count').value);
+  for (let i=2;i<=4;i++) { const r=document.getElementById(`signer${i}_row`); if(r) r.style.display=i<=count?'block':'none'; }
+}
+
+/* ── CANDIDATES (webhook) ── */
+async function fetchCandidates() {
+  try {
+    const res  = await fetch(CANDIDATE_LOOKUP_WEBHOOK, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({action:"get_signers"}) });
+    if (!res.ok) throw new Error();
+    candidates = (await res.json()) || []; showDropdown(candidates);
+  } catch { alert("Could not load candidates"); }
+}
+function filterCandidates(q) {
+  if (!candidates.length) return;
+  const ql = q.toLowerCase();
+  showDropdown(candidates.filter(c => c.name?.toLowerCase().includes(ql)||c.email?.toLowerCase().includes(ql)||c.jira_code?.toLowerCase().includes(ql)).slice(0,10));
+}
+function showDropdown(list) {
+  const dd = document.getElementById("candidate-dropdown"); dd.innerHTML="";
+  if (!list.length) { dd.classList.add("hidden"); return; }
+  list.forEach(c => {
+    const div = document.createElement("div"); div.className="candidate-item";
+    div.innerHTML=`<strong style="color:var(--text)">${c.name}</strong><br><span style="color:var(--text-dim);font-size:12px;">${c.email} · ${c.jira_code||""}</span>`;
+    div.onclick=()=>applyCandidate(c); dd.appendChild(div);
+  });
+  dd.classList.remove("hidden");
+}
+function applyCandidate(c) {
+  document.getElementById("signer1_name").value  = c.name||"";
+  document.getElementById("signer1_email").value = c.email||"";
+  document.getElementById("jira_code").value     = c.jira_code||"";
+  document.getElementById("candidate-dropdown").classList.add("hidden");
+  updateSendButton();
+}
+document.addEventListener("click", e => {
+  if (e.target.closest("#candidate-dropdown")||e.target.closest("#signer1_name")||e.target.closest(".tool-btn")||e.target.closest(".resource-btn")) return;
+  document.getElementById("candidate-dropdown")?.classList.add("hidden");
+});
+
+/* ── NAME SYNC ── */
+function attachNameSync(n) {
+  const input = document.getElementById(`signer${n}_name`); if (!input) return;
+  input.addEventListener("input", () => {
+    document.querySelectorAll('.signature-box').forEach(b => { if(b.dataset.type==='name'&&Number(b.dataset.signer)===n) b.querySelector('.sig-label').textContent=input.value||`Full Name – S${n}`; });
+    fieldList.forEach(f => { if(f.type==='name'&&f.signer===n) f.value=input.value||''; });
+  });
+}
+[1,2,3,4].forEach(attachNameSync);
+
+/* ── RESOURCE BUTTON ── */
+async function requestResourceDoc(docType) {
+  try {
+    await fetch(RESOURCE_WEBHOOK_URL, {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({
+        action:          "request_document",
+        document_type:   docType,
+        jira_code:       document.getElementById("jira_code")?.value?.trim() || "",
+        requestor_name:  document.getElementById("signer1_name")?.value  || "Internal Staff",
+        requestor_email: document.getElementById("signer1_email")?.value || "Internal HR Request",
+        timestamp:       new Date().toISOString()
+      })
+    });
+    alert(`${docType} requested successfully.`);
+  } catch (err) { console.error(err); alert("Request failed."); }
+}
+
+/* ── SUBMIT ── */
+async function submitData() {
+  const name  = document.getElementById("signer1_name").value.trim();
+  const email = document.getElementById("signer1_email").value.trim();
+  if (!name || !validEmailStr(email)) { updateSendButton(); return; }
+
+  try {
+    const titleInput = document.getElementById("document_title");
+
+    const signers = [
+      { signer_order:1, name:document.getElementById("signer1_name").value, email:document.getElementById("signer1_email").value },
+      { signer_order:2, name:document.getElementById("signer2_name").value, email:document.getElementById("signer2_email").value },
+      { signer_order:3, name:document.getElementById("signer3_name").value, email:document.getElementById("signer3_email").value },
+      { signer_order:4, name:document.getElementById("signer4_name").value, email:document.getElementById("signer4_email").value }
+    ].filter(s => s.email);
+
+    const { data:doc, error:docError } = await sb.from("signer_documents").insert({
+      jira_code:   document.getElementById("jira_code")?.value || "",
+      title:       titleInput?.value || name,
+      template_name: "",
+      pdf_url:     window.UPLOADED_PDF_URL || "",
+      custom_email: ""
+    }).select().single();
+    if (docError) throw docError;
+
+    const docId = doc.doc_id;
+    let signerRows = [];
+    if (signers.length) {
+      signerRows = signers.map(s=>({doc_id:docId,signer_order:s.signer_order,name:s.name,email:s.email,token:crypto.randomUUID()}));
+      const { error:signerError } = await sb.from("signers").insert(signerRows);
+      if (signerError) throw signerError;
+    }
+
+    if (fieldList.length) {
+      const { error:fieldError } = await sb.from("document_fields").insert(fieldList.map(f=>({doc_id:docId,signer_order:f.signer,field_type:f.type,value:f.value||"",page:f.page,x_pct:f.xPct,y_pct:f.yPct,w_pct:f.wPct,h_pct:f.hPct})));
+      if (fieldError) throw fieldError;
+    }
+
+    await fetch(MAKE_WEBHOOK_URL, {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({
+        doc_id:       docId,
+        title:        titleInput?.value || name,
+        template:     "",
+        pdf_url:      window.UPLOADED_PDF_URL || "",
+        custom_email: "",
+        signer1_name: signerRows[0]?.name||null,  signer1_email:signerRows[0]?.email||null,  signer1_token:signerRows[0]?.token||null,
+        signer2_name: signerRows[1]?.name||null,  signer2_email:signerRows[1]?.email||null,  signer2_token:signerRows[1]?.token||null,
+        signer3_name: signerRows[2]?.name||null,  signer3_email:signerRows[2]?.email||null,  signer3_token:signerRows[2]?.token||null,
+        signer4_name: signerRows[3]?.name||null,  signer4_email:signerRows[3]?.email||null,  signer4_token:signerRows[3]?.token||null
+      })
+    });
+
+    alert("Document sent successfully for signature.");
+  } catch (err) { console.error("Submit failed:", err); alert("Failed to send document. Check console."); }
+}
+
+/* ── INIT ── */
+(async function() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) document.getElementById('login-overlay').style.display = 'none';
+  loadCalendarClients();
+})();
+</script>
+</body>
+</html>
