@@ -1,0 +1,267 @@
+import { createClient } from "npm:@supabase/supabase-js@2";
+
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+function bellMinutes(min: number, max: number): number {
+  let sum = 0;
+  for (let i = 0; i < 6; i++) sum += Math.random();
+  return Math.round(min + (sum / 6) * (max - min));
+}
+
+function personalize(body: string, email: string, name: string): string {
+  const display = name || email.split("@")[0];
+  const parts = display.split(" ");
+  const first = parts[0] || display;
+  const last = parts.length > 1 ? parts[parts.length - 1] : "";
+  const now = new Date();
+  const today = now.toLocaleDateString("en-US", { month: "long", day: "2-digit", year: "numeric" });
+  const month = now.toLocaleDateString("en-US", { month: "long" });
+  return body
+    .replace(/\{\{\.?Subscriber\.?FirstName\}\}/g, first)
+    .replace(/\{\{\.?Subscriber\.?LastName\}\}/g, last)
+    .replace(/\{\{\.?Subscriber\.?Name\}\}/g, display)
+    .replace(/\{\{\.?Subscriber\.?Email\}\}/g, email)
+    .replace(/\{\{name\}\}/g, display)
+    .replace(/\{\{first_name\}\}/g, first)
+    .replace(/\{\{last_name\}\}/g, last)
+    .replace(/\{\{email\}\}/g, email)
+    .replace(/\{\{today\}\}/g, today)
+    .replace(/\{\{this_month\}\}/g, month);
+}
+
+async function sendBrevo(
+  apiKey: string,
+  from: { email: string; name: string },
+  to: { email: string; name: string },
+  subject: string,
+  body: string,
+  inReplyTo?: string
+) {
+  const text = personalize(body, to.email, to.name);
+  const html = text.includes("<") ? text : "<html><body>" + text.replace(/\n/g, "<br>") + "</body></html>";
+  const payload: Record<string, unknown> = {
+    sender: { email: from.email, name: from.name },
+    to: [{ email: to.email, name: to.name || to.email }],
+    subject,
+    htmlContent: html,
+    tags: ["warmup"],
+  };
+  if (inReplyTo) payload.headers = { "In-Reply-To": inReplyTo, References: inReplyTo };
+  const r = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: { "api-key": apiKey, "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!r.ok) throw new Error(`Brevo ${r.status}: ${await r.text()}`);
+  return ((await r.json()).messageId ?? "") as string;
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: CORS });
+  }
+
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const sb = createClient(supabaseUrl, supabaseKey);
+
+    const { data: settingsRows } = await sb.from("settings").select("key,value");
+    const cfg: Record<string, string> = {};
+    for (const r of settingsRows || []) cfg[r.key] = String(r.value ?? "").replace(/^"|"$/g, "");
+
+    const brevoKey = cfg.brevo_api_key;
+    const rawFrom = cfg.from_email ?? "";
+    const fromMatch = rawFrom.match(/^(.+?)\s*<(.+?)>$/);
+    const globalFromEmail = fromMatch ? fromMatch[2] : rawFrom;
+    const globalFromName = cfg.from_name || globalFromEmail;
+
+    if (!brevoKey || !globalFromEmail) {
+      return new Response(JSON.stringify({ error: "brevo_api_key or from_email not set" }), {
+        status: 500, headers: { ...CORS, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── Bell curve interval check ──
+    const globalMinM = parseInt(cfg.warmup_min_minutes || "5");
+    const globalMaxM = parseInt(cfg.warmup_max_minutes || "15");
+    const nowDate = new Date();
+    const nextRunAt = cfg.warmup_next_run_at ? new Date(cfg.warmup_next_run_at) : null;
+    const isManual = req.headers.get("x-manual-trigger") === "1";
+
+    if (!isManual && nextRunAt && nowDate < nextRunAt) {
+      const waitMin = Math.round((nextRunAt.getTime() - nowDate.getTime()) / 60000);
+      return new Response(JSON.stringify({ skipped: true, next_run_in_minutes: waitMin }), {
+        headers: { ...CORS, "Content-Type": "application/json" },
+      });
+    }
+
+    // Schedule next run on bell curve
+    const nextIntervalMin = bellMinutes(globalMinM, globalMaxM);
+    const nextRun = new Date(nowDate.getTime() + nextIntervalMin * 60_000).toISOString();
+    await sb.from("settings").upsert({ key: "warmup_next_run_at", value: nextRun }, { onConflict: "key" });
+
+    const now = nowDate.toISOString();
+
+    const { data: sequences } = await sb
+      .from("sequences")
+      .select("id,name,same_thread,min_interval_minutes,max_interval_minutes")
+      .eq("active", true)
+      .eq("is_warmup", true);
+
+    const results: string[] = [];
+
+    for (const seq of sequences || []) {
+      const minM = seq.min_interval_minutes ?? globalMinM;
+      const maxM = seq.max_interval_minutes ?? globalMaxM;
+
+      const { data: seqInboxRows } = await sb
+        .from("sequence_inboxes")
+        .select("inbox_id,daily_limit,use_inbox_limit,inboxes(id,email,name,brevo_api_key,active)")
+        .eq("sequence_id", seq.id)
+        .eq("active", true);
+
+      const todayStart = new Date();
+      todayStart.setUTCHours(0, 0, 0, 0);
+      const todayStr = todayStart.toISOString();
+
+      const sendsToday: Record<string, number> = {};
+      for (const row of seqInboxRows || []) {
+        const inboxId = (row as any).inbox_id;
+        if (!inboxId) continue;
+        const { data: todaySends } = await sb
+          .from("send_log")
+          .select("id", { count: "exact", head: true })
+          .eq("inbox_id", inboxId)
+          .gte("sent_at", todayStr);
+        sendsToday[inboxId] = (todaySends as any)?.length ?? 0;
+      }
+
+      const allInboxes = (seqInboxRows || []).map((r: any) => ({
+        ...r.inboxes,
+        daily_limit: r.daily_limit || 0,
+        use_inbox_limit: r.use_inbox_limit || false,
+      })).filter((ib: any) => ib && ib.active && ib.brevo_api_key);
+
+      const inboxes = allInboxes.filter((ib: any) => {
+        if (!ib.use_inbox_limit || ib.daily_limit <= 0) return true;
+        return (sendsToday[ib.id] || 0) < ib.daily_limit;
+      });
+
+      if (allInboxes.length > 0 && inboxes.length === 0) {
+        results.push(`⚠ Sequence "${seq.name}": all inboxes at daily limit — skipping`);
+        continue;
+      }
+
+      const rotationKey = `warmup_rotation_${seq.id}`;
+      const { data: rotRow } = await sb
+        .from("settings")
+        .select("value")
+        .eq("key", rotationKey)
+        .maybeSingle();
+      let rotationIndex = parseInt(String(rotRow?.value ?? "0")) || 0;
+
+      const { data: steps } = await sb
+        .from("steps")
+        .select("*")
+        .eq("sequence_id", seq.id)
+        .order("step_number");
+      if (!steps?.length) continue;
+      const totalSteps = steps.length;
+
+      const { data: due } = await sb
+        .from("enrollments")
+        .select("id,email,name,company,current_step,thread_message_id,assigned_inbox_id,next_send_at")
+        .eq("sequence_id", seq.id)
+        .eq("status", "active")
+        .or(`next_send_at.lte.${now},next_send_at.is.null`);
+
+      for (const enr of due || []) {
+        try {
+          const nextStepNum = (enr.current_step ?? 0) + 1;
+          const step = steps.find((s: any) => s.step_number === nextStepNum);
+          if (!step) continue;
+
+          let useInbox: any = null;
+          if (inboxes.length > 0) {
+            if (seq.same_thread && nextStepNum > 1 && enr.assigned_inbox_id) {
+              useInbox = inboxes.find((ib: any) => ib.id === enr.assigned_inbox_id) ?? inboxes[rotationIndex % inboxes.length];
+            } else {
+              const available = allInboxes.filter((ib: any) => {
+                if (!ib.use_inbox_limit || ib.daily_limit <= 0) return true;
+                return (sendsToday[ib.id] || 0) < ib.daily_limit;
+              });
+              if (!available.length) {
+                results.push(`⚠ All inboxes hit daily limit mid-run — stopping sequence "${seq.name}"`);
+                break;
+              }
+              useInbox = available[rotationIndex % available.length];
+              rotationIndex++;
+            }
+          }
+
+          const useApiKey    = useInbox?.brevo_api_key ?? brevoKey;
+          const useFromEmail = useInbox?.email         ?? globalFromEmail;
+          const useFromName  = useInbox?.name          ?? globalFromName;
+
+          const inReplyTo = seq.same_thread && enr.current_step > 0 ? enr.thread_message_id || "" : "";
+          const msgId = await sendBrevo(
+            useApiKey,
+            { email: useFromEmail, name: useFromName },
+            { email: enr.email, name: enr.name || "" },
+            step.subject,
+            step.body || "",
+            inReplyTo
+          );
+
+          const isLast = nextStepNum >= totalSteps;
+          const intervalMinutes = bellMinutes(minM, maxM);
+          const nextSendAt = new Date(Date.now() + intervalMinutes * 60_000).toISOString();
+
+          await sb.from("send_log").insert({
+            enrollment_id: enr.id,
+            step_id: step.id,
+            step_number: nextStepNum,
+            brevo_message_id: msgId,
+            status: "sent",
+            inbox_id: useInbox?.id ?? null,
+          });
+
+          const update: Record<string, unknown> = {
+            current_step: nextStepNum,
+            last_sent_at: now,
+            status: isLast ? "completed" : "active",
+            next_send_at: isLast ? null : nextSendAt,
+          };
+          if (seq.same_thread && nextStepNum === 1 && msgId) update.thread_message_id = msgId;
+          if (nextStepNum === 1 && useInbox?.id) update.assigned_inbox_id = useInbox.id;
+          await sb.from("enrollments").update(update).eq("id", enr.id);
+
+          results.push(`✓ ${enr.email} step ${nextStepNum} via ${useFromEmail} — next in ${intervalMinutes}m`);
+          if (useInbox?.id) sendsToday[useInbox.id] = (sendsToday[useInbox.id] || 0) + 1;
+        } catch (err: any) {
+          results.push(`✗ ${enr.email}: ${err.message}`);
+        }
+      }
+
+      if (inboxes.length > 0) {
+        await sb.from("settings").upsert(
+          { key: rotationKey, value: String(rotationIndex % inboxes.length) },
+          { onConflict: "key" }
+        );
+      }
+    }
+
+    return new Response(JSON.stringify({ sent: results.length, results, next_run_in_minutes: nextIntervalMin, next_run_at: nextRun }), {
+      headers: { ...CORS, "Content-Type": "application/json" },
+    });
+  } catch (err: any) {
+    return new Response(JSON.stringify({ error: err.message }), {
+      status: 500, headers: { ...CORS, "Content-Type": "application/json" },
+    });
+  }
+});
