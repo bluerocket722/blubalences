@@ -763,13 +763,12 @@ function validateAllFields(){
   const pct=total>0?Math.round((completed/total)*100):0;
   document.getElementById("progressFill").style.width=pct+"%";
   document.getElementById("progressText").textContent=`${completed} / ${total}`;
-  document.getElementById("finishBtn").disabled=false; // DEBUG: always clickable
+  document.getElementById("finishBtn").disabled=!(esignAccepted&&(total===0||completed===total));
 }
 
 document.getElementById("finishBtn")?.addEventListener("click",async()=>{
   const btn=document.getElementById("finishBtn");
   try{
-    alert("DEBUG 1: Finish clicked");
     btn.disabled=true;
     const completedFields=[];
     document.querySelectorAll(".field").forEach(field=>{
@@ -791,7 +790,6 @@ document.getElementById("finishBtn")?.addEventListener("click",async()=>{
     } else {
       finalPdfBytes = isW9Document()?await applyFieldsToPdfNative(basePdfUrl,completedFields):await flattenPdfWithSignatures(basePdfUrl,completedFields);
     }
-    alert("DEBUG 2: PDF built ("+finalPdfBytes.length+" bytes), sending to finalize…");
     const pdfSha256=await sha256HexFromBytes(finalPdfBytes);
     // Always send the final bytes — the edge function stores them (private + encrypted).
     const pdfBase64=btoa(new Uint8Array(finalPdfBytes).reduce((s,b)=>s+String.fromCharCode(b),""));
@@ -813,8 +811,7 @@ document.getElementById("finishBtn")?.addEventListener("click",async()=>{
       })
     });
     const result = await resp.json().catch(()=>({}));
-    alert("DEBUG 3: finalize responded "+resp.status+" "+JSON.stringify(result));
-    if(!resp.ok){ btn.disabled=false; return; }
+    if(!resp.ok){ alert("Finalize failed ("+resp.status+"): "+(result.error||"see function logs")); btn.disabled=false; return; }
     document.body.innerHTML=`<div style="position:fixed;inset:0;background:#202124;color:#e8eaed;display:flex;align-items:center;justify-content:center;font-family:'Roboto',system-ui;z-index:999999;padding:40px;"><div style="text-align:center;max-width:420px;"><div style="width:64px;height:64px;background:rgba(15,157,88,0.12);border:1px solid rgba(15,157,88,0.3);border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 24px;font-size:28px;">✓</div><h1 style="font-size:24px;font-weight:400;margin-bottom:12px;letter-spacing:-.3px;">Document Signed</h1><p style="color:rgba(255,255,255,0.5);font-size:14px;line-height:1.7;">This document has been securely completed and recorded by Blu Balence. For your protection, the signed document is no longer viewable on this device.</p></div></div>`;
     document.documentElement.style.overflow="hidden"; document.body.style.overflow="hidden";
   }catch(err){
